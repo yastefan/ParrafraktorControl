@@ -124,6 +124,15 @@ WantedBy=multi-user.target
 sudo systemctl enable --now parrafraktor
 ```
 
+## Vorschau
+
+Die Vorschau im Client rechnet mit derselben Engine wie der Server. Wie sie aussieht, hängt vom Aufbau ab (Einstellungen → Aufbau):
+
+- **nebeneinander**: Draufsicht, jeder Spiegel als Strich.
+- **hintereinander, gedreht** (wie „Classic“ in der Simulation, Vorgabe vorn 0°, Mitte 45°, hinten 90°): Vorderansicht durch alle drei Elemente, rechts jedes Element einzeln. Unten links schaltet man zwischen **Spiegel** (die Spiegel mit Gegenlicht) und **Licht** um: Dann zeigt die Vorschau nur das Licht, das von hinten durch alle drei Lagen kommt. Die Wahl merkt sich jedes Gerät selbst.
+
+Der Aufbau betrifft nur die Vorschau, nicht die Ausgabe an die Spiegel.
+
 ## Ausgabe und Übernahme
 
 Im Einstellungsmenü lassen sich Art-Net, sACN und (später) RS485 einzeln einschalten, jeweils mit Ziel-IP und Netzwerkkarte.

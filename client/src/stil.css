@@ -139,6 +139,10 @@ button, input, select { font: inherit; color: inherit; }
 
 .links { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
+.vorschau-rahmen { position: relative; }
+.vorschau-modus { position: absolute; left: 10px; bottom: 10px; }
+.vorschau-modus button { min-height: 34px; }
+
 .vorschau {
   width: 100%;
   aspect-ratio: 4 / 1;
@@ -146,6 +150,8 @@ button, input, select { font: inherit; color: inherit; }
   border-radius: var(--radius);
   display: block;
 }
+/* Vorderansicht: Gesamtbild plus Spalte mit den Elementen einzeln */
+.vorn .vorschau { aspect-ratio: 4 / 3; max-height: 62vh; }
 
 .patterns {
   display: grid;
@@ -307,3 +313,4 @@ input[type="range"]::-moz-range-thumb {
 .module { list-style: none; margin: 0; padding: 0; }
 .module li { display: flex; align-items: baseline; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
 .module .punkt { transform: translateY(-1px); }
+.zahl.schmal input { width: 72px; }

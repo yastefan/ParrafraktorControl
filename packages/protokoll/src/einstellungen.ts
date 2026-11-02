@@ -22,7 +22,19 @@ export interface Rs485Einstellungen {
   geraet: string;      // serielle Schnittstelle, z. B. /dev/serial0 am Raspberry Pi
 }
 
+// Wie die Elemente im Raum stehen. Betrifft nur die Vorschau, nicht die Ausgabe.
+//   reihe:           nebeneinander, Vorschau von oben
+//   hintereinander:  hintereinander, jedes in seiner Ebene gedreht (wie "Classic"), Vorschau von vorn
+export type Anordnung = "reihe" | "hintereinander";
+export const ANORDNUNGEN: readonly Anordnung[] = ["reihe", "hintereinander"];
+
+export interface Aufbau {
+  anordnung: Anordnung;
+  drehung: number[];   // je Element Drehung in seiner Ebene, Grad (Element 1 = vorn)
+}
+
 export interface Einstellungen {
+  aufbau: Aufbau;
   patch: PatchElement[];   // je Element Universe und Startadresse
   rotateMaxUpm: number;    // Umdrehungen pro Minute bei TiltRotate 0 bzw. 255
   ueberblendungS: number;  // Überblendung beim Übernehmen und Abgeben, 0 = springen
@@ -32,6 +44,8 @@ export interface Einstellungen {
 }
 
 export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
+  // vorn senkrecht, Mitte diagonal, hinten waagerecht
+  aufbau: { anordnung: "reihe", drehung: [0, 45, 90] },
   patch: PATCH_VORGABE.map((e) => ({ ...e })),
   // Platzhalter, bis die Drehzahl der Spiegel-Firmware bekannt ist – bewusst langsam
   rotateMaxUpm: 10,
@@ -48,6 +62,7 @@ export const GRENZEN = {
   ueberblendungS: { min: 0, max: 10 },
   priority: { min: 1, max: 200 },
   versatz: { min: -1, max: 0 },
+  drehung: { min: -180, max: 180 },
 } as const;
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
@@ -75,8 +90,15 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
     const e = objekt(rohPatch[k]);
     return { universe: zahl(e.universe, alt.universe, GRENZEN.universe), adresse: zahl(e.adresse, alt.adresse, GRENZEN.adresse) };
   });
-  const a = objekt(r.artnet), s = objekt(r.sacn), rs = objekt(r.rs485);
+  const a = objekt(r.artnet), s = objekt(r.sacn), rs = objekt(r.rs485), au = objekt(r.aufbau);
+  const rohDrehung = Array.isArray(au.drehung) ? au.drehung : [];
+  const aufbau: Aufbau = {
+    anordnung: ANORDNUNGEN.includes(au.anordnung as Anordnung) ? (au.anordnung as Anordnung) : basis.aufbau.anordnung,
+    drehung: Array.from({ length: ELEMENTE }, (_, k) =>
+      zahl(rohDrehung[k], basis.aufbau.drehung[k] ?? 0, GRENZEN.drehung)),
+  };
   return {
+    aufbau,
     patch,
     rotateMaxUpm: zahl(r.rotateMaxUpm, basis.rotateMaxUpm, GRENZEN.rotateMaxUpm, false),
     ueberblendungS: zahl(r.ueberblendungS, basis.ueberblendungS, GRENZEN.ueberblendungS, false),

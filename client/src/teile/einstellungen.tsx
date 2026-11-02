@@ -1,10 +1,10 @@
-// Einstellungsmenü: Übernahme, Spiegel, Patch, Ausgaben, Status.
-// Regler (Überblendung, Drehzahl) wirken sofort. Patch und Netzwerk werden gesammelt und erst mit
+// Einstellungsmenü: Aufbau, Übernahme, Spiegel, Patch, Ausgaben, Status.
+// Aufbau und Regler (Überblendung, Drehzahl) wirken sofort. Patch und Netzwerk werden gesammelt und erst mit
 // "Speichern" geschickt, weil der Server dafür die Ausgaben neu startet.
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { ELEMENTE } from "@parrafraktor/engine";
-import { GRENZEN, istIpv4, type Einstellungen as E, type Stand } from "@parrafraktor/protokoll";
+import { GRENZEN, istIpv4, type Anordnung, type Einstellungen as E, type Stand } from "@parrafraktor/protokoll";
 import { laden } from "../laden.js";
 
 interface Props {
@@ -44,6 +44,36 @@ export function Einstellungen({ stand, schliessen }: Props) {
         {stand.warnungen.length > 0 && (
           <ul class="warnungen">{stand.warnungen.map((w) => <li key={w}>{w}</li>)}</ul>
         )}
+
+        <Gruppe titel="Aufbau">
+          <label class="feldzeile">
+            <span class="name">Elemente</span>
+            <select value={entwurf.aufbau.anordnung} onChange={(ev) => sofort({
+              aufbau: { ...entwurf.aufbau, anordnung: (ev.currentTarget as HTMLSelectElement).value as Anordnung },
+            })}>
+              <option value="reihe">nebeneinander (Draufsicht)</option>
+              <option value="hintereinander">hintereinander, gedreht (Vorderansicht)</option>
+            </select>
+          </label>
+          {entwurf.aufbau.anordnung === "hintereinander" && (
+            <>
+              <div class="feldzeile">
+                <span class="name">Drehung</span>
+                {Array.from({ length: ELEMENTE }, (_, k) => (
+                  <Zahl
+                    key={k} name={k === 0 ? "1 vorn" : k === ELEMENTE - 1 ? `${k + 1} hinten` : String(k + 1)}
+                    grenzen={GRENZEN.drehung} wert={entwurf.aufbau.drehung[k] ?? 0} schmal
+                    setze={(v) => sofort({ aufbau: { ...entwurf.aufbau, drehung: entwurf.aufbau.drehung.map((d, i) => (i === k ? v : d)) } })}
+                  />
+                ))}
+              </div>
+              <p class="hilfe">
+                Drehung jedes Elements in seiner Ebene, in Grad. Betrifft nur die Vorschau. Für diesen Aufbau passt
+                meist die Reihenfolge „je Element“.
+              </p>
+            </>
+          )}
+        </Gruppe>
 
         <Gruppe titel="Übernahme">
           <Schieber
@@ -178,9 +208,9 @@ function Schieber(p: {
   );
 }
 
-function Zahl(p: { name: string; grenzen: Grenzen; wert: number; setze: (v: number) => void }) {
+function Zahl(p: { name: string; grenzen: Grenzen; wert: number; schmal?: boolean; setze: (v: number) => void }) {
   return (
-    <label class="zahl">
+    <label class={`zahl ${p.schmal ? "schmal" : ""}`}>
       <span>{p.name}</span>
       <input
         type="number" inputMode="numeric" min={p.grenzen.min} max={p.grenzen.max} value={p.wert}

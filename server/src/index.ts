@@ -109,8 +109,15 @@ function stand(): Stand {
 // ---------- Start ----------
 
 steuerung.on("parameter", (p) => speicher.schreibeSpaeter("parameter.json", p, 2000));
+// Ausgaben nur neu starten, wenn sich Netz oder Patch ändern. Ein Neustart gibt bei sACN kurz
+// an die MA ab – das darf nicht passieren, nur weil jemand die Überblendung oder die Vorschau verstellt.
+const ausgabeTeil = (e: Einstellungen) => JSON.stringify([e.artnet, e.sacn, e.rs485, e.patch]);
+let letzteAusgabe = ausgabeTeil(steuerung.einstellungen);
 steuerung.on("einstellungen", (e) => {
   speicher.schreibeSpaeter("einstellungen.json", e);
+  const teil = ausgabeTeil(e);
+  if (teil === letzteAusgabe) return;
+  letzteAusgabe = teil;
   starteAusgaben(e);
 });
 

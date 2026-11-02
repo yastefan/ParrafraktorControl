@@ -72,7 +72,7 @@ export class Takt {
     const { parameter, einstellungen, uebernahme } = this.steuerung;
     this.engine.weiter(parameter, dt);
 
-    const ma = this.quellen.mitlesen()?.stellungen() ?? null;
+    const ma = this.quellen.mitlesen()?.stellungen(einstellungen.rotateMaxUpm) ?? null;
     const vorher = uebernahme.zustand;
     const { zustand, anteil } = uebernahmeSchritt(
       vorher, uebernahme.anteil, uebernahme.soll, dt, einstellungen.ueberblendungS, ma !== null,
