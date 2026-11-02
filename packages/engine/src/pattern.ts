@@ -105,17 +105,41 @@ function auswahl(p: Parameter, nr: number, n: number): Auswahl {
   return { platz, anzahl, anteil, versatz: (p.phase / 360) * (platz / anzahl) };
 }
 
+// Zeitkonstante, mit der die Spiegel wieder zusammenlaufen, wenn alle gleich schnell sind
+const GLEICHLAUF_S = 0.4;
+
 export class Engine {
-  // bisher gelaufene Durchläufe bei Speed "von" bzw. "bis"
+  // Durchläufe bei Speed "von": Bezug für Ping-Pong und für den Gleichlauf
   umlaufVon = 0;
-  umlaufBis = 0;
+  // bisher gelaufene Durchläufe je Spiegel. Jeder Spiegel zählt selbst, damit beim Verstellen
+  // von Speed nichts springt – das Muster läuft nur schneller oder langsamer.
+  readonly umlauf = new Float64Array(SPIEGEL_GESAMT);
 
   // Zeit weiterlaufen lassen (dt in Sekunden)
   weiter(p: Parameter, dt: number): void {
     if (!p.laeuft) return;
     const [von, bis] = speeds(p);
     this.umlaufVon += (dt * von) / 60;
-    this.umlaufBis += (dt * bis) / 60;
+    const zug = 1 - Math.exp(-dt / GLEICHLAUF_S);
+    for (let g = 0; g < SPIEGEL_GESAMT; g++) {
+      if (von === bis) {
+        // Alle gleich schnell (Speed bis aus): Abstand zum Bezug abbauen, damit bei Phase 0 wieder
+        // alle Spiegel gleich laufen. Ganze Durchläufe sind unsichtbar und fallen sofort weg,
+        // der Rest (höchstens ½ Durchlauf) läuft weich auf dem kürzesten Weg zu.
+        this.umlauf[g] += (dt * von) / 60;
+        const d = this.umlaufVon - this.umlauf[g];
+        const ganz = Math.round(d);
+        this.umlauf[g] += ganz + (d - ganz) * zug;
+      } else {
+        this.umlauf[g] += (dt * (von + (bis - von) * this.anteil(p, g))) / 60;
+      }
+    }
+  }
+
+  // Umlauf setzen wie in der Simulation, die nur die Zähler für "von" und "bis" kennt
+  setzeUmlauf(p: Parameter, von: number, bis: number): void {
+    this.umlaufVon = von;
+    for (let g = 0; g < SPIEGEL_GESAMT; g++) this.umlauf[g] = von + (bis - von) * this.anteil(p, g);
   }
 
   // Stellung des Spiegels g (0 … 35, Element k = g / 12)
@@ -139,10 +163,10 @@ export class Engine {
     return p.jeElement ? [g % SPIEGEL_N, SPIEGEL_N] : [g, SPIEGEL_GESAMT];
   }
 
-  // Bisherige Laufzeit im Bogenmaß. Weil beide Umläufe getrennt mitgezählt werden,
-  // springt beim Verstellen von Speed nichts – das Muster läuft nur schneller oder langsamer.
-  private laufzeit(anteil: number): number {
-    return 2 * Math.PI * (this.umlaufVon + (this.umlaufBis - this.umlaufVon) * anteil);
+  // Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis
+  private anteil(p: Parameter, g: number): number {
+    const [nr, n] = this.lage(p, g);
+    return auswahl(p, nr, n).anteil;
   }
 
   // Ausschlag des Patterns (in Grad)
@@ -150,8 +174,9 @@ export class Engine {
     const A = p.amplitude;
     const [nr, n] = this.lage(p, g);
     const seite = nr < n / 2 ? -1 : 1;   // linke Hälfte dreht gespiegelt
-    const { platz, anzahl, anteil, versatz } = auswahl(p, nr, n);
-    const t = this.laufzeit(anteil) - versatz * 2 * Math.PI;
+    const { platz, anzahl, versatz } = auswahl(p, nr, n);
+    // bisherige Laufzeit im Bogenmaß, verschoben um die Phase
+    const t = 2 * Math.PI * (this.umlauf[g]! - versatz);
     const zyklus = (((t / (2 * Math.PI)) % 1) + 1) % 1;   // 0 … 1, wiederholt sich
     switch (p.modus) {
       // Sinus läuft von der Mitte nach außen bzw. von außen zur Mitte, beide Hälften gespiegelt
@@ -175,13 +200,13 @@ export class Engine {
       }
       // Ping-Pong: ein offener Spiegel wandert hin und her
       case "pingpong": {
-        const z = (((this.laufzeit(0) / (2 * Math.PI)) % 1) + 1) % 1;
+        const z = ((this.umlaufVon % 1) + 1) % 1;
         const ort = (1 - Math.abs(2 * z - 1)) * (anzahl - 1);
         return A * Math.max(0, 1 - Math.abs(platz - ort));
       }
       // Funkeln: einzelne Spiegel blitzen zu zufälligen Zeiten in zufällige Richtungen auf
       case "funkeln": {
-        const takt = (this.laufzeit(anteil) / (2 * Math.PI)) * 6 + zufall(g, 0);
+        const takt = this.umlauf[g]! * 6 + zufall(g, 0);
         const nummer = Math.floor(takt);
         if (zufall(g, nummer) > 0.3) return 0;
         const richtung = zufall(nummer, g) < 0.5 ? -1 : 1;

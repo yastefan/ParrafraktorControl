@@ -1,8 +1,13 @@
 // Live-Vorschau: Draufsicht auf die drei Elemente, gerechnet mit derselben Engine wie auf dem Server.
 // Die Engine läuft lokal weiter (auch ohne Verbindung) und wird über den Takt im Stand nachgezogen.
 import { ELEMENTE, Engine, SPIEGEL_N, type Parameter, type Stellung } from "@parrafraktor/engine";
+import type { Takt } from "@parrafraktor/protokoll";
 
 const ABWEICHUNG_MAX = 0.05;   // Durchläufe; größere Abweichungen werden sofort übernommen
+
+// Kleine Abweichungen weich nachziehen, damit die Vorschau nicht ruckelt
+const nachziehen = (lokal: number, server: number): number =>
+  Math.abs(server - lokal) > ABWEICHUNG_MAX ? server : lokal + (server - lokal) * 0.2;
 
 export class Vorschau {
   private engine = new Engine();
@@ -35,13 +40,10 @@ export class Vorschau {
   }
 
   // Takt vom Server übernehmen
-  gleiche(takt: { umlaufVon: number; umlaufBis: number }): void {
+  gleiche(takt: Takt): void {
     const e = this.engine;
-    const d = Math.max(Math.abs(e.umlaufVon - takt.umlaufVon), Math.abs(e.umlaufBis - takt.umlaufBis));
-    // Kleine Abweichungen weich nachziehen, damit die Vorschau nicht ruckelt
-    const f = d > ABWEICHUNG_MAX ? 1 : 0.2;
-    e.umlaufVon += (takt.umlaufVon - e.umlaufVon) * f;
-    e.umlaufBis += (takt.umlaufBis - e.umlaufBis) * f;
+    e.umlaufVon = nachziehen(e.umlaufVon, takt.umlaufVon);
+    takt.umlauf.forEach((u, g) => { if (g < e.umlauf.length) e.umlauf[g] = nachziehen(e.umlauf[g]!, u); });
   }
 
   private zeichne(stellungen: Stellung[], dt: number): void {

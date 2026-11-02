@@ -7,7 +7,7 @@ import { istModus, type Modus, type Parameter } from "@parrafraktor/engine";
 import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
 
-export const PROTOKOLL_VERSION = 1;
+export const PROTOKOLL_VERSION = 2;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 
@@ -36,6 +36,11 @@ export interface Netzwerkschnittstelle {
   adresse: string;
 }
 
+export interface Takt {
+  umlaufVon: number;
+  umlauf: number[];
+}
+
 export interface Stand {
   typ: "stand";
   version: number;
@@ -45,8 +50,8 @@ export interface Stand {
   einstellungen: Einstellungen;
   module: ModulStatus[];
   netzwerk: Netzwerkschnittstelle[];
-  // Umlauf der Engine, damit die Vorschau im Client synchron läuft
-  takt: { umlaufVon: number; umlaufBis: number };
+  // Umlauf der Engine (Bezug und je Spiegel), damit die Vorschau im Client synchron läuft
+  takt: Takt;
   warnungen: string[];
 }
 

@@ -101,7 +101,7 @@ function stand(): Stand {
     einstellungen: e,
     module,
     netzwerk: netzwerk(),
-    takt: { umlaufVon: takt.engine.umlaufVon, umlaufBis: takt.engine.umlaufBis },
+    takt: { umlaufVon: takt.engine.umlaufVon, umlauf: Array.from(takt.engine.umlauf) },
     warnungen,
   };
 }
