@@ -1,0 +1,18 @@
+{
+  "name": "@parrafraktor/engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pattern-Engine und DMX-Abbildung des Parrafraktors, identisch zur Website-Simulation",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

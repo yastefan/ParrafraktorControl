@@ -1,0 +1,29 @@
+{
+  "name": "parrafraktor-control",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Steuerung für den Parrafraktor: Server mit Pattern-Engine, Art-Net/sACN-Ausgabe, Stream Deck+ und PWA-Client",
+  "workspaces": [
+    "packages/engine",
+    "packages/protokoll",
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build -w @parrafraktor/engine -w @parrafraktor/protokoll -w @parrafraktor/server -w @parrafraktor/client",
+    "start": "node server/dist/index.js",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "icons": "node scripts/icons.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "typescript": "~5.9.3",
+    "vitest": "^3.2.4"
+  }
+}

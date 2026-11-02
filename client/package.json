@@ -1,0 +1,23 @@
+{
+  "name": "@parrafraktor/client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PWA für iPad und Browser: Bedienung, Live-Vorschau, Einstellungen",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@parrafraktor/engine": "0.1.0",
+    "@parrafraktor/protokoll": "0.1.0",
+    "preact": "^10.27.2"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "vite": "^7.1.12",
+    "vite-plugin-pwa": "^1.1.0"
+  }
+}
