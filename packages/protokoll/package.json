@@ -1,0 +1,21 @@
+{
+  "name": "@parrafraktor/protokoll",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gemeinsame Typen von Server und Client: Parameter-Bereiche, Einstellungen, WebSocket-Nachrichten",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@parrafraktor/engine": "0.1.0"
+  }
+}

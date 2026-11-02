@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dev-dist/
+# Laufzeitdaten des Servers (Einstellungen, letzte Parameter)
+daten/
+# TLS-Zertifikate
+zertifikate/
+*.pem
+.DS_Store
