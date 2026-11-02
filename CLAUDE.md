@@ -43,10 +43,10 @@ grandMA3-Fixture „Gobbesso Parrafraktor“, Mode Standard, **37 Kanäle je Ele
 
 ## Quellen
 
-- Projektbeschreibung: `/Users/stefanschmidt/Documents/FreudundLight/WebsiteKlaus/src/projekte/Parrafraktor/index.md`
-- Simulation: `/Users/stefanschmidt/Documents/FreudundLight/WebsiteKlaus/src/js/parrafraktor.js` (`auswahl`, `laufzeit`, `pattern`, `schleife`)
+- Projektbeschreibung: `/Users/stefanschmidt/Projects/WebsiteKlaus/src/projekte/Parrafraktor/index.md`
+- Simulation: `/Users/stefanschmidt/Projects/WebsiteKlaus/src/js/parrafraktor.js` (`auswahl`, `laufzeit`, `pattern`, `schleife`)
 - MA-Fixture: `/Users/stefanschmidt/Downloads/Gobbesso@Parrafraktor@0001.xml`
-- ESP32-Remote (gleiche Engine in C++, sACN, Übernahme): `/Users/stefanschmidt/Documents/Projects/00-FreudundLight/40C3/Parrafraktor-Remote/`
+- ESP32-Remote (gleiche Engine in C++, sACN, Übernahme): `/Users/stefanschmidt/Projects/Parrafraktor-Remote/`
 
 ## Offen
 
