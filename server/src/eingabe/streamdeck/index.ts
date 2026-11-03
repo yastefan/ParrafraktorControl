@@ -4,8 +4,8 @@
 // macOS/Windows: Die Elgato-Software muss beendet sein, sonst ist das Gerät belegt.
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
-import { MODI, MODUS_NAME } from "@parrafraktor/engine";
-import { BEREICHE, PRESET_ANZAHL, zeigeWert, type ModulStatus } from "@parrafraktor/protokoll";
+import { MODI, MODUS_NAME, PARAMETER_VORGABE } from "@parrafraktor/engine";
+import { BEREICHE, PRESET_ANZAHL, STUFEN, zeigeWert, type ModulStatus } from "@parrafraktor/protokoll";
 import { fehlerText, log } from "../../log.js";
 import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
@@ -196,6 +196,8 @@ export class StreamDeckModul implements Eingabemodul {
         }
         case HAUPT.regler: return { tippen: () => { this.reglerSeite = (this.reglerSeite + 1) % REGLER_SEITEN.length; } };
         case HAUPT.reihenfolge: return { tippen: () => s.schalteReihenfolge() };
+        case HAUPT.symmetrie: return { tippen: () => s.schalteStufe("symmetrie") };
+        case HAUPT.richtung: return { tippen: () => s.schalteStufe("richtung") };
         case HAUPT.pause: return { tippen: () => s.schalteLauf() };
         // Erst nach dem Halten umschalten, damit ein Streifen der Hand nicht die Show übernimmt
         case HAUPT.output: return { halten: { ms: HALTEN_MS.output, tun: () => s.setzeUebernahme(!s.uebernahme.soll) } };
@@ -236,10 +238,8 @@ export class StreamDeckModul implements Eingabemodul {
       // Bei großen Bereichen mit feinem Schritt (Speed) wirkt schnelles Drehen stärker
       const faktor = schnell ? (b.schritt < 1 ? 10 : 5) : 1;
       this.steuerung.verstelle(r.name, schritte * faktor);
-    } else if (r.art === "pattern") {
-      this.steuerung.naechstesPattern(Math.sign(schritte));
     } else {
-      this.steuerung.schalteReihenfolge();
+      this.steuerung.schalteStufe(r.name, Math.sign(schritte));
     }
   }
 
@@ -247,8 +247,7 @@ export class StreamDeckModul implements Eingabemodul {
     const r = this.regler(index);
     if (!r) return;
     if (r.art === "zahl") this.steuerung.vorgabe(r.name);
-    else if (r.art === "reihenfolge") this.steuerung.schalteReihenfolge();
-    else this.steuerung.schalteLauf();
+    else this.steuerung.setze({ [r.name]: PARAMETER_VORGABE[r.name] });
   }
 
   private wische(dx: number): void {
@@ -318,6 +317,8 @@ export class StreamDeckModul implements Eingabemodul {
         }
         case HAUPT.regler: return { titel: `Regler ${this.reglerSeite + 1}/${REGLER_SEITEN.length}`, unter: "umschalten" };
         case HAUPT.reihenfolge: return { titel: "Reihenfolge", unter: parameter.jeElement ? "je Element" : "alle 36" };
+        case HAUPT.symmetrie: return { titel: "Symmetrie", unter: STUFEN.symmetrie.text[parameter.symmetrie] };
+        case HAUPT.richtung: return { titel: "Richtung", unter: STUFEN.richtung.text[parameter.richtung] };
         case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
         case HAUPT.output:
           switch (uebernahme.zustand) {
@@ -357,10 +358,8 @@ export class StreamDeckModul implements Eingabemodul {
         const b = BEREICHE[r.name];
         return { titel: b.kurz, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
       }
-      if (r.art === "pattern") {
-        return { titel: p.laeuft ? "Pattern" : "Pattern (Pause)", wert: MODUS_NAME[p.modus], anteil: MODI.indexOf(p.modus) / (MODI.length - 1) };
-      }
-      return { titel: "Reihenfolge", wert: p.jeElement ? "je Element" : "alle 36", anteil: null };
+      const st = STUFEN[r.name];
+      return { titel: st.name, wert: (st.text as Record<string, string>)[p[r.name]] ?? "", anteil: null };
     });
   }
 }

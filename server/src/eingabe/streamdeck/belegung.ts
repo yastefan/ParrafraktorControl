@@ -4,8 +4,8 @@
 //   ┌──────────┬──────────┬──────────┬──────────┐
 //   │Pattern › │Presets › │ Regler   │Reihenf.  │   Regler: Reglerseite umschalten
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │          │          │  Pause   │  Output  │   Output: gedrückt halten (Schutz vor Versehen)
-//   └──────────┴──────────┴──────────┴──────────┘
+//   │Symmetrie │ Richtung │  Pause   │  Output  │   Symmetrie/Richtung: Stufe weiterschalten
+//   └──────────┴──────────┴──────────┴──────────┘   Output: gedrückt halten (Schutz vor Versehen)
 // Untermenü (Pattern, Presets): sechs Plätze, unten links Zurück, unten rechts nächste Seite.
 //   ┌──────────┬──────────┬──────────┬──────────┐
 //   │  Platz   │  Platz   │  Platz   │  Platz   │
@@ -14,16 +14,15 @@
 //   └──────────┴──────────┴──────────┴──────────┘
 // Presets: Tippen ruft ab, Halten speichert den aktuellen Look.
 //
-// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Reihenfolge/Pattern.
+// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Symmetrie.
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite.
-import type { ZahlParameter } from "@parrafraktor/protokoll";
+import type { StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
 
 export type Menue = "haupt" | "pattern" | "presets";
 
 export type Regler =
   | { art: "zahl"; name: ZahlParameter }
-  | { art: "pattern" }
-  | { art: "reihenfolge" };
+  | { art: "stufe"; name: StufenParameter };
 
 export const REGLER_SEITEN: Regler[][] = [
   [
@@ -35,8 +34,8 @@ export const REGLER_SEITEN: Regler[][] = [
   [
     { art: "zahl", name: "speedBis" },
     { art: "zahl", name: "group" },
-    { art: "reihenfolge" },
-    { art: "pattern" },
+    { art: "zahl", name: "faecher" },
+    { art: "stufe", name: "symmetrie" },
   ],
 ];
 
@@ -46,6 +45,8 @@ export const HAUPT = {
   presets: 1,
   regler: 2,
   reihenfolge: 3,
+  symmetrie: 4,
+  richtung: 5,
   pause: 6,
   output: 7,
 } as const;

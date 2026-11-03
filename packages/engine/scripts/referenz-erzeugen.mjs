@@ -15,39 +15,37 @@ const anfang = quelle.indexOf("const weich");
 const ende = quelle.indexOf("function spiegel()");
 if (anfang < 0 || ende < 0) throw new Error("Pattern-Engine in parrafraktor.js nicht gefunden");
 const SPIEGEL_N = 12;
-const erzeuge = new Function("zustand", "SPIEGEL_N", `${quelle.slice(anfang, ende)}\nreturn pattern;`);
+const erzeuge = new Function("zustand", "SPIEGEL_N", `${quelle.slice(anfang, ende)}\nreturn { pattern, anteilVon };`);
 
-const modi = ["sinus", "dreieck", "rechteck", "saegezahn", "sinus-innen", "sinus-aussen", "faecher",
-  "flyout", "blinder", "chase", "pingpong", "funkeln"];
+const modi = ["sinus", "dreieck", "rechteck", "saegezahn", "puls", "flyout", "blinder", "funkeln"];
 const varianten = [
-  { group: 0, jeElement: false, speedBis: 0 },
-  { group: 5, jeElement: false, speedBis: 7 },
-  { group: 0, jeElement: true, speedBis: 2 },
-  { group: 4, jeElement: true, speedBis: 0 },
+  { group: 0, jeElement: false, speedBis: 0, symmetrie: "aus", richtung: "vor", faecher: 0, phase: 360 },
+  { group: 5, jeElement: false, speedBis: 7, symmetrie: "innen", richtung: "vor", faecher: 60, phase: 180 },
+  { group: 0, jeElement: true, speedBis: 2, symmetrie: "aussen", richtung: "zurueck", faecher: 0, phase: 360 },
+  { group: 4, jeElement: true, speedBis: 0, symmetrie: "aus", richtung: "pingpong", faecher: 100, phase: 120 },
+  { group: 0, jeElement: false, speedBis: 0, symmetrie: "innen", richtung: "pingpong", faecher: 0, phase: 720 },
+  { group: 3, jeElement: false, speedBis: 5, symmetrie: "aussen", richtung: "zurueck", faecher: 30, phase: 0 },
 ];
-const PHASE = { sinus: 360, "sinus-innen": 180, "sinus-aussen": 180, dreieck: 360, rechteck: 360,
-  saegezahn: 360, flyout: 120, chase: 360 };
 
 const faelle = [];
 for (const modus of modi) {
   for (const v of varianten) {
     const parameter = {
-      modus, offset: 12, amplitude: 55, speedVon: 3, speedBis: v.speedBis,
-      phase: PHASE[modus] ?? 0, group: v.group, jeElement: v.jeElement, laeuft: true,
+      modus, offset: 12, amplitude: 55, speedVon: 3, speedBis: v.speedBis, phase: v.phase, group: v.group,
+      symmetrie: v.symmetrie, richtung: v.richtung, faecher: v.faecher, jeElement: v.jeElement, laeuft: true,
     };
-    for (let schritt = 0; schritt < 8; schritt++) {
-      const zustand = {
-        ...parameter,
-        anordnung: v.jeElement ? "classic" : "reihe",
-        umlaufVon: schritt * 0.1731,
-        umlaufBis: schritt * (v.speedBis ? 0.2913 : 0.1731),
-      };
-      const pattern = erzeuge(zustand, SPIEGEL_N);
+    for (let schritt = 0; schritt < 6; schritt++) {
+      const umlaufVon = schritt * 0.1731;
+      const umlaufBis = schritt * (v.speedBis ? 0.2913 : 0.1731);
+      const zustand = { ...parameter, anordnung: v.jeElement ? "classic" : "reihe", umlaufVon, umlauf: [] };
+      const { pattern, anteilVon } = erzeuge(zustand, SPIEGEL_N);
+      // Umlauf je Spiegel wie nach gleichmäßigem Lauf mit Speed von/bis
+      for (let g = 0; g < 3 * SPIEGEL_N; g++) zustand.umlauf[g] = umlaufVon + (umlaufBis - umlaufVon) * anteilVon(g);
       const tilt = [];
       for (let g = 0; g < 3 * SPIEGEL_N; g++) {
         tilt.push(+(zustand.offset + pattern(Math.floor(g / SPIEGEL_N), g % SPIEGEL_N, g)).toFixed(6));
       }
-      faelle.push({ parameter, umlaufVon: zustand.umlaufVon, umlaufBis: zustand.umlaufBis, tilt });
+      faelle.push({ parameter, umlaufVon, umlaufBis, tilt });
     }
   }
 }

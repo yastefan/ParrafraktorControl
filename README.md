@@ -96,19 +96,20 @@ Hauptmenü                                   Untermenü (Pattern, Presets)
 ┌─────────┬─────────┬─────────┬─────────┐   ┌─────────┬─────────┬─────────┬─────────┐
 │Pattern ›│Presets ›│Regler 1 │Reihenf. │   │  Platz  │  Platz  │  Platz  │  Platz  │
 ├─────────┼─────────┼─────────┼─────────┤   ├─────────┼─────────┼─────────┼─────────┤
-│         │         │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
+│Symmetr. │Richtung │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
 └─────────┴─────────┴─────────┴─────────┘   └─────────┴─────────┴─────────┴─────────┘
 ```
 
 | Bedienteil | Funktion |
 |---|---|
-| Pattern › | Pattern direkt wählen (3 Seiten) |
+| Pattern › | Form direkt wählen (2 Seiten) |
 | Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
 | Regler | Reglerseite umschalten |
 | Reihenfolge | über alle 36 / je Element |
+| Symmetrie, Richtung | nächste Stufe |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
-| Drehregler, Seite 2 | Speed bis, Group, Reihenfolge, Pattern |
+| Drehregler, Seite 2 | Speed bis, Group, Fächer, Symmetrie |
 | Regler drücken / Streifen antippen | Vorgabewert |
 | Touchstreifen wischen | Reglerseite wechseln |
 
@@ -135,6 +136,23 @@ WantedBy=multi-user.target
 ```bash
 sudo systemctl enable --now parrafraktor
 ```
+
+## Pattern und Regler
+
+Ein Pattern ist nur eine Form: Sinus, Dreieck, Rechteck, Sägezahn, Puls, Flyout, Blinder, Funkeln oder Rotation. Wie sie über die Spiegel läuft, bestimmen die Regler:
+
+| Regler | Wirkung |
+|---|---|
+| Offset, Amplitude | Grundstellung und Ausschlag |
+| Speed von/bis | Tempo in BPM; mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
+| Phase | Versatz über die Spiegel: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
+| Group | Muster wiederholt sich alle n Spiegel |
+| Fächer | Amplitude wächst entlang der Reihenfolge, mit Symmetrie zum Rand hin |
+| Symmetrie | aus (links → rechts), von innen, von außen; mit Symmetrie drehen beide Hälften gegenläufig |
+| Richtung | vor, zurück oder Ping-Pong (hin und her) |
+| Reihenfolge | über alle 36 Spiegel oder je Element |
+
+Die früheren Pattern lassen sich so nachbauen: Sinus innen/außen = Sinus mit Symmetrie, Chase = Puls, Ping-Pong = Puls mit Richtung Ping-Pong, Fächer = Sinus mit Symmetrie von innen und Fächer 100 %. Gespeicherte Presets und Parameter mit den alten Namen werden beim Laden so umgewandelt. Beim Wechsel der Form bleiben alle Regler, wie sie sind.
 
 ## Vorschau
 

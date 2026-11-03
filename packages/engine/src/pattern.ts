@@ -1,12 +1,12 @@
-// Pattern-Engine: dieselben Pattern wie die Simulation auf der Website (parrafraktor.js).
-// Offset, Amplitude, Speed von/bis, Phase und Group funktionieren wie die MAtricks der grandMA3.
+// Pattern-Engine: dieselbe Rechnung wie die Simulation auf der Website (parrafraktor.js).
+// Ein Pattern ist nur noch eine Form (Sinus, Puls, …). Wie sie über die Spiegel läuft, bestimmen die
+// Regler: Offset, Amplitude, Speed von/bis, Phase und Group wie die MAtricks der grandMA3, dazu
+// Symmetrie, Richtung, Fächer und Reihenfolge.
 // Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren.
 import { SPIEGEL_GESAMT, SPIEGEL_N } from "./aufbau.js";
 
 export const MODI = [
-  "sinus", "dreieck", "rechteck", "saegezahn",
-  "sinus-innen", "sinus-aussen", "faecher", "flyout",
-  "blinder", "chase", "pingpong", "funkeln", "rotation",
+  "sinus", "dreieck", "rechteck", "saegezahn", "puls", "flyout", "blinder", "funkeln", "rotation",
 ] as const;
 export type Modus = (typeof MODI)[number];
 
@@ -15,28 +15,25 @@ export const MODUS_NAME: Record<Modus, string> = {
   dreieck: "Dreieck",
   rechteck: "Rechteck",
   saegezahn: "Sägezahn",
-  "sinus-innen": "Sinus innen",
-  "sinus-aussen": "Sinus außen",
-  faecher: "Fächer",
+  puls: "Puls",
   flyout: "Flyout",
   blinder: "Blinder",
-  chase: "Chase",
-  pingpong: "Ping-Pong",
   funkeln: "Funkeln",
   rotation: "Rotation",
 };
 
 export const istModus = (x: unknown): x is Modus => typeof x === "string" && (MODI as readonly string[]).includes(x);
 
-// Startwert der Phase je Pattern (beim Umschalten gesetzt, danach frei einstellbar)
-const PHASE_VORGABE: Partial<Record<Modus, number>> = {
-  sinus: 360, "sinus-innen": 180, "sinus-aussen": 180, dreieck: 360, rechteck: 360, saegezahn: 360,
-  flyout: 120, chase: 360, rotation: 360,
-};
-export const phaseVorgabe = (m: Modus): number => PHASE_VORGABE[m] ?? 0;
+// Symmetrie: aus = Reihenfolge von links nach rechts. innen/aussen = Reihenfolge von der Mitte
+// nach außen bzw. umgekehrt, beide Hälften gleich (wie MAtricks-Wings) und gegenläufig gedreht.
+export const SYMMETRIEN = ["aus", "innen", "aussen"] as const;
+export type Symmetrie = (typeof SYMMETRIEN)[number];
+export const SYMMETRIE_NAME: Record<Symmetrie, string> = { aus: "aus", innen: "von innen", aussen: "von außen" };
 
-// Pattern, deren Reihenfolge von der Mitte aus zählt (beide Hälften gleich, wie MAtricks-Wings)
-const VON_INNEN: readonly Modus[] = ["sinus-innen", "flyout", "faecher"];
+// Richtung, in der das Muster über die Spiegel läuft. Ping-Pong: hin und zurück.
+export const RICHTUNGEN = ["vor", "zurueck", "pingpong"] as const;
+export type Richtung = (typeof RICHTUNGEN)[number];
+export const RICHTUNG_NAME: Record<Richtung, string> = { vor: "vor", zurueck: "zurück", pingpong: "Ping-Pong" };
 
 export interface Parameter {
   modus: Modus;
@@ -49,6 +46,9 @@ export interface Parameter {
   speedBis: number;
   phase: number;       // Grad, Versatz über die Auswahl wie MAtricks-Phase
   group: number;       // Gruppengröße wie MAtricks-Groups, 0 = aus
+  symmetrie: Symmetrie;
+  richtung: Richtung;
+  faecher: number;     // %, Amplitude wächst entlang der Reihenfolge (mit Symmetrie: zum Rand hin)
   jeElement: boolean;  // Reihenfolge je Element (wie "Classic") statt über alle 36 Spiegel
   laeuft: boolean;
 }
@@ -61,6 +61,9 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   speedBis: 0,
   phase: 360,
   group: 0,
+  symmetrie: "aus",
+  richtung: "vor",
+  faecher: 0,
   jeElement: false,
   laeuft: true,
 };
@@ -84,32 +87,34 @@ const zufall = (a: number, b: number): number => {
 const speeds = (p: Parameter): [number, number] => [p.speedVon || p.speedBis, p.speedBis || p.speedVon];
 
 interface Auswahl {
-  platz: number;
   anzahl: number;
   anteil: number;
   versatz: number;
+  lage: number;   // für den Fächer: 0 … 1 entlang der Reihenfolge bzw. von der Mitte zum Rand
 }
 
 // Platz eines Spiegels in der Auswahl, wie in der grandMA3: daraus ergibt sich sein Phasenversatz
-// (Bruchteil eines Durchlaufs, 0 … 1). Liefert außerdem Platz und Anzahl für Chase und Fächer.
+// (Bruchteil eines Durchlaufs, 0 … 1). Liefert außerdem die Anzahl für den Puls.
 function auswahl(p: Parameter, nr: number, n: number): Auswahl {
   let platz = nr, anzahl = n;
   const haelfte = n / 2;
   const vonInnen = nr < haelfte ? haelfte - 1 - nr : nr - haelfte;
-  if (VON_INNEN.includes(p.modus)) { platz = vonInnen; anzahl = haelfte; }
-  else if (p.modus === "sinus-aussen") { platz = haelfte - 1 - vonInnen; anzahl = haelfte; }
+  if (p.symmetrie === "innen") { platz = vonInnen; anzahl = haelfte; }
+  else if (p.symmetrie === "aussen") { platz = haelfte - 1 - vonInnen; anzahl = haelfte; }
+  const lage = p.symmetrie === "aus" ? (nr + 0.5) / n : (vonInnen + 0.5) / haelfte;
   // Groups: das Muster wiederholt sich alle "group" Spiegel
   if (p.group > 0) { platz %= p.group; anzahl = Math.min(anzahl, p.group); }
+  if (p.richtung === "zurueck") platz = anzahl - 1 - platz;
   // anteil: Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis
   const anteil = anzahl > 1 ? Math.min(1, platz / (anzahl - 1)) : 0;
-  return { platz, anzahl, anteil, versatz: (p.phase / 360) * (platz / anzahl) };
+  return { anzahl, anteil, lage, versatz: (p.phase / 360) * (platz / anzahl) };
 }
 
 // Zeitkonstante, mit der die Spiegel wieder zusammenlaufen, wenn alle gleich schnell sind
 const GLEICHLAUF_S = 0.4;
 
 export class Engine {
-  // Durchläufe bei Speed "von": Bezug für Ping-Pong und für den Gleichlauf
+  // Durchläufe bei Speed "von": Bezug für den Gleichlauf
   umlaufVon = 0;
   // bisher gelaufene Durchläufe je Spiegel. Jeder Spiegel zählt selbst, damit beim Verstellen
   // von Speed nichts springt – das Muster läuft nur schneller oder langsamer.
@@ -171,42 +176,37 @@ export class Engine {
 
   // Ausschlag des Patterns (in Grad)
   private pattern(p: Parameter, g: number): number {
-    const A = p.amplitude;
     const [nr, n] = this.lage(p, g);
-    const seite = nr < n / 2 ? -1 : 1;   // linke Hälfte dreht gespiegelt
-    const { platz, anzahl, versatz } = auswahl(p, nr, n);
+    // mit Symmetrie dreht die linke Hälfte gespiegelt
+    const seite = p.symmetrie !== "aus" && nr < n / 2 ? -1 : 1;
+    const { anzahl, versatz, lage } = auswahl(p, nr, n);
+    const faecher = p.faecher / 100;
+    const A = p.amplitude * (1 - faecher + faecher * lage);
+    const u = this.umlauf[g]!;
+    // Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den
+    // letzten Spiegel, damit es am Wendepunkt nicht auf den ersten überspringt
+    const lauf = p.richtung === "pingpong" ? (1 - Math.abs(2 * (((u % 1) + 1) % 1) - 1)) * (1 - 1 / anzahl) : u;
     // bisherige Laufzeit im Bogenmaß, verschoben um die Phase
-    const t = 2 * Math.PI * (this.umlauf[g]! - versatz);
+    const t = 2 * Math.PI * (lauf - versatz);
     const zyklus = (((t / (2 * Math.PI)) % 1) + 1) % 1;   // 0 … 1, wiederholt sich
     switch (p.modus) {
-      // Sinus läuft von der Mitte nach außen bzw. von außen zur Mitte, beide Hälften gespiegelt
-      case "sinus-innen":
-      case "sinus-aussen": return seite * A * Math.sin(t);
       // Formen wie in der grandMA3, jeweils mit Nulldurchgang am Anfang wie der Sinus
-      case "dreieck": return A * (4 * Math.abs(((zyklus + 0.75) % 1) - 0.5) - 1);
-      case "rechteck": return zyklus < 0.5 ? A : -A;
-      case "saegezahn": return A * (2 * zyklus - 1);
-      // Fächer: außen weit, innen wenig – öffnet und schließt sich
-      case "faecher": return (seite * A * ((platz + 0.5) / anzahl) * (1 - Math.cos(t))) / 2;
-      // Flyout: geschlossen, dann klappen die Spiegel von der Mitte nach außen nacheinander auf,
-      // halten offen und schließen wieder in derselben Reihenfolge
-      case "flyout": return seite * A * (weich(zyklus / 0.12) - weich((zyklus - 0.55) / 0.12));
-      // Blinder: alle Spiegel reißen gleichzeitig auf und schließen langsam wieder
-      case "blinder": return seite * A * (weich(zyklus / 0.04) - weich((zyklus - 0.08) / 0.6));
-      // Chase: ein Spiegel nach dem anderen klappt kurz auf (bei Phase 360° immer genau einer)
-      case "chase": {
+      case "dreieck": return seite * A * (4 * Math.abs(((zyklus + 0.75) % 1) - 0.5) - 1);
+      case "rechteck": return seite * (zyklus < 0.5 ? A : -A);
+      case "saegezahn": return seite * A * (2 * zyklus - 1);
+      // Puls: jeder Spiegel klappt einmal kurz auf (bei Phase 360° ist immer genau einer offen)
+      case "puls": {
         const breite = 1 / anzahl;
-        return zyklus < breite ? A * Math.sin((Math.PI * zyklus) / breite) : 0;
+        return zyklus < breite ? seite * A * Math.sin((Math.PI * zyklus) / breite) : 0;
       }
-      // Ping-Pong: ein offener Spiegel wandert hin und her
-      case "pingpong": {
-        const z = ((this.umlaufVon % 1) + 1) % 1;
-        const ort = (1 - Math.abs(2 * z - 1)) * (anzahl - 1);
-        return A * Math.max(0, 1 - Math.abs(platz - ort));
-      }
+      // Flyout: geschlossen, dann klappen die Spiegel nacheinander auf, halten offen und schließen
+      // wieder in derselben Reihenfolge
+      case "flyout": return seite * A * (weich(zyklus / 0.12) - weich((zyklus - 0.55) / 0.12));
+      // Blinder: reißt auf und schließt langsam wieder (bei Phase 0 alle gleichzeitig)
+      case "blinder": return seite * A * (weich(zyklus / 0.04) - weich((zyklus - 0.08) / 0.6));
       // Funkeln: einzelne Spiegel blitzen zu zufälligen Zeiten in zufällige Richtungen auf
       case "funkeln": {
-        const takt = this.umlauf[g]! * 6 + zufall(g, 0);
+        const takt = u * 6 + zufall(g, 0);
         const nummer = Math.floor(takt);
         if (zufall(g, nummer) > 0.3) return 0;
         const richtung = zufall(nummer, g) < 0.5 ? -1 : 1;
@@ -214,7 +214,7 @@ export class Engine {
       }
       case "rotation": return 0;   // läuft über TiltRotate, siehe spiegel()
       case "sinus":
-      default: return A * Math.sin(t);
+      default: return seite * A * Math.sin(t);
     }
   }
 }

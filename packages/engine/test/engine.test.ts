@@ -83,3 +83,30 @@ describe("DMX", () => {
     zurueck.forEach((s, g) => expect(s.tilt).toBeCloseTo(stellungen[g]!.tilt, 2));
   });
 });
+
+describe("Regler", () => {
+  const winkel = (p: Partial<Parameter>, umlauf = 0.3) => {
+    const e = new Engine();
+    const par = { ...PARAMETER_VORGABE, ...p };
+    e.setzeUmlauf(par, umlauf, umlauf);
+    return e.alle(par).map((s) => s.tilt);
+  };
+
+  it("Symmetrie von innen: beide Hälften gespiegelt", () => {
+    const w = winkel({ symmetrie: "innen", phase: 180 });
+    for (let g = 0; g < 18; g++) expect(w[g]).toBeCloseTo(-w[35 - g]!, 9);
+  });
+
+  it("Richtung zurück spiegelt die Reihenfolge", () => {
+    const vor = winkel({ phase: 360 });
+    const zurueck = winkel({ phase: 360, richtung: "zurueck" });
+    // bei Phase 360 über 36 Spiegel: Spiegel g zurück = Spiegel 35 - g vor
+    for (let g = 0; g < 36; g++) expect(zurueck[g]).toBeCloseTo(vor[35 - g]!, 9);
+  });
+
+  it("Fächer 100 %: außen volle, innen kaum Amplitude", () => {
+    const w = winkel({ symmetrie: "innen", phase: 0, faecher: 100 }, 0.25);   // Sinus auf dem Maximum
+    expect(Math.abs(w[0]!)).toBeCloseTo(40 * (17.5 / 18), 6);
+    expect(Math.abs(w[17]!)).toBeCloseTo(40 * (0.5 / 18), 6);
+  });
+});
