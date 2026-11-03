@@ -79,7 +79,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
           <Schieber
             name="Dauer" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
             wert={entwurf.ueberblendungS} setze={(v) => sofort({ ueberblendungS: v })}
-            hilfe="Beim Abrufen eines Presets und beim Ein- und Ausschalten des Outputs. Für den Output blendet die App von bzw. zur Stellung der MA – nur wenn sie die MA mitlesen kann, sonst springen die Spiegel."
+            hilfe="Beim Wechsel der Form, beim Abrufen eines Presets und beim Ein- und Ausschalten des Outputs. Für den Output blendet die App von bzw. zur Stellung der MA – nur wenn sie die MA mitlesen kann, sonst springen die Spiegel."
           />
         </Gruppe>
 

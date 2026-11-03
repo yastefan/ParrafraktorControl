@@ -59,9 +59,11 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   waehlePattern(modus: Modus): void {
-    // Nur die Form wechselt; die Regler bleiben, wie sie sind
-    const teil: Partial<Parameter> = { modus, laeuft: true };
-    this.aendere(teil);
+    // Nur die Form wechselt; die Regler bleiben, wie sie sind. Die Spiegel blenden weich
+    // in die neue Form über, statt zu springen.
+    const neu = modus !== this._parameter.modus;
+    this.aendere({ modus, laeuft: true });
+    if (neu) this.starteBlende();
   }
 
   // Relativ verstellen, z. B. per Drehregler: schritte × kleinster Schritt
@@ -102,10 +104,15 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     if (!preset) return;
     // Pause bleibt, wie sie ist: sie gehört nicht zum Look
     this.aendere({ ...preset.look }, nr);
-    if (this._einstellungen.ueberblendungS > 0) {
-      this._blende = { id: (this._blende?.id ?? 0) + 1, anteil: 0 };
-      this.emit("blende");
-    }
+    this.starteBlende();
+    this.geaendert();
+  }
+
+  // Takt und Vorschau blenden von der aktuellen Stellung zum neuen Look über
+  private starteBlende(): void {
+    if (this._einstellungen.ueberblendungS <= 0) return;
+    this._blende = { id: (this._blende?.id ?? 0) + 1, anteil: 0 };
+    this.emit("blende");
     this.geaendert();
   }
 

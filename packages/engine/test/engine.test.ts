@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  Engine, PARAMETER_VORGABE, PATCH_VORGABE, ROTATE_STOP, leseStellungen, schreibeUniversen,
+  Engine, MODI, PARAMETER_VORGABE, PATCH_VORGABE, ROTATE_STOP, leseStellungen, schreibeUniversen,
   tiltGrad, tiltWert, type Parameter,
 } from "@parrafraktor/engine";
 
@@ -108,5 +108,25 @@ describe("Regler", () => {
     const w = winkel({ symmetrie: "innen", phase: 0, faecher: 100 }, 0.25);   // Sinus auf dem Maximum
     expect(Math.abs(w[0]!)).toBeCloseTo(40 * (17.5 / 18), 6);
     expect(Math.abs(w[17]!)).toBeCloseTo(40 * (0.5 / 18), 6);
+  });
+});
+
+describe("weiche Formen", () => {
+  // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
+  // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
+  it("springen nirgends", () => {
+    for (const modus of MODI.filter((m) => m !== "rotation" && m !== "funkeln")) {
+      const p: Parameter = { ...PARAMETER_VORGABE, modus, amplitude: 1, speedVon: 60, phase: 360 };
+      const e = new Engine();
+      let vorher = e.alle(p);
+      let maxSchritt = 0;
+      for (let i = 0; i < 4000; i++) {
+        e.weiter(p, 0.001);
+        const jetzt = e.alle(p);
+        jetzt.forEach((s, g) => { maxSchritt = Math.max(maxSchritt, Math.abs(s.tilt - vorher[g]!.tilt)); });
+        vorher = jetzt;
+      }
+      expect(maxSchritt, modus).toBeLessThan(0.05);
+    }
   });
 });

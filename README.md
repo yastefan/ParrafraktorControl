@@ -139,7 +139,7 @@ sudo systemctl enable --now parrafraktor
 
 ## Pattern und Regler
 
-Ein Pattern ist nur eine Form: Sinus, Dreieck, Rechteck, Sägezahn, Puls, Flyout, Blinder, Funkeln oder Rotation. Wie sie über die Spiegel läuft, bestimmen die Regler:
+Ein Pattern ist nur eine Form: Sinus, Sägezahn, Puls, Flyout, Blinder, Funkeln oder Rotation. Alle Formen fahren ohne Sprünge an und ab, damit die Motoren weich beschleunigen; ein Wechsel der Form blendet über die eingestellte Überblendzeit über. Wie die Form über die Spiegel läuft, bestimmen die Regler:
 
 | Regler | Wirkung |
 |---|---|
@@ -152,7 +152,7 @@ Ein Pattern ist nur eine Form: Sinus, Dreieck, Rechteck, Sägezahn, Puls, Flyout
 | Richtung | vor, zurück oder Ping-Pong (hin und her) |
 | Reihenfolge | über alle 36 Spiegel oder je Element |
 
-Die früheren Pattern lassen sich so nachbauen: Sinus innen/außen = Sinus mit Symmetrie, Chase = Puls, Ping-Pong = Puls mit Richtung Ping-Pong, Fächer = Sinus mit Symmetrie von innen und Fächer 100 %. Gespeicherte Presets und Parameter mit den alten Namen werden beim Laden so umgewandelt. Beim Wechsel der Form bleiben alle Regler, wie sie sind.
+Die früheren Pattern lassen sich so nachbauen: Sinus innen/außen = Sinus mit Symmetrie, Chase = Puls (jetzt eine breitere, weiche Welle), Ping-Pong = Puls mit Richtung Ping-Pong, Fächer = Sinus mit Symmetrie von innen und Fächer 100 %. Gespeicherte Presets und Parameter mit den alten Namen werden beim Laden so umgewandelt, Dreieck und Rechteck zu Sinus. Beim Wechsel der Form bleiben alle Regler, wie sie sind.
 
 ## Vorschau
 

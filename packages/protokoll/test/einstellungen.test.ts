@@ -37,3 +37,11 @@ describe("alte Pattern", () => {
     expect(pruefePreset({ name: "Alt", look: { modus: "chase" } })?.look).toMatchObject({ modus: "puls", symmetrie: "aus" });
   });
 });
+
+describe("entfallene Formen", () => {
+  it("Dreieck und Rechteck werden zum Sinus", async () => {
+    const { migriereParameter, pruefeParameter } = await import("@parrafraktor/protokoll");
+    expect(pruefeParameter(migriereParameter({ modus: "rechteck", symmetrie: "innen" }))).toMatchObject({ modus: "sinus", symmetrie: "innen" });
+    expect(pruefeParameter(migriereParameter({ modus: "dreieck" }))).toMatchObject({ modus: "sinus" });
+  });
+});

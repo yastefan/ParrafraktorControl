@@ -14,7 +14,7 @@ describe("Presets", () => {
     expect(s.presets[3]).toMatchObject({ name: "Sinus", look: { amplitude: 77, phase: 90 } });
     expect(s.presets[3]!.look).not.toHaveProperty("laeuft");
 
-    s.waehlePattern("chase");
+    s.waehlePattern("puls");
     expect(s.letztesPreset).toBeNull();
     let blenden = 0;
     s.on("blende", () => blenden++);
@@ -22,7 +22,15 @@ describe("Presets", () => {
     expect(s.parameter).toMatchObject({ modus: "sinus", amplitude: 77, phase: 90 });
     expect(s.letztesPreset).toBe(3);
     expect(blenden).toBe(1);
+    expect(s.blende).toEqual({ id: 2, anteil: 0 });   // 1 war der Wechsel zu Puls
+  });
+
+  it("blendet auch beim Wechsel der Form über", () => {
+    const s = neu();
+    s.waehlePattern("puls");
     expect(s.blende).toEqual({ id: 1, anteil: 0 });
+    s.waehlePattern("puls");   // gleiche Form: keine neue Überblendung
+    expect(s.blende?.id).toBe(1);
   });
 
   it("springt ohne Überblendzeit und lässt Pause unberührt", () => {
