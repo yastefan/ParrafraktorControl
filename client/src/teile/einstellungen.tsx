@@ -91,6 +91,18 @@ export function Einstellungen({ stand, schliessen }: Props) {
           />
         </Gruppe>
 
+        <Gruppe titel="Flash">
+          <Schieber
+            name="Flash auf" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            wert={entwurf.flash.auf} setze={(v) => sofort({ flash: { ...entwurf.flash, auf: v } })}
+          />
+          <Schieber
+            name="Flash zu" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            wert={entwurf.flash.zu} setze={(v) => sofort({ flash: { ...entwurf.flash, zu: v } })}
+            hilfe="Tilt, auf den die Flash-Pads die Spiegel fahren. „Auf“ für Licht von hinten, „Zu“ für Licht von außen. Platzhalter, bis die Winkel am Aufbau bestimmt sind."
+          />
+        </Gruppe>
+
         <Gruppe titel="Patch (Fixture Gobbesso Parrafraktor, 37 Kanäle)">
           {Array.from({ length: ELEMENTE }, (_, k) => (
             <div class="feldzeile" key={k}>

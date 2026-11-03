@@ -42,6 +42,9 @@ export class WebServer {
   private intervall: NodeJS.Timeout | undefined;
   private herzschlag: NodeJS.Timeout | undefined;
   private lebendig = new WeakSet<WebSocket>();
+  // Nummer je Verbindung: Quelle ihrer Impulse, damit beim Abbruch losgelassen wird
+  private nummer = new WeakMap<WebSocket, number>();
+  private verbindungen = 0;
   private readonly beiAenderung = () => this.sendeBald();
 
   constructor(
@@ -94,6 +97,7 @@ export class WebServer {
 
   private verbunden(ws: WebSocket): void {
     this.lebendig.add(ws);
+    this.nummer.set(ws, ++this.verbindungen);
     ws.on("pong", () => this.lebendig.add(ws));
     ws.on("message", (daten, binaer) => {
       if (binaer) return;
@@ -103,7 +107,11 @@ export class WebServer {
     ws.on("error", () => ws.terminate());
     this.schicke(ws, this.stand());
     this.steuerung.geaendert();   // Anzahl der Clients hat sich geändert
-    ws.on("close", () => this.steuerung.geaendert());
+    ws.on("close", () => {
+      // Hielt diese Verbindung einen Flash (iPad weg, WLAN weg), lässt der Server los
+      this.steuerung.loeseImpuls(this.quelle(ws), true);
+      this.steuerung.geaendert();
+    });
   }
 
   private verarbeite(ws: WebSocket, n: ClientNachricht): void {
@@ -122,8 +130,17 @@ export class WebServer {
           case "umbenennen": s.benennePreset(n.nr, n.name); break;
         }
         break;
+      case "impuls":
+        if (n.gedrueckt) s.drueckeImpuls(n.ziel, this.quelle(ws, n.ziel));
+        else s.loeseImpuls(this.quelle(ws, n.ziel));
+        break;
+      case "impulsEinstellung": s.setzeImpuls(n.einstellung); break;
       case "ping": this.schicke(ws, { typ: "pong", t: n.t }); break;
     }
+  }
+
+  private quelle(ws: WebSocket, ziel = ""): string {
+    return `ws${this.nummer.get(ws) ?? 0}:${ziel}`;
   }
 
   private sendeBald(): void {

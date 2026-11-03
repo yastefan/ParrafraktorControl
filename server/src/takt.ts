@@ -9,7 +9,9 @@
 //
 // Preset abrufen: Die Stellung im Moment des Abrufens wird festgehalten und über die
 // Überblendzeit in den neuen Look überblendet, damit die Motoren nicht springen.
-import { Engine, mische, schreibeUniversen, weich, type Stellung } from "@parrafraktor/engine";
+//
+// Impulse (Flash auf/zu) liegen über dem Look, aber unter der Überblendung von bzw. zur MA.
+import { Engine, mische, schreibeUniversen, weich, wendeImpulseAn, type Stellung } from "@parrafraktor/engine";
 import type { UebernahmeZustand } from "@parrafraktor/protokoll";
 import type { Ausgabe } from "./ausgabe/index.js";
 import type { Mitlesen } from "./mitlesen.js";
@@ -95,9 +97,16 @@ export class Takt {
     return this.app;
   }
 
+  private mitImpulsen(app: Stellung[]): Stellung[] {
+    const impulse = this.steuerung.impulse();
+    if (!impulse.length) return app;
+    return wendeImpulseAn(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash);
+  }
+
   private schritt(dt: number): void {
     const { parameter, einstellungen, uebernahme } = this.steuerung;
     this.engine.weiter(parameter, dt);
+    this.steuerung.raeumeImpulse();
 
     const ma = this.quellen.mitlesen()?.stellungen(einstellungen.rotateMaxUpm) ?? null;
     const vorher = uebernahme.zustand;
@@ -112,7 +121,7 @@ export class Takt {
       if (vorher !== "aus") for (const a of ausgaben) a.gibFrei();
       return;
     }
-    const app = this.appStellungen(dt);
+    const app = this.mitImpulsen(this.appStellungen(dt));
     const stellungen = ma && anteil < 1 ? mische(ma, app, weich(anteil)) : app;
     const universen = schreibeUniversen(stellungen, einstellungen.patch, einstellungen.rotateMaxUpm);
     for (const a of ausgaben) a.sende(universen);

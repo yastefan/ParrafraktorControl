@@ -7,7 +7,10 @@
 //                   hintereinander, jedes in seiner Ebene gedreht. Dazu rechts jedes Element einzeln.
 //                   Modus "spiegel" zeigt die Spiegel, Modus "licht" nur das Licht, das von hinten
 //                   durch alle drei Lagen kommt – das Muster, das das Publikum sieht.
-import { ELEMENTE, Engine, SPIEGEL_N, weich, type Parameter, type Stellung } from "@parrafraktor/engine";
+import {
+  ELEMENTE, Engine, SPIEGEL_N, weich, wendeImpulseAn,
+  type FlashZiele, type ImpulsEinstellung, type LaufenderImpuls, type Parameter, type Stellung,
+} from "@parrafraktor/engine";
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
 
 export type VorderModus = "spiegel" | "licht";
@@ -19,6 +22,10 @@ export interface VorschauDaten {
   modus: VorderModus;
   blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
   blendeDauer: number;                              // Sekunden
+  impuls: ImpulsEinstellung;
+  impulse: LaufenderImpuls[];                       // Zeiten beim Empfang des Stands
+  impulseSeitS: number;                             // so lange ist der Stand schon da
+  flash: FlashZiele;
 }
 
 const ABWEICHUNG_MAX = 0.05;   // Durchläufe; größere Abweichungen werden sofort übernommen
@@ -68,8 +75,9 @@ export class Vorschau {
       const d = this.daten();
       if (d) {
         this.engine.weiter(d.parameter, dt);
-        const winkel = this.blenden(d, this.winkel(this.engine.alle(d.parameter), dt), dt);
-        this.letzteWinkel = winkel;
+        const look = this.blenden(d, this.winkel(this.engine.alle(d.parameter), dt), dt);
+        this.letzteWinkel = look;
+        const winkel = this.mitImpulsen(d, look);
         this.zeichne(d, winkel);
       }
       this.bild = requestAnimationFrame(schleife);
@@ -102,6 +110,13 @@ export class Vorschau {
     }
     const b = this.blende, f = weich(b.anteil);
     return ziel.map((w, g) => (b.von[g] ?? w) + (w - (b.von[g] ?? w)) * f);
+  }
+
+  // Impulse wie im Takt über den Look legen; ihre Zeit läuft seit dem Stand lokal weiter
+  private mitImpulsen(d: VorschauDaten, winkel: number[]): number[] {
+    if (!d.impulse.length) return winkel;
+    const impulse = d.impulse.map((i) => ({ ...i, alterS: i.alterS + d.impulseSeitS }));
+    return wendeImpulseAn(winkel.map((tilt) => ({ tilt, upm: 0 })), impulse, d.impuls, d.flash).map((s) => s.tilt);
   }
 
   // Sichtbarer Winkel je Spiegel in Grad: Tilt plus die Drehung über TiltRotate

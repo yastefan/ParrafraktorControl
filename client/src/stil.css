@@ -155,6 +155,51 @@ button, input, select { font: inherit; color: inherit; }
 /* Vorderansicht: Gesamtbild plus Spalte mit den Elementen einzeln */
 .vorn .vorschau { aspect-ratio: 4 / 3; max-height: 62vh; }
 
+/* ---------- Impulse ---------- */
+
+.impulse {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 12px;
+  background: var(--flaeche);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+@media (max-width: 600px) { .impulse { grid-template-columns: minmax(0, 1fr); } }
+.pads { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pad {
+  min-height: 110px;
+  border-radius: var(--radius);
+  border: 2px solid var(--linie);
+  background: var(--flaeche-2);
+  font-weight: 700;
+  font-size: 17px;
+  cursor: pointer;
+  touch-action: none;
+  transition: background 0.08s;
+}
+.pad.laeuft { border-color: var(--akzent); }
+.pad.gedrueckt { background: var(--akzent); border-color: var(--akzent); color: #111; }
+.pad:disabled { opacity: 0.4; }
+
+.huelle-feld { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.huelle-feld .zeile { padding: 4px 0; border: none; }
+.huelle-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
+.huelle {
+  width: 100%; height: auto; display: block;
+  background: var(--grund); border-radius: 10px;
+  touch-action: none; cursor: pointer;
+}
+.huelle.gesperrt { opacity: 0.4; }
+.huelle-achse { stroke: var(--linie); stroke-width: 1; }
+.huelle-hold { stroke: var(--linie); stroke-width: 1; stroke-dasharray: 3 3; }
+.huelle-text { fill: var(--leise); font-size: 10px; text-anchor: middle; }
+.huelle-kurve { fill: rgba(240, 160, 48, 0.12); stroke: var(--akzent); stroke-width: 2; stroke-linejoin: round; }
+.huelle-griff { fill: var(--text); }
+.huelle-marke { fill: #fff; stroke: var(--akzent); stroke-width: 2; pointer-events: none; transition: opacity 0.2s; }
+.huelle-werte { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--leise); }
+.huelle-werte b { color: var(--text); font-variant-numeric: tabular-nums; }
+
 .patterns {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));

@@ -1,6 +1,6 @@
 // Einstellungen des Servers: Patch, Ausgaben, Überblendung. Werden im Einstellungsmenü des Clients
 // bearbeitet und auf dem Server als JSON gespeichert.
-import { ADRESSE_MAX, ELEMENTE, PATCH_VORGABE, type PatchElement } from "@parrafraktor/engine";
+import { ADRESSE_MAX, ELEMENTE, PATCH_VORGABE, type FlashZiele, type PatchElement } from "@parrafraktor/engine";
 
 export interface ArtnetEinstellungen {
   an: boolean;
@@ -38,6 +38,7 @@ export interface Einstellungen {
   patch: PatchElement[];   // je Element Universe und Startadresse
   rotateMaxUpm: number;    // Umdrehungen pro Minute bei TiltRotate 0 bzw. 255
   ueberblendungS: number;  // Überblendung beim Übernehmen und Abgeben, 0 = springen
+  flash: FlashZiele;       // Tilt in Grad für Flash auf (Licht von hinten) und Flash zu (Licht von außen)
   artnet: ArtnetEinstellungen;
   sacn: SacnEinstellungen;
   rs485: Rs485Einstellungen;
@@ -50,6 +51,8 @@ export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
   // Platzhalter, bis die Drehzahl der Spiegel-Firmware bekannt ist – bewusst langsam
   rotateMaxUpm: 10,
   ueberblendungS: 2,
+  // Platzhalter, bis die Winkel am echten Aufbau bestimmt sind
+  flash: { auf: 90, zu: 0 },
   artnet: { an: true, ziel: "2.255.255.255", quelle: "", versatz: -1 },
   sacn: { an: false, priority: 150, multicast: true, ziel: "", quelle: "" },
   rs485: { an: false, geraet: "/dev/serial0" },
@@ -63,6 +66,7 @@ export const GRENZEN = {
   priority: { min: 1, max: 200 },
   versatz: { min: -1, max: 0 },
   drehung: { min: -180, max: 180 },
+  tilt: { min: -180, max: 180 },
 } as const;
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
@@ -90,7 +94,7 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
     const e = objekt(rohPatch[k]);
     return { universe: zahl(e.universe, alt.universe, GRENZEN.universe), adresse: zahl(e.adresse, alt.adresse, GRENZEN.adresse) };
   });
-  const a = objekt(r.artnet), s = objekt(r.sacn), rs = objekt(r.rs485), au = objekt(r.aufbau);
+  const a = objekt(r.artnet), s = objekt(r.sacn), rs = objekt(r.rs485), au = objekt(r.aufbau), f = objekt(r.flash);
   const rohDrehung = Array.isArray(au.drehung) ? au.drehung : [];
   const aufbau: Aufbau = {
     anordnung: ANORDNUNGEN.includes(au.anordnung as Anordnung) ? (au.anordnung as Anordnung) : basis.aufbau.anordnung,
@@ -102,6 +106,7 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
     patch,
     rotateMaxUpm: zahl(r.rotateMaxUpm, basis.rotateMaxUpm, GRENZEN.rotateMaxUpm, false),
     ueberblendungS: zahl(r.ueberblendungS, basis.ueberblendungS, GRENZEN.ueberblendungS, false),
+    flash: { auf: zahl(f.auf, basis.flash.auf, GRENZEN.tilt), zu: zahl(f.zu, basis.flash.zu, GRENZEN.tilt) },
     artnet: {
       an: wahr(a.an, basis.artnet.an),
       ziel: ip(a.ziel, basis.artnet.ziel, false),

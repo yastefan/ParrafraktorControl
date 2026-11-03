@@ -61,3 +61,47 @@ describe("Presets", () => {
     expect(leseClientNachricht('{"typ":"preset","aktion":"umbenennen","nr":0,"name":"  "}')).toBeNull();
   });
 });
+
+describe("Impulse", () => {
+  const mitUhr = () => {
+    let t = 0;
+    const s = new Steuerung(
+      { ...PARAMETER_VORGABE }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]), undefined, () => t,
+    );
+    return { s, vor: (dt: number) => { t += dt; } };
+  };
+
+  it("hält, solange gedrückt, und räumt nach dem Release auf", () => {
+    const { s, vor } = mitUhr();
+    s.drueckeImpuls("auf", "ws1:auf");
+    vor(10);
+    s.raeumeImpulse();
+    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 10, losS: null }]);
+    s.loeseImpuls("ws1:auf");
+    vor(s.impuls.huelle.releaseS + 0.01);
+    s.raeumeImpulse();
+    expect(s.impulse()).toEqual([]);
+  });
+
+  it("lässt alles los, was eine abgebrochene Verbindung hält", () => {
+    const { s } = mitUhr();
+    s.drueckeImpuls("auf", "ws1:auf");
+    s.drueckeImpuls("zu", "ws1:zu");
+    s.drueckeImpuls("auf", "ws12:auf");
+    s.loeseImpuls("ws1:", true);
+    expect(s.impulse().map((i) => i.losS)).toEqual([0, 0, null]);
+  });
+
+  it("prüft Hüllkurve und Nachrichten", () => {
+    const { s } = mitUhr();
+    s.setzeImpuls({ huelle: { attackS: 99, staerke: "x" }, elementFolge: "vorneHinten" });
+    expect(s.impuls.huelle).toMatchObject({ attackS: 5, staerke: 100 });
+    expect(s.impuls.elementFolge).toBe("vorneHinten");
+    s.verstelleImpuls("elementVersatzS", 2);
+    expect(s.impuls.elementVersatzS).toBe(0.4);
+    s.vorgabeImpuls("attackS");
+    expect(s.impuls.huelle.attackS).toBe(0.4);
+    expect(leseClientNachricht('{"typ":"impuls","ziel":"auf","gedrueckt":true}')).toEqual({ typ: "impuls", ziel: "auf", gedrueckt: true });
+    expect(leseClientNachricht('{"typ":"impuls","ziel":"seitlich","gedrueckt":true}')).toBeNull();
+  });
+});

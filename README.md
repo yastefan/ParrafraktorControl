@@ -96,8 +96,15 @@ Hauptmenü                                   Untermenü (Pattern, Presets)
 ┌─────────┬─────────┬─────────┬─────────┐   ┌─────────┬─────────┬─────────┬─────────┐
 │Pattern ›│Presets ›│Regler 1 │Reihenf. │   │  Platz  │  Platz  │  Platz  │  Platz  │
 ├─────────┼─────────┼─────────┼─────────┤   ├─────────┼─────────┼─────────┼─────────┤
-│Symmetr. │Richtung │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
+│Impulse ›│Richtung │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
 └─────────┴─────────┴─────────┴─────────┘   └─────────┴─────────┴─────────┴─────────┘
+
+Impulse (Live-Seite)
+┌─────────┬─────────┬─────────┬─────────┐
+│Flash auf│Flash zu │Elemente │         │
+├─────────┼─────────┼─────────┼─────────┤
+│‹ Zurück │         │         │         │
+└─────────┴─────────┴─────────┴─────────┘
 ```
 
 | Bedienteil | Funktion |
@@ -106,7 +113,8 @@ Hauptmenü                                   Untermenü (Pattern, Presets)
 | Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
 | Regler | Reglerseite umschalten |
 | Reihenfolge | über alle 36 / je Element |
-| Symmetrie, Richtung | nächste Stufe |
+| Richtung | nächste Stufe (Symmetrie: Drehregler Seite 2) |
+| Impulse › | Flash-Pads; Elemente schaltet die Element-Folge, Drehregler dort: Attack, Release, Stärke, Versatz |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
 | Drehregler, Seite 2 | Speed bis, Group, Fächer, Symmetrie |
@@ -153,6 +161,18 @@ Ein Pattern ist nur eine Form: Sinus, Sägezahn, Puls, Flyout, Blinder, Funkeln 
 | Reihenfolge | über alle 36 Spiegel oder je Element |
 
 Die früheren Pattern lassen sich so nachbauen: Sinus innen/außen = Sinus mit Symmetrie, Chase = Puls (jetzt eine breitere, weiche Welle), Ping-Pong = Puls mit Richtung Ping-Pong, Fächer = Sinus mit Symmetrie von innen und Fächer 100 %. Gespeicherte Presets und Parameter mit den alten Namen werden beim Laden so umgewandelt, Dreieck und Rechteck zu Sinus. Beim Wechsel der Form bleiben alle Regler, wie sie sind.
+
+## Impulse (Flash)
+
+Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult: **Drücken** fährt die Spiegel hin (Attack), **Halten** hält sie dort, **Loslassen** fährt sie zurück ins Pattern (Release).
+
+- **Flash auf / Flash zu**: alle Spiegel auf einen festen Tilt. Die Winkel stehen unter Einstellungen → Flash (Platzhalter: auf 90°, zu 0°). „Auf“ für Licht von hinten, „Zu“ für Licht von außen.
+- **Hüllkurve** im Client: oberen Punkt ziehen = Attack (waagerecht) und Stärke (senkrecht), rechten Punkt ziehen = Release. Während eines Flashs läuft ein Punkt auf der Kurve mit.
+- **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn. Beim Loslassen fahren die Elemente in derselben Folge zurück.
+- Mehrere Pads dürfen gleichzeitig gedrückt sein; der zuletzt gedrückte liegt oben.
+- Bricht die Verbindung eines iPads ab oder wird die App in den Hintergrund geschickt, lässt der Server dessen Flashs los. Am Stream Deck lassen Zurück und Abziehen los.
+
+Hüllkurve und Element-Folge werden in `daten/impuls.json` gespeichert. Weitere Ideen (Pendelwelle, Wind, Stoß …) stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
 
 ## Vorschau
 

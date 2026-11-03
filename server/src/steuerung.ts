@@ -2,11 +2,25 @@
 // Alle Bedienungen (Client, Stream Deck, MIDI, OSC) ändern den Zustand nur über diese Aktionen,
 // alle Anzeigen hören auf das Ereignis "aenderung".
 import { EventEmitter } from "node:events";
-import { PARAMETER_VORGABE, type Modus, type Parameter } from "@parrafraktor/engine";
 import {
-  BEREICHE, STUFEN, begrenze, lookAus, migriereParameter, pruefeEinstellungen, pruefeParameter, vorgabeName, vorgabeWert,
-  type Einstellungen, type Presets, type StufenParameter, type Uebernahme, type ZahlParameter,
+  IMPULS_VORGABE, PARAMETER_VORGABE, impulsFertig,
+  type ImpulsEinstellung, type ImpulsZiel, type LaufenderImpuls, type Modus, type Parameter,
+} from "@parrafraktor/engine";
+import {
+  BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeEinstellungen,
+  pruefeImpuls, pruefeParameter, vorgabeName, vorgabeWert,
+  type Einstellungen, type ImpulsRegler, type Presets, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
+
+// Ein gedrückter Impuls. quelle: wer ihn hält (z. B. "ws3:auf", "streamdeck:0"), damit
+// genau diese Taste ihn loslässt – oder alle, wenn das Gerät verschwindet.
+interface Impuls {
+  id: number;
+  ziel: ImpulsZiel;
+  quelle: string;
+  start: number;          // Sekunden (Uhr der Steuerung)
+  los: number | null;     // Zeitpunkt des Loslassens
+}
 
 interface Ereignisse {
   // irgendetwas Sichtbares hat sich geändert (Parameter, Übernahme, Modulstatus)
@@ -19,6 +33,8 @@ interface Ereignisse {
   presets: [Presets];
   // Preset abgerufen: der Takt soll von der aktuellen Stellung zum neuen Look überblenden
   blende: [];
+  // Hüllkurve oder Element-Folge geändert: wird gespeichert
+  impuls: [ImpulsEinstellung];
 }
 
 export class Steuerung extends EventEmitter<Ereignisse> {
@@ -30,12 +46,23 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   private _presets: Presets;
   private _letztesPreset: number | null = null;
   private _blende: { id: number; anteil: number } | null = null;
+  private _impuls: ImpulsEinstellung;
+  private _impulse: Impuls[] = [];
+  private impulsNr = 0;
 
-  constructor(parameter: Parameter, einstellungen: Einstellungen, presets: Presets) {
+  // uhr: Sekunden, austauschbar für Tests
+  constructor(
+    parameter: Parameter,
+    einstellungen: Einstellungen,
+    presets: Presets,
+    impuls: ImpulsEinstellung = IMPULS_VORGABE,
+    private readonly uhr: () => number = () => performance.now() / 1000,
+  ) {
     super();
     this._parameter = parameter;
     this._einstellungen = einstellungen;
     this._presets = presets;
+    this._impuls = impuls;
   }
 
   get parameter(): Readonly<Parameter> { return this._parameter; }
@@ -45,6 +72,15 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   get presets(): Readonly<Presets> { return this._presets; }
   get letztesPreset(): number | null { return this._letztesPreset; }
   get blende(): Readonly<{ id: number; anteil: number }> | null { return this._blende; }
+  get impuls(): Readonly<ImpulsEinstellung> { return this._impuls; }
+
+  // Laufende Impulse mit Zeiten relativ zu jetzt (für Takt, Vorschau und Anzeigen)
+  impulse(): LaufenderImpuls[] {
+    const jetzt = this.uhr();
+    return this._impulse.map((i) => ({
+      id: i.id, ziel: i.ziel, alterS: jetzt - i.start, losS: i.los === null ? null : i.los - i.start,
+    }));
+  }
 
   // ---------- Aktionen der Bedienungen ----------
 
@@ -94,6 +130,56 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   setzeUebernahme(an: boolean): void {
     if (this._uebernahme.soll === an) return;
     this._uebernahme = { ...this._uebernahme, soll: an };
+    this.geaendert();
+  }
+
+  // ---------- Impulse ----------
+
+  // Pad gedrückt. Hält dieselbe Quelle schon einen Impuls, wird der zuerst losgelassen.
+  drueckeImpuls(ziel: ImpulsZiel, quelle: string): void {
+    this.loeseImpuls(quelle);
+    this._impulse.push({ id: ++this.impulsNr, ziel, quelle, start: this.uhr(), los: null });
+    this.geaendert();
+  }
+
+  // Pad losgelassen. Ein Präfix (z. B. "ws3:") lässt alles los, was diese Verbindung hält.
+  loeseImpuls(quelle: string, alleMitPraefix = false): void {
+    const jetzt = this.uhr();
+    let geaendert = false;
+    for (const i of this._impulse) {
+      if (i.los === null && (alleMitPraefix ? i.quelle.startsWith(quelle) : i.quelle === quelle)) {
+        i.los = jetzt;
+        geaendert = true;
+      }
+    }
+    if (geaendert) this.geaendert();
+  }
+
+  // Der Takt räumt fertige Impulse weg
+  raeumeImpulse(): void {
+    const vorher = this._impulse.length;
+    const liste = this.impulse();
+    this._impulse = this._impulse.filter((_, n) => !impulsFertig(this._impuls, liste[n]!));
+    if (this._impulse.length !== vorher) this.geaendert();
+  }
+
+  setzeImpuls(roh: unknown): void {
+    this.aendereImpuls(pruefeImpuls(roh, this._impuls));
+  }
+
+  verstelleImpuls(name: ImpulsRegler, schritte: number): void {
+    const wert = impulsWert(this._impuls, name) + schritte * IMPULS_BEREICHE[name].schritt;
+    this.aendereImpuls(mitImpulsWert(this._impuls, name, wert));
+  }
+
+  vorgabeImpuls(name: ImpulsRegler): void {
+    this.aendereImpuls(mitImpulsWert(this._impuls, name, impulsWert(IMPULS_VORGABE, name)));
+  }
+
+  private aendereImpuls(neu: ImpulsEinstellung): void {
+    if (JSON.stringify(neu) === JSON.stringify(this._impuls)) return;
+    this._impuls = neu;
+    this.emit("impuls", neu);
     this.geaendert();
   }
 
