@@ -10,7 +10,7 @@
 // Preset abrufen: Die Stellung im Moment des Abrufens wird festgehalten und über die
 // Überblendzeit in den neuen Look überblendet, damit die Motoren nicht springen.
 //
-// Impulse (Flash auf/zu) liegen über dem Look, aber unter der Überblendung von bzw. zur MA.
+// Impulse (Flash, Stoß, Glitzern) liegen über dem Look, aber unter der Überblendung von bzw. zur MA.
 import { Engine, mische, schreibeUniversen, weich, wendeImpulseAn, type Stellung } from "@parrafraktor/engine";
 import type { UebernahmeZustand } from "@parrafraktor/protokoll";
 import type { Ausgabe } from "./ausgabe/index.js";
@@ -100,7 +100,7 @@ export class Takt {
   private mitImpulsen(app: Stellung[]): Stellung[] {
     const impulse = this.steuerung.impulse();
     if (!impulse.length) return app;
-    return wendeImpulseAn(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash, this.steuerung.parameter.ordnung);
+    return wendeImpulseAn(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash);
   }
 
   private schritt(dt: number): void {

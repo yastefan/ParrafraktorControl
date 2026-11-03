@@ -49,8 +49,8 @@ Anfang. Tippen auf den Touch-Strip übersteuert den Startpunkt für diesen einen
 
 ### 3. Impulse (live, wie Flash am Lichtpult)
 
-Drücken = Attack (hinfahren), Halten = Hold (bleiben), Loslassen = Release (zurück in die Grundbewegung).
-Mehrere Impulse dürfen sich überlagern, der zuletzt gedrückte liegt oben.
+Art wählen, auf dem Streifen auslösen; dann Attack (hinfahren), Sustain (bleiben), Release (zurück in die
+Grundbewegung). Mehrere Impulse dürfen sich überlagern, der zuletzt gestartete liegt oben.
 
 - **Flash auf / Flash zu** – alle Spiegel zu einer Ziel-Stellung. „Auf“ (Licht von hinten, häufigster
   Fall) und „Zu“ (Licht von außen) sind Winkel im Einstellungsmenü, weil sie vom Aufbau abhängen.
@@ -65,7 +65,6 @@ Am Stream Deck stellen die Knöpfe Attack, Release, Stärke, Versatz.
 **Element-Folge bei Impulsen:** z. B. erst Element 1, dann 2, dann 3 auf – und beim Loslassen in derselben
 Folge wieder zurück.
 
-**Sicherheit:** Geht die Verbindung des Geräts verloren, das einen Impuls hält, wird er losgelassen.
 
 ## Bedienung
 
@@ -81,7 +80,8 @@ Folge wieder zurück.
 3. Grundbewegungen Pendelwelle, Wind und Ruhe ✅; Formen Sägezahn/Puls/Flyout/Blinder/Funkeln entfernt ✅.
 4. Touch-Strip als Ursprung ✅ (Tippen = von dort, Wischen = Richtung; Tempo über **Ausbreitung**, weil der
    Streifen keine Wischgeschwindigkeit meldet; ohne Halten). Flyout ist damit ein Flash mit Ausbreitung.
-   Offen: Stoß (Federkopplung), Glitzern, Quantisierung auf den Takt.
+5. Stoß, Glitzern, Sustain ✅. Quantisierung auf den Takt (Tap-Tempo, Raster) entfällt. Die Pads lösen nicht mehr aus, sondern wählen nur
+   die Art; ausgelöst wird immer über den Streifen (kein Halten mehr, dafür Sustain).
 
 ## Offen
 

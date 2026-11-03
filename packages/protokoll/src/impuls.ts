@@ -1,16 +1,21 @@
-// Einstellung der Impulse (Hüllkurve, Element-Folge): Wertebereiche und Prüfung.
+// Einstellung der Impulse (Art, Hüllkurve, Element-Folge, Ausbreitung): Wertebereiche und Prüfung.
 // Gespeichert in daten/impuls.json, bearbeitet im Client und an den Drehreglern des Stream Decks.
-import { ELEMENT_FOLGEN, IMPULS_VORGABE, type ElementFolge, type ImpulsEinstellung } from "@parrafraktor/engine";
+import {
+  ELEMENT_FOLGEN, IMPULS_VORGABE, istImpulsArt, type ElementFolge, type ImpulsEinstellung,
+} from "@parrafraktor/engine";
 import type { Bereich } from "./parameter.js";
 
-export type ImpulsRegler = "attackS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS";
+export type ImpulsRegler =
+  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS" | "breite";
 
 export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   attackS: { name: "Attack", kurz: "Attack", min: 0, max: 5, schritt: 0.05, einheit: " s" },
+  sustainS: { name: "Sustain", kurz: "Sustain", min: 0, max: 10, schritt: 0.05, einheit: " s" },
   releaseS: { name: "Release", kurz: "Release", min: 0, max: 10, schritt: 0.05, einheit: " s" },
   staerke: { name: "Stärke", kurz: "Stärke", min: 0, max: 100, schritt: 1, einheit: " %" },
   elementVersatzS: { name: "Element-Versatz", kurz: "Versatz", min: 0, max: 2, schritt: 0.05, einheit: " s" },
   ausbreitungS: { name: "Ausbreitung", kurz: "Ausbr.", min: 0, max: 3, schritt: 0.05, einheit: " s", nullText: "aus" },
+  breite: { name: "Breite", kurz: "Breite", min: 0, max: 12, schritt: 1, einheit: " Sp.", nullText: "alle" },
 };
 
 export const IMPULS_REGLER = Object.keys(IMPULS_BEREICHE) as ImpulsRegler[];
@@ -29,16 +34,17 @@ export function zeigeImpuls(name: ImpulsRegler, wert: number): string {
   return (b.schritt < 1 ? wert.toFixed(2) : String(Math.round(wert))) + b.einheit;
 }
 
-// Wert eines Reglers lesen bzw. setzen (Hüllkurve liegt eine Ebene tiefer)
-const obenAuf = (name: ImpulsRegler): name is "elementVersatzS" | "ausbreitungS" =>
-  name === "elementVersatzS" || name === "ausbreitungS";
+// Wert eines Reglers lesen bzw. setzen (die Hüllkurve liegt eine Ebene tiefer)
+type InHuelle = "attackS" | "sustainS" | "releaseS" | "staerke";
+const inHuelle = (name: ImpulsRegler): name is InHuelle =>
+  name === "attackS" || name === "sustainS" || name === "releaseS" || name === "staerke";
 
 export const impulsWert = (e: ImpulsEinstellung, name: ImpulsRegler): number =>
-  obenAuf(name) ? e[name] : e.huelle[name];
+  inHuelle(name) ? e.huelle[name] : e[name];
 
 export function mitImpulsWert(e: ImpulsEinstellung, name: ImpulsRegler, wert: number): ImpulsEinstellung {
   const w = begrenzeImpuls(name, wert);
-  return obenAuf(name) ? { ...e, [name]: w } : { ...e, huelle: { ...e.huelle, [name]: w } };
+  return inHuelle(name) ? { ...e, huelle: { ...e.huelle, [name]: w } } : { ...e, [name]: w };
 }
 
 const istFolge = (x: unknown): x is ElementFolge => (ELEMENT_FOLGEN as readonly unknown[]).includes(x);
@@ -49,9 +55,11 @@ export function pruefeImpuls(roh: unknown, basis: ImpulsEinstellung = IMPULS_VOR
   const h = typeof r.huelle === "object" && r.huelle !== null ? (r.huelle as Record<string, unknown>) : {};
   let e: ImpulsEinstellung = { ...basis, huelle: { ...basis.huelle } };
   for (const name of IMPULS_REGLER) {
-    const x = obenAuf(name) ? r[name] : h[name];
+    const x = inHuelle(name) ? h[name] : r[name];
     if (typeof x === "number" && Number.isFinite(x)) e = mitImpulsWert(e, name, x);
   }
   if (istFolge(r.elementFolge)) e.elementFolge = r.elementFolge;
+  if (istImpulsArt(r.art)) e.art = r.art;
+  if (typeof r.symmetrisch === "boolean") e.symmetrisch = r.symmetrisch;
   return e;
 }

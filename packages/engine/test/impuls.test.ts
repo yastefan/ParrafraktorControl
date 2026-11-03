@@ -1,71 +1,105 @@
 import { describe, expect, it } from "vitest";
 import {
-  IMPULS_VORGABE, SPIEGEL_GESAMT, SPIEGEL_N, huellenWert, impulsFertig, wendeImpulseAn, type ImpulsEinstellung,
+  IMPULS_VORGABE, SPIEGEL_GESAMT, SPIEGEL_N, huellenWert, impulsFertig, stossWert, wendeImpulseAn,
+  type ImpulsEinstellung, type LaufenderImpuls,
 } from "../src/index.js";
 
-const h = { attackS: 1, releaseS: 2, staerke: 100 };
+const h = { attackS: 1, sustainS: 2, releaseS: 2, staerke: 100 };
+const e: ImpulsEinstellung = { ...IMPULS_VORGABE, huelle: h };
 const basis = Array.from({ length: SPIEGEL_GESAMT }, () => ({ tilt: 10, upm: 4 }));
-const ziele = { auf: 90, zu: -90 };
+const winkel = { auf: 90, zu: -90, ausschlag: 30 };
+const impuls = (teil: Partial<LaufenderImpuls>): LaufenderImpuls => ({ id: 1, art: "auf", alterS: 0, ursprung: 0.5, breite: 0, ...teil });
+const tilts = (ee: ImpulsEinstellung, ...i: Partial<LaufenderImpuls>[]) =>
+  wendeImpulseAn(basis, i.map(impuls), ee, winkel).map((s) => s.tilt);
 
 describe("Hüllkurve", () => {
-  it("fährt weich hin, hält und fährt nach dem Loslassen zurück", () => {
-    expect(huellenWert(h, 0, null)).toBe(0);
-    expect(huellenWert(h, 0.5, null)).toBeCloseTo(0.5);
-    expect(huellenWert(h, 5, null)).toBe(1);          // gehalten
-    expect(huellenWert(h, 5, 4)).toBeCloseTo(0.5);    // Mitte des Release
-    expect(huellenWert(h, 6, 4)).toBe(0);
-  });
-
-  it("fährt beim Loslassen im Attack von dort zurück, ohne Sprung", () => {
-    const vorher = huellenWert(h, 0.3 - 1e-6, null);
-    expect(huellenWert(h, 0.3, 0.3)).toBeCloseTo(vorher, 4);
+  it("fährt weich hin, bleibt für den Sustain und fährt zurück", () => {
+    expect(huellenWert(h, 0)).toBe(0);
+    expect(huellenWert(h, 0.5)).toBeCloseTo(0.5);
+    expect(huellenWert(h, 2.9)).toBe(1);          // Sustain
+    expect(huellenWert(h, 4)).toBeCloseTo(0.5);   // Mitte des Release
+    expect(huellenWert(h, 5)).toBe(0);
   });
 });
 
 describe("Impulse anwenden", () => {
-  it("Flash auf fährt alle Spiegel zum Ziel und hält TiltRotate an", () => {
-    const s = wendeImpulseAn(basis, [{ id: 1, ziel: "auf", alterS: 3, losS: null, ursprung: null }], IMPULS_VORGABE, ziele, "links");
+  it("Flash fährt zum Ziel und hält TiltRotate an", () => {
+    const s = wendeImpulseAn(basis, [impuls({ alterS: 2 })], e, winkel);
     expect(s.every((x) => x.tilt === 90 && x.upm === 0)).toBe(true);
-  });
-
-  it("Stärke 50 % fährt nur halb", () => {
-    const e = { ...IMPULS_VORGABE, huelle: { ...IMPULS_VORGABE.huelle, staerke: 50 } };
-    expect(wendeImpulseAn(basis, [{ id: 1, ziel: "auf", alterS: 3, losS: null, ursprung: null }], e, ziele, "links")[0]!.tilt).toBe(50);
+    expect(tilts({ ...e, huelle: { ...h, staerke: 50 } }, { alterS: 2 })[0]).toBe(50);
   });
 
   it("Element-Folge: erst vorn, dann die anderen – Release in derselben Folge", () => {
-    const e: ImpulsEinstellung = { huelle: h, elementFolge: "vorneHinten", elementVersatzS: 1, ausbreitungS: 0 };
-    const bei = (alterS: number, losS: number | null) =>
-      wendeImpulseAn(basis, [{ id: 1, ziel: "auf", alterS, losS, ursprung: null }], e, ziele, "links").map((x) => x.tilt);
-    const t = bei(1.5, null);
-    expect(t[0]).toBe(90);                    // Element 1 ganz auf
+    const ee: ImpulsEinstellung = { ...e, elementFolge: "vorneHinten", elementVersatzS: 1 };
+    const t = tilts(ee, { alterS: 1.5 });
+    expect(t[0]).toBe(90);                     // Element 1 ganz auf
     expect(t[SPIEGEL_N]!).toBeGreaterThan(10); // Element 2 unterwegs
-    expect(t[2 * SPIEGEL_N]).toBe(10);        // Element 3 noch nicht
-    const r = bei(6.5, 5);                     // losgelassen bei 5 s
-    expect(r[0]).toBeLessThan(90);            // Element 1 fährt schon zurück
-    expect(r[2 * SPIEGEL_N]).toBe(90);        // Element 3 hält noch
-    expect(impulsFertig(e, { alterS: 8.9, losS: 5 })).toBe(false);
-    expect(impulsFertig(e, { alterS: 9, losS: 5 })).toBe(true);
+    expect(t[2 * SPIEGEL_N]).toBe(10);         // Element 3 noch nicht
+    const r = tilts(ee, { alterS: 4.5 });
+    expect(r[0]).toBeLessThan(90);             // Element 1 fährt schon zurück
+    expect(r[2 * SPIEGEL_N]).toBe(90);         // Element 3 hält noch
+    expect(impulsFertig(ee, { alterS: 6.9, art: "auf" })).toBe(false);
+    expect(impulsFertig(ee, { alterS: 7, art: "auf" })).toBe(true);
   });
 
-  it("der zuletzt gedrückte Impuls liegt oben", () => {
-    const s = wendeImpulseAn(basis, [
-      { id: 1, ziel: "auf", alterS: 5, losS: null, ursprung: null },
-      { id: 2, ziel: "zu", alterS: 5, losS: null, ursprung: null },
-    ], IMPULS_VORGABE, ziele, "links");
-    expect(s[0]!.tilt).toBe(-90);
+  it("läuft mit Ausbreitung vom Ursprung nach außen", () => {
+    const ee: ImpulsEinstellung = { ...e, ausbreitungS: 1.1 };
+    const r = tilts(ee, { alterS: 1, ursprung: 1 });
+    expect(r[11]).toBe(90);
+    expect(r[0]).toBe(10);
+    expect(r[12 + 11]).toBe(90);   // gilt für jedes Element
   });
 
-  it("läuft mit Ausbreitung vom Ursprung des Touchstreifens nach außen", () => {
-    const e: ImpulsEinstellung = { ...IMPULS_VORGABE, huelle: h, ausbreitungS: 1.1 };
-    // Ursprung rechts: Spiegel 11 startet sofort, Spiegel 0 erst nach 1,1 s
-    const r = wendeImpulseAn(basis, [{ id: 1, ziel: "auf", alterS: 1, losS: null, ursprung: 1 }], e, ziele, "links");
-    expect(r[11]!.tilt).toBe(90);
-    expect(r[0]!.tilt).toBe(10);
-    expect(r[12 + 11]!.tilt).toBe(90);   // gilt für jedes Element
-    // ohne Ursprung entlang der Ordnung: bei "rechts" ebenso
-    const o = wendeImpulseAn(basis, [{ id: 1, ziel: "auf", alterS: 1, losS: null, ursprung: null }], e, ziele, "rechts");
-    o.forEach((x, g) => expect(x.tilt).toBeCloseTo(r[g]!.tilt, 9));
-    expect(impulsFertig(e, { alterS: 1 + 1.1 + 2 - 0.01, losS: 1 })).toBe(false);
+  it("Breite: getippt wirkt der Impuls nur um den Startpunkt", () => {
+    const t = tilts(e, { alterS: 2, ursprung: 0, breite: 3 });
+    expect(t.slice(0, 3)).toEqual([90, 90, 10]);   // Spiegel 0 und 1 voll, ab Spiegel 2 nicht mehr
+    const halb = tilts(e, { alterS: 2, ursprung: 0, breite: 2 });
+    expect(halb[1]).toBe(50);                     // Rand: halb
+  });
+
+  it("Symmetrisch: startet auch am gespiegelten Punkt, rechts gespiegelt", () => {
+    const ee: ImpulsEinstellung = { ...e, symmetrisch: true, ausbreitungS: 4.4 };
+    const t = tilts(ee, { alterS: 1, ursprung: 0 });
+    expect(t[0]).toBe(90);
+    expect(t[11]).toBe(90);
+    expect(t[5]).toBe(10);
+    for (const art of ["stoss", "glitzern"] as const) {
+      for (const a of [0.3, 0.8, 1.6]) {
+        const w = tilts(ee, { art, alterS: a, ursprung: 0.2 });
+        for (let s = 0; s < 6; s++) expect(w[11 - s]! - 10).toBeCloseTo(-(w[s]! - 10), 9);
+      }
+    }
+  });
+
+  it("der zuletzt gestartete Impuls liegt oben", () => {
+    expect(tilts(e, { alterS: 2 }, { id: 2, art: "zu", alterS: 2 })[0]).toBe(-90);
+  });
+
+  it("Stoß: läuft vom Ursprung los, kommt an den Enden zurück und schwingt aus", () => {
+    const ee: ImpulsEinstellung = { ...e, huelle: { ...h, attackS: 0.1 }, ausbreitungS: 1 };
+    // kurz nach dem Stoß bewegt sich nur die Nähe des Ursprungs
+    expect(Math.abs(stossWert(ee, 0, [0], 0.1))).toBeGreaterThan(0.3);
+    expect(stossWert(ee, 1, [0], 0.1)).toBe(0);
+    // nach 1 s ist er am anderen Ende angekommen
+    expect(Math.abs(stossWert(ee, 1, [0], 1.1))).toBeGreaterThan(0.1);
+    // nach Sustain + Release ist alles still
+    expect(stossWert(ee, 0.5, [0], 4.1)).toBe(0);
+    const t = tilts(ee, { art: "stoss", alterS: 0.1, ursprung: 0 });
+    expect(Math.abs(t[0]! - 10)).toBeLessThanOrEqual(30 * 1.09);
+    expect(t[11]).toBe(10);
+  });
+
+  it("Glitzern: einzelne Spiegel zucken, nicht alle, und nur im Ausschlag", () => {
+    const zuckt = new Set<number>();
+    for (let a = 0.5; a < 3; a += 0.05) {
+      tilts(e, { art: "glitzern", alterS: a }).forEach((x, g) => {
+        expect(Math.abs(x - 10)).toBeLessThanOrEqual(30 + 1e-9);
+        if (Math.abs(x - 10) > 1) zuckt.add(g);
+      });
+      const jetzt = tilts(e, { art: "glitzern", alterS: a }).filter((x) => Math.abs(x - 10) > 1).length;
+      expect(jetzt).toBeLessThan(SPIEGEL_GESAMT * 0.7);
+    }
+    expect(zuckt.size).toBeGreaterThan(SPIEGEL_GESAMT / 2);
   });
 });
+

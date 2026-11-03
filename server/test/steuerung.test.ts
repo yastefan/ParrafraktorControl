@@ -71,34 +71,19 @@ describe("Impulse", () => {
     return { s, vor: (dt: number) => { t += dt; } };
   };
 
-  it("hält, solange gedrückt, und räumt nach dem Release auf", () => {
+  it("Streifen startet die gewählte Art vom Ursprung aus und räumt nach dem Release auf", () => {
     const { s, vor } = mitUhr();
-    s.drueckeImpuls("auf", "ws1:auf");
-    vor(10);
-    s.raeumeImpulse();
-    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 10, losS: null, ursprung: null }]);
-    s.loeseImpuls("ws1:auf");
-    vor(s.impuls.huelle.releaseS + 0.01);
+    s.setzeImpuls({ art: "stoss" });
+    s.tippeImpuls(1.7);
+    expect(s.impulse()).toEqual([{ id: 1, art: "stoss", alterS: 0, ursprung: 1, breite: 0 }]);
+    s.setzeImpuls({ breite: 4 });
+    s.tippeImpuls(0.5);
+    s.tippeImpuls(0, true);   // gewischt: durch das ganze Element
+    expect(s.impulse().map((i) => i.breite)).toEqual([0, 4, 0]);
+    const h = s.impuls.huelle;
+    vor(h.attackS + h.sustainS + h.releaseS + 0.01);
     s.raeumeImpulse();
     expect(s.impulse()).toEqual([]);
-  });
-
-  it("Touchstreifen: Impuls ohne Halten, vom Ursprung aus", () => {
-    const { s, vor } = mitUhr();
-    s.tippeImpuls("auf", 1.7);
-    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 0, losS: s.impuls.huelle.attackS, ursprung: 1 }]);
-    vor(s.impuls.huelle.attackS + s.impuls.huelle.releaseS + 0.01);
-    s.raeumeImpulse();
-    expect(s.impulse()).toEqual([]);
-  });
-
-  it("lässt alles los, was eine abgebrochene Verbindung hält", () => {
-    const { s } = mitUhr();
-    s.drueckeImpuls("auf", "ws1:auf");
-    s.drueckeImpuls("zu", "ws1:zu");
-    s.drueckeImpuls("auf", "ws12:auf");
-    s.loeseImpuls("ws1:", true);
-    expect(s.impulse().map((i) => i.losS)).toEqual([0, 0, null]);
   });
 
   it("prüft Hüllkurve und Nachrichten", () => {
@@ -110,7 +95,9 @@ describe("Impulse", () => {
     expect(s.impuls.elementVersatzS).toBe(0.4);
     s.vorgabeImpuls("attackS");
     expect(s.impuls.huelle.attackS).toBe(0.4);
-    expect(leseClientNachricht('{"typ":"impuls","ziel":"auf","gedrueckt":true}')).toEqual({ typ: "impuls", ziel: "auf", gedrueckt: true });
-    expect(leseClientNachricht('{"typ":"impuls","ziel":"seitlich","gedrueckt":true}')).toBeNull();
+    s.setzeImpuls({ art: "seitlich" });
+    expect(s.impuls.art).toBe("auf");
+    expect(leseClientNachricht('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1, wischen: false });
+    expect(leseClientNachricht('{"typ":"impulsTippen"}')).toBeNull();
   });
 });

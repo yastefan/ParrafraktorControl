@@ -16,18 +16,18 @@
 //
 // Impulse (Live-Seite):
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Flash auf │Flash zu  │El.-Folge │Streifen  │   Pads wie Flash-Tasten: drücken, halten, loslassen
-//   ├──────────┼──────────┼──────────┼──────────┤   Streifen: welcher Flash beim Tippen auf den Touchstreifen
-//   │‹ Zurück  │ Regler   │          │          │   Regler: Seite 1 Attack/Release/Stärke/Versatz, 2 Ausbreitung
-//   └──────────┴──────────┴──────────┴──────────┘
-// Touchstreifen im Impulse-Menü: Tippen = Flash von dort aus (ohne Halten), Wischen = Flash läuft
-// in Wischrichtung durch. Wie schnell er durchläuft, sagt die Ausbreitung.
+//   │Flash auf │Flash zu  │  Stoß    │ Glitzern │   obere Reihe: Art wählen (löst nichts aus)
+//   ├──────────┼──────────┼──────────┼──────────┤
+//   │‹ Zurück  │ Elemente │ Regler   │Symmetr.  │   Regler: Seite 1 Attack/Sustain/Release/Stärke,
+//   └──────────┴──────────┴──────────┴──────────┘           Seite 2 Ausbreitung/Breite/Versatz
+// Touchstreifen im Impulse-Menü: Tippen = gewählte Art von dort aus, Wischen = sie läuft in
+// Wischrichtung durch. Wie schnell, sagt die Ausbreitung.
 //
 // Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Ordnung,
 // Seite 3 Wiederkehr/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite
 // (außer im Impulse-Menü).
-import type { ImpulsZiel } from "@parrafraktor/engine";
+import type { ImpulsArt } from "@parrafraktor/engine";
 import type { ImpulsRegler, SchalterParameter, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
 
 export type Menue = "haupt" | "pattern" | "presets" | "impulse";
@@ -71,11 +71,14 @@ export const HAUPT = {
 } as const;
 
 // Impulse
-export const IMPULS_PADS: Partial<Record<number, ImpulsZiel>> = { 0: "auf", 1: "zu" };
-export const TASTE_ELEMENT_FOLGE = 2;
-export const TASTE_STREIFEN = 3;
-export const TASTE_IMPULS_REGLER = 5;
-export const IMPULS_REGLER_SEITEN: ImpulsRegler[][] = [["attackS", "releaseS", "staerke", "elementVersatzS"], ["ausbreitungS"]];
+export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf", 1: "zu", 2: "stoss", 3: "glitzern" };
+export const TASTE_ELEMENT_FOLGE = 5;
+export const TASTE_IMPULS_REGLER = 6;
+export const TASTE_SYMMETRISCH = 7;
+export const IMPULS_REGLER_SEITEN: ImpulsRegler[][] = [
+  ["attackS", "sustainS", "releaseS", "staerke"],
+  ["ausbreitungS", "breite", "elementVersatzS"],
+];
 
 // Untermenüs
 export const TASTE_ZURUECK = 4;

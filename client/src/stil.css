@@ -166,28 +166,24 @@ button, input, select { font: inherit; color: inherit; }
   padding: 12px;
 }
 @media (max-width: 600px) { .impulse { grid-template-columns: minmax(0, 1fr); } }
-.pads { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.pad {
-  min-height: 110px;
+.arten { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.art {
+  min-height: 64px;
   border-radius: var(--radius);
   border: 2px solid var(--linie);
   background: var(--flaeche-2);
   font-weight: 700;
-  font-size: 17px;
+  font-size: 16px;
   cursor: pointer;
-  touch-action: none;
-  transition: background 0.08s;
 }
-.pad.laeuft { border-color: var(--akzent); }
-.pad.gedrueckt { background: var(--akzent); border-color: var(--akzent); color: #111; }
-.pad:disabled { opacity: 0.4; }
+.art.laeuft { border-color: var(--akzent); }
+.art.aktiv { background: var(--akzent); border-color: var(--akzent); color: #111; }
+.art:disabled { opacity: 0.4; }
 
 .impulse-spielen { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.streifen-feld { display: flex; flex-direction: column; gap: 6px; }
-.streifen-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
 .streifen {
   position: relative;
-  height: 56px;
+  height: 72px;
   border-radius: var(--radius);
   border: 2px dashed var(--linie);
   background: var(--grund);
@@ -208,7 +204,7 @@ button, input, select { font: inherit; color: inherit; }
 @keyframes streifen-blitz { from { opacity: 1; transform: scaleX(1); } to { opacity: 0; transform: scaleX(3); } }
 
 .huelle-feld { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.huelle-feld .zeile { padding: 4px 0; border: none; }
+.huelle-feld .zeile, .impulse-spielen .zeile { padding: 4px 0; border: none; }
 .huelle-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
 .huelle {
   width: 100%; height: auto; display: block;
