@@ -100,7 +100,7 @@ export class Takt {
   private mitImpulsen(app: Stellung[]): Stellung[] {
     const impulse = this.steuerung.impulse();
     if (!impulse.length) return app;
-    return wendeImpulseAn(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash);
+    return wendeImpulseAn(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash, this.steuerung.parameter.ordnung);
   }
 
   private schritt(dt: number): void {

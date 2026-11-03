@@ -23,9 +23,10 @@ Vor der Show wird die Grundbewegung eingestellt, live werden Impulse gedrückt.
 
 - **Ruhe** – alle auf Offset, nur Impulse bewegen.
 - **Welle** – der bisherige Sinus, mit Ping-Pong als Option.
-- **Pendelwelle** – jeder Spiegel mit leicht anderer Periode (z. B. T/(20+i)): Gleichlauf → Schlangen →
-  Chaos → Gleichlauf. Regler: Zykluslänge, Amplitude, Spreizung.
-- **Wind** – weiches Rauschfeld über Raum und Zeit, wiederholt sich nie. Regler: Wellenlänge, Tempo, Amplitude.
+- **Pendelwelle** – jeder Spiegel mit leicht anderer Periode (Speed × (1 + Platz/Wiederkehr)): Gleichlauf →
+  Schlangen → Chaos → Gleichlauf. Regler: Speed (ganzes Bild), Wiederkehr (Schwünge), Amplitude.
+- **Wind** – Böen ziehen entlang der Ordnung durch und verändern sich langsam, wiederholt sich nie.
+  Regler: Wellenlänge, Tempo, Amplitude.
 - **Drehen** – TiltRotate (bisher „Rotation“).
 
 **Offset je Element:** Normal ein Offset für alle. Im Client öffnet ein Schloss drei Schieber
@@ -75,12 +76,15 @@ Folge wieder zurück.
 ## Reihenfolge der Umsetzung
 
 1. **Prototyp Impulse:** Flash auf/zu, Hüllkurve, Element-Folge – Engine, Server, Client, Stream Deck. ✅
-2. Verteilung zusammenlegen (Ordnung, Gegenlauf), Offset je Element.
-3. Grundbewegungen Pendelwelle und Wind; Formen Flyout/Blinder/Sägezahn/Funkeln werden Impulse.
-4. Impulse Stoß (Federkopplung), Flyout, Glitzern; Touch-Strip als Ursprung; Quantisierung auf den Takt.
+2. Verteilung zusammenlegen (Ordnung, Gegenlauf), Offset je Element. ✅ (Ordnung gilt innerhalb jedes
+   Elements, die Element-Folge ersetzt „alle 36 / je Element“; Element-Folge der Impulse bleibt eigene Einstellung)
+3. Grundbewegungen Pendelwelle, Wind und Ruhe ✅; Formen Sägezahn/Puls/Flyout/Blinder/Funkeln entfernt ✅.
+4. Touch-Strip als Ursprung ✅ (Tippen = von dort, Wischen = Richtung; Tempo über **Ausbreitung**, weil der
+   Streifen keine Wischgeschwindigkeit meldet; ohne Halten). Flyout ist damit ein Flash mit Ausbreitung.
+   Offen: Stoß (Federkopplung), Glitzern, Quantisierung auf den Takt.
 
 ## Offen
 
 - Wie schnell fährt Tilt wirklich? Davon hängt ab, wie kurz Attack sinnvoll ist.
 - Winkel für „auf“ und „zu“ am echten Aufbau bestimmen (Vorgabe: auf 90°, zu 0°, Platzhalter).
-- Website-Simulation: bleibt vorerst beim alten Modell.
+- Website-Simulation: rechnet die Grundbewegungen gleich, kennt aber keine Impulse.

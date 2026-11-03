@@ -2,9 +2,9 @@
 //
 // Hauptmenü:
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Pattern › │Presets › │ Regler   │Reihenf.  │   Regler: Reglerseite umschalten
+//   │Pattern › │Presets › │ Regler   │ Elemente │   Regler: Reglerseite umschalten
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │Impulse › │ Richtung │  Pause   │  Output  │   Richtung: Stufe weiterschalten (Symmetrie: Drehregler)
+//   │Impulse › │ Ordnung  │  Pause   │  Output  │   Elemente/Ordnung: Stufe weiterschalten
 //   └──────────┴──────────┴──────────┴──────────┘   Output: gedrückt halten (Schutz vor Versehen)
 // Untermenü (Pattern, Presets): sechs Plätze, unten links Zurück, unten rechts nächste Seite.
 //   ┌──────────┬──────────┬──────────┬──────────┐
@@ -16,21 +16,26 @@
 //
 // Impulse (Live-Seite):
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Flash auf │Flash zu  │El.-Folge │          │   Pads wie Flash-Tasten: drücken, halten, loslassen
-//   ├──────────┼──────────┼──────────┼──────────┤
-//   │‹ Zurück  │          │          │          │   Drehregler: Attack, Release, Stärke, Versatz
+//   │Flash auf │Flash zu  │El.-Folge │Streifen  │   Pads wie Flash-Tasten: drücken, halten, loslassen
+//   ├──────────┼──────────┼──────────┼──────────┤   Streifen: welcher Flash beim Tippen auf den Touchstreifen
+//   │‹ Zurück  │ Regler   │          │          │   Regler: Seite 1 Attack/Release/Stärke/Versatz, 2 Ausbreitung
 //   └──────────┴──────────┴──────────┴──────────┘
+// Touchstreifen im Impulse-Menü: Tippen = Flash von dort aus (ohne Halten), Wischen = Flash läuft
+// in Wischrichtung durch. Wie schnell er durchläuft, sagt die Ausbreitung.
 //
-// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Symmetrie.
-// Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite.
+// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Ordnung,
+// Seite 3 Wiederkehr/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
+// Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite
+// (außer im Impulse-Menü).
 import type { ImpulsZiel } from "@parrafraktor/engine";
-import type { ImpulsRegler, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
+import type { ImpulsRegler, SchalterParameter, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
 
 export type Menue = "haupt" | "pattern" | "presets" | "impulse";
 
 export type Regler =
   | { art: "zahl"; name: ZahlParameter }
-  | { art: "stufe"; name: StufenParameter };
+  | { art: "stufe"; name: StufenParameter }
+  | { art: "schalter"; name: SchalterParameter };
 
 export const REGLER_SEITEN: Regler[][] = [
   [
@@ -43,7 +48,13 @@ export const REGLER_SEITEN: Regler[][] = [
     { art: "zahl", name: "speedBis" },
     { art: "zahl", name: "group" },
     { art: "zahl", name: "faecher" },
-    { art: "stufe", name: "symmetrie" },
+    { art: "stufe", name: "ordnung" },
+  ],
+  [
+    { art: "zahl", name: "schwuenge" },
+    { art: "zahl", name: "wellenlaenge" },
+    { art: "schalter", name: "gegenlauf" },
+    { art: "schalter", name: "pingpong" },
   ],
 ];
 
@@ -52,9 +63,9 @@ export const HAUPT = {
   pattern: 0,
   presets: 1,
   regler: 2,
-  reihenfolge: 3,
+  elemente: 3,
   impulse: 4,
-  richtung: 5,
+  ordnung: 5,
   pause: 6,
   output: 7,
 } as const;
@@ -62,7 +73,9 @@ export const HAUPT = {
 // Impulse
 export const IMPULS_PADS: Partial<Record<number, ImpulsZiel>> = { 0: "auf", 1: "zu" };
 export const TASTE_ELEMENT_FOLGE = 2;
-export const IMPULS_REGLER_SEITE: ImpulsRegler[] = ["attackS", "releaseS", "staerke", "elementVersatzS"];
+export const TASTE_STREIFEN = 3;
+export const TASTE_IMPULS_REGLER = 5;
+export const IMPULS_REGLER_SEITEN: ImpulsRegler[][] = [["attackS", "releaseS", "staerke", "elementVersatzS"], ["ausbreitungS"]];
 
 // Untermenüs
 export const TASTE_ZURUECK = 4;

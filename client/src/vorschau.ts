@@ -116,7 +116,7 @@ export class Vorschau {
   private mitImpulsen(d: VorschauDaten, winkel: number[]): number[] {
     if (!d.impulse.length) return winkel;
     const impulse = d.impulse.map((i) => ({ ...i, alterS: i.alterS + d.impulseSeitS }));
-    return wendeImpulseAn(winkel.map((tilt) => ({ tilt, upm: 0 })), impulse, d.impuls, d.flash).map((s) => s.tilt);
+    return wendeImpulseAn(winkel.map((tilt) => ({ tilt, upm: 0 })), impulse, d.impuls, d.flash, d.parameter.ordnung).map((s) => s.tilt);
   }
 
   // Sichtbarer Winkel je Spiegel in Grad: Tilt plus die Drehung über TiltRotate

@@ -182,6 +182,31 @@ button, input, select { font: inherit; color: inherit; }
 .pad.gedrueckt { background: var(--akzent); border-color: var(--akzent); color: #111; }
 .pad:disabled { opacity: 0.4; }
 
+.impulse-spielen { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.streifen-feld { display: flex; flex-direction: column; gap: 6px; }
+.streifen-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
+.streifen {
+  position: relative;
+  height: 56px;
+  border-radius: var(--radius);
+  border: 2px dashed var(--linie);
+  background: var(--grund);
+  overflow: hidden;
+  touch-action: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.streifen.gesperrt { opacity: 0.4; pointer-events: none; }
+.streifen-text { color: var(--leise); font-size: 13px; pointer-events: none; }
+.streifen-blitz {
+  position: absolute; top: 0; bottom: 0; width: 40px; margin-left: -20px;
+  background: radial-gradient(closest-side, rgba(240, 160, 48, 0.8), transparent);
+  pointer-events: none;
+  animation: streifen-blitz 0.6s ease-out forwards;
+}
+@keyframes streifen-blitz { from { opacity: 1; transform: scaleX(1); } to { opacity: 0; transform: scaleX(3); } }
+
 .huelle-feld { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .huelle-feld .zeile { padding: 4px 0; border: none; }
 .huelle-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
@@ -268,6 +293,15 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
+.regler-titel { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin: 16px 0 0; font-weight: 600; }
+.schalter-zeile { display: flex; gap: 8px; flex-wrap: wrap; }
+.umschalter.umbrechen { flex-wrap: wrap; grid-column: 1 / -1; }
+.umschalter.umbrechen button { flex: 1 0 auto; }
+.schloss {
+  border: none; background: transparent; cursor: pointer; font-size: 16px; padding: 0 4px;
+  opacity: 0.6; vertical-align: middle;
+}
+.schloss.offen { opacity: 1; }
 .umschalter { display: flex; gap: 4px; background: var(--grund); border-radius: 10px; padding: 3px; }
 .umschalter button {
   min-height: 40px; padding: 0 14px; border: none; border-radius: 8px;

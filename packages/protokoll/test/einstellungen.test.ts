@@ -25,23 +25,24 @@ describe("Einstellungen", () => {
   });
 });
 
-describe("alte Pattern", () => {
-  it("werden beim Laden in Form und Regler umgewandelt", async () => {
+describe("alte Dateien", () => {
+  it("alte Pattern werden in Form und Regler umgewandelt", async () => {
     const { migriereParameter, pruefeParameter, pruefePreset } = await import("@parrafraktor/protokoll");
     expect(pruefeParameter(migriereParameter({ modus: "sinus-innen", phase: 180 })))
-      .toMatchObject({ modus: "sinus", symmetrie: "innen", phase: 180 });
-    expect(pruefeParameter(migriereParameter({ modus: "pingpong" }))).toMatchObject({ modus: "puls", richtung: "pingpong" });
-    expect(pruefeParameter(migriereParameter({ modus: "faecher" }))).toMatchObject({ symmetrie: "innen", faecher: 100 });
-    // neue Daten mit Symmetrie bleiben, wie sie sind
-    expect(pruefeParameter(migriereParameter({ modus: "flyout", symmetrie: "aus" }))).toMatchObject({ modus: "flyout", symmetrie: "aus" });
-    expect(pruefePreset({ name: "Alt", look: { modus: "chase" } })?.look).toMatchObject({ modus: "puls", symmetrie: "aus" });
+      .toMatchObject({ modus: "sinus", ordnung: "mitteAussen", gegenlauf: true, phase: 180 });
+    expect(pruefeParameter(migriereParameter({ modus: "pingpong" }))).toMatchObject({ modus: "sinus", pingpong: true, ordnung: "links" });
+    expect(pruefeParameter(migriereParameter({ modus: "faecher" }))).toMatchObject({ ordnung: "mitteAussen", faecher: 100 });
+    expect(pruefePreset({ name: "Alt", look: { modus: "chase" } })?.look).toMatchObject({ modus: "sinus", ordnung: "links" });
   });
-});
 
-describe("entfallene Formen", () => {
-  it("Dreieck und Rechteck werden zum Sinus", async () => {
+  it("Symmetrie, Richtung und Reihenfolge gehen in Ordnung und Element-Folge auf", async () => {
     const { migriereParameter, pruefeParameter } = await import("@parrafraktor/protokoll");
-    expect(pruefeParameter(migriereParameter({ modus: "rechteck", symmetrie: "innen" }))).toMatchObject({ modus: "sinus", symmetrie: "innen" });
-    expect(pruefeParameter(migriereParameter({ modus: "dreieck" }))).toMatchObject({ modus: "sinus" });
+    expect(pruefeParameter(migriereParameter({ modus: "flyout", symmetrie: "aussen", richtung: "vor", jeElement: true })))
+      .toMatchObject({ modus: "sinus", ordnung: "aussenMitte", gegenlauf: true, elementFolge: "zusammen", pingpong: false });
+    expect(pruefeParameter(migriereParameter({ modus: "sinus", symmetrie: "aus", richtung: "zurueck", jeElement: false })))
+      .toMatchObject({ ordnung: "rechts", gegenlauf: false, elementFolge: "vorneHinten" });
+    expect(pruefeParameter(migriereParameter({ modus: "rechteck", symmetrie: "innen" }))).toMatchObject({ modus: "sinus", ordnung: "mitteAussen" });
+    // neue Daten bleiben, wie sie sind
+    expect(migriereParameter({ modus: "wind", ordnung: "zufall" })).toEqual({ modus: "wind", ordnung: "zufall" });
   });
 });

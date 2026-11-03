@@ -8,7 +8,7 @@ import {
 interface Fall {
   parameter: Parameter;
   umlaufVon: number;
-  umlaufBis: number;
+  umlauf: number[];
   tilt: number[];
 }
 
@@ -20,9 +20,10 @@ describe("Pattern-Engine", () => {
     expect(faelle.length).toBeGreaterThan(0);
     for (const f of faelle) {
       const engine = new Engine();
-      engine.setzeUmlauf(f.parameter, f.umlaufVon, f.umlaufBis);
+      engine.umlaufVon = f.umlaufVon;
+      engine.umlauf.set(f.umlauf);
       const tilt = engine.alle(f.parameter).map((s) => s.tilt);
-      tilt.forEach((w, g) => expect(w, `${f.parameter.modus} Spiegel ${g}`).toBeCloseTo(f.tilt[g]!, 5));
+      tilt.forEach((w, g) => expect(w, `${f.parameter.modus} ${f.parameter.ordnung} Spiegel ${g}`).toBeCloseTo(f.tilt[g]!, 5));
     }
   });
 
@@ -92,22 +93,70 @@ describe("Regler", () => {
     return e.alle(par).map((s) => s.tilt);
   };
 
-  it("Symmetrie von innen: beide Hälften gespiegelt", () => {
-    const w = winkel({ symmetrie: "innen", phase: 180 });
-    for (let g = 0; g < 18; g++) expect(w[g]).toBeCloseTo(-w[35 - g]!, 9);
+  it("Mitte → außen mit Gegenlauf: beide Hälften jedes Elements gespiegelt", () => {
+    const w = winkel({ ordnung: "mitteAussen", gegenlauf: true, phase: 180 });
+    for (let k = 0; k < 3; k++) {
+      for (let i = 0; i < 6; i++) expect(w[k * 12 + i]).toBeCloseTo(-w[k * 12 + 11 - i]!, 9);
+    }
   });
 
-  it("Richtung zurück spiegelt die Reihenfolge", () => {
+  it("vorn → hinten zählt über alle 36 weiter, hinten → vorn umgekehrt", () => {
     const vor = winkel({ phase: 360 });
-    const zurueck = winkel({ phase: 360, richtung: "zurueck" });
+    const zurueck = winkel({ phase: 360, ordnung: "rechts", elementFolge: "hintenVorne" });
     // bei Phase 360 über 36 Spiegel: Spiegel g zurück = Spiegel 35 - g vor
     for (let g = 0; g < 36; g++) expect(zurueck[g]).toBeCloseTo(vor[35 - g]!, 9);
   });
 
-  it("Fächer 100 %: außen volle, innen kaum Amplitude", () => {
-    const w = winkel({ symmetrie: "innen", phase: 0, faecher: 100 }, 0.25);   // Sinus auf dem Maximum
-    expect(Math.abs(w[0]!)).toBeCloseTo(40 * (17.5 / 18), 6);
-    expect(Math.abs(w[17]!)).toBeCloseTo(40 * (0.5 / 18), 6);
+  it("zusammen: alle Elemente gleich", () => {
+    const w = winkel({ ordnung: "zufall", elementFolge: "zusammen", phase: 360 });
+    for (let i = 0; i < 12; i++) expect(w[i]).toBeCloseTo(w[24 + i]!, 9);
+  });
+
+  it("Fächer 100 % von der Mitte: außen volle, innen kaum Amplitude", () => {
+    const w = winkel({ ordnung: "mitteAussen", phase: 0, faecher: 100 }, 0.25);   // Sinus auf dem Maximum
+    expect(Math.abs(w[0]!)).toBeCloseTo(40 * (5.5 / 6), 6);
+    expect(Math.abs(w[5]!)).toBeCloseTo(40 * (0.5 / 6), 6);
+  });
+
+  it("Offset je Element", () => {
+    const w = winkel({ amplitude: 0, offsetGetrennt: true, offsetElemente: [-30, 0, 45] });
+    expect([w[0], w[12], w[35]]).toEqual([-30, 0, 45]);
+  });
+
+  it("Pendelwelle läuft auseinander und nach der Wiederkehr wieder zusammen", () => {
+    // 2 Schwünge des ersten Spiegels bei 6 BPM: nach 20 s wieder gleich
+    const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", schwuenge: 2, speedVon: 6 };
+    const e = new Engine();
+    for (let i = 0; i < 200; i++) e.weiter(p, 0.025);   // 5 s: Viertel
+    const mitte = e.alle(p).map((s) => s.tilt);
+    expect(Math.max(...mitte) - Math.min(...mitte)).toBeGreaterThan(40);
+    for (let i = 0; i < 600; i++) e.weiter(p, 0.025);   // 20 s: ganze Wiederkehr
+    const ende = e.alle(p).map((s) => s.tilt);
+    expect(Math.max(...ende) - Math.min(...ende)).toBeLessThan(0.01);
+  });
+
+  it("Pendelwelle: doppelter Speed zeigt dasselbe Bild in der halben Zeit", () => {
+    const bild = (speedVon: number, schritte: number) => {
+      const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", speedVon };
+      const e = new Engine();
+      for (let i = 0; i < schritte; i++) e.weiter(p, 0.025);
+      return e.alle(p).map((s) => s.tilt);
+    };
+    const langsam = bild(5, 400), schnell = bild(10, 200);
+    langsam.forEach((w, g) => expect(schnell[g]).toBeCloseTo(w, 6));
+  });
+
+  it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {
+    const e = new Engine();
+    const p: Parameter = { ...PARAMETER_VORGABE, modus: "wind", wellenlaenge: 12, phase: 0 };
+    let maxNachbar = 0;
+    for (let i = 0; i < 2000; i++) {
+      e.weiter(p, 0.05);
+      const w = e.alle(p).map((s) => s.tilt);
+      w.forEach((x) => expect(Math.abs(x)).toBeLessThanOrEqual(40));
+      for (let g = 1; g < 12; g++) maxNachbar = Math.max(maxNachbar, Math.abs(w[g]! - w[g - 1]!));
+    }
+    expect(maxNachbar).toBeLessThan(15);
   });
 });
 
@@ -115,7 +164,7 @@ describe("weiche Formen", () => {
   // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
   // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
   it("springen nirgends", () => {
-    for (const modus of MODI.filter((m) => m !== "rotation" && m !== "funkeln")) {
+    for (const modus of MODI.filter((m) => m !== "rotation")) {
       const p: Parameter = { ...PARAMETER_VORGABE, modus, amplitude: 1, speedVon: 60, phase: 360 };
       const e = new Engine();
       let vorher = e.alle(p);

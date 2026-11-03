@@ -94,32 +94,33 @@ Die Tasten zeigen ein Hauptmenü mit Untermenüs:
 ```
 Hauptmenü                                   Untermenü (Pattern, Presets)
 ┌─────────┬─────────┬─────────┬─────────┐   ┌─────────┬─────────┬─────────┬─────────┐
-│Pattern ›│Presets ›│Regler 1 │Reihenf. │   │  Platz  │  Platz  │  Platz  │  Platz  │
+│Pattern ›│Presets ›│Regler 1 │Elemente │   │  Platz  │  Platz  │  Platz  │  Platz  │
 ├─────────┼─────────┼─────────┼─────────┤   ├─────────┼─────────┼─────────┼─────────┤
-│Impulse ›│Richtung │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
+│Impulse ›│ Ordnung │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
 └─────────┴─────────┴─────────┴─────────┘   └─────────┴─────────┴─────────┴─────────┘
 
 Impulse (Live-Seite)
 ┌─────────┬─────────┬─────────┬─────────┐
-│Flash auf│Flash zu │Elemente │         │
+│Flash auf│Flash zu │Elemente │Streifen │
 ├─────────┼─────────┼─────────┼─────────┤
-│‹ Zurück │         │         │         │
+│‹ Zurück │Regler   │         │         │
 └─────────┴─────────┴─────────┴─────────┘
 ```
 
 | Bedienteil | Funktion |
 |---|---|
-| Pattern › | Form direkt wählen (2 Seiten) |
+| Pattern › | Grundbewegung direkt wählen |
 | Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
 | Regler | Reglerseite umschalten |
-| Reihenfolge | über alle 36 / je Element |
-| Richtung | nächste Stufe (Symmetrie: Drehregler Seite 2) |
-| Impulse › | Flash-Pads; Elemente schaltet die Element-Folge, Drehregler dort: Attack, Release, Stärke, Versatz |
+| Elemente, Ordnung | nächste Stufe der Verteilung |
+| Impulse › | Flash-Pads; Elemente schaltet die Element-Folge, Streifen wählt den Flash für den Touchstreifen, Regler die Drehregler-Seite (1: Attack, Release, Stärke, Versatz; 2: Ausbreitung) |
+| Touchstreifen im Impulse-Menü | **Tippen** = Flash von dieser Stelle aus, **Wischen** = Flash läuft in Wischrichtung durch (beides ohne Halten) |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
-| Drehregler, Seite 2 | Speed bis, Group, Fächer, Symmetrie |
-| Regler drücken / Streifen antippen | Vorgabewert |
-| Touchstreifen wischen | Reglerseite wechseln |
+| Drehregler, Seite 2 | Speed bis, Group, Fächer, Ordnung |
+| Drehregler, Seite 3 | Wiederkehr, Wellenlänge, Gegenlauf, Ping-Pong (Schalter: rechts drehen = an, drücken = umschalten) |
+| Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
+| Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 
 ### Raspberry Pi als Dienst
 
@@ -147,20 +148,35 @@ sudo systemctl enable --now parrafraktor
 
 ## Pattern und Regler
 
-Ein Pattern ist nur eine Form: Sinus, Sägezahn, Puls, Flyout, Blinder, Funkeln oder Rotation. Alle Formen fahren ohne Sprünge an und ab, damit die Motoren weich beschleunigen; ein Wechsel der Form blendet über die eingestellte Überblendzeit über. Wie die Form über die Spiegel läuft, bestimmen die Regler:
+Ein Pattern ist die Grundbewegung, die dauerhaft läuft:
+
+- **Sinus**: die klassische Welle.
+- **Pendelwelle**: Jeder Spiegel schwingt etwas schneller als sein Vorgänger, wie bei einer Pendelwelle aus echten Pendeln. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und wieder zusammen, wenn der erste Spiegel so oft geschwungen hat, wie **Wiederkehr** sagt (dann hat jeder folgende einen Schwung mehr geschafft). Speed ist das Tempo des ersten Spiegels und beschleunigt das ganze Bild; je kleiner die Wiederkehr, desto schneller laufen die hinteren Spiegel. Startet beim Wählen im Gleichlauf.
+- **Wind**: Böen ziehen entlang der Ordnung durch die Spiegel und verändern sich dabei langsam, wiederholt sich nie. **Wellenlänge** = wie viele Spiegel eine Böe breit ist, Speed = Tempo (eine Wellenlänge je Durchlauf).
+- **Rotation**: endlos über TiltRotate.
+- **Ruhe**: alle Spiegel stehen auf Offset, nur Impulse bewegen sie.
+
+Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über die eingestellte Überblendzeit über. Regler, die eine Form nicht benutzt, blendet der Client aus.
 
 | Regler | Wirkung |
 |---|---|
-| Offset, Amplitude | Grundstellung und Ausschlag |
+| Offset | Grundstellung. Mit dem Schloss 🔒/🔓 je Element einstellbar |
+| Amplitude | Ausschlag |
 | Speed von/bis | Tempo in BPM; mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
 | Phase | Versatz über die Spiegel: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
 | Group | Muster wiederholt sich alle n Spiegel |
-| Fächer | Amplitude wächst entlang der Reihenfolge, mit Symmetrie zum Rand hin |
-| Symmetrie | aus (links → rechts), von innen, von außen; mit Symmetrie drehen beide Hälften gegenläufig |
-| Richtung | vor, zurück oder Ping-Pong (hin und her) |
-| Reihenfolge | über alle 36 Spiegel oder je Element |
+| Fächer | Amplitude wächst entlang der Ordnung, bei Mitte/außen zum Rand hin |
 
-Die früheren Pattern lassen sich so nachbauen: Sinus innen/außen = Sinus mit Symmetrie, Chase = Puls (jetzt eine breitere, weiche Welle), Ping-Pong = Puls mit Richtung Ping-Pong, Fächer = Sinus mit Symmetrie von innen und Fächer 100 %. Gespeicherte Presets und Parameter mit den alten Namen werden beim Laden so umgewandelt, Dreieck und Rechteck zu Sinus. Beim Wechsel der Form bleiben alle Regler, wie sie sind.
+**Verteilung** – wo das Muster anfängt und wie es weiterläuft:
+
+| Regler | Wirkung |
+|---|---|
+| Ordnung | innerhalb jedes Elements: links → rechts, rechts → links, Mitte → außen, außen → Mitte, verschachtelt (erst gerade, dann ungerade), Zufall (feste Mischung) |
+| Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter) |
+| Gegenlauf | linke Hälfte jedes Elements dreht gespiegelt |
+| Ping-Pong | Muster läuft hin und wieder zurück |
+
+Ältere Dateien werden beim Laden umgewandelt: Symmetrie von innen/außen = Ordnung Mitte → außen bzw. außen → Mitte mit Gegenlauf, Richtung zurück = rechts → links, Reihenfolge „je Element“ = Elemente zusammen, „alle 36“ = vorn → hinten. Symmetrie über alle 36 Spiegel gibt es nicht mehr, die Mitte ist jetzt die Mitte jedes Elements. Dreieck und Rechteck sowie die früheren Formen Sägezahn, Puls, Flyout, Blinder und Funkeln werden zum Sinus (ein Flyout spielt man jetzt als Impuls mit Ausbreitung).
 
 ## Impulse (Flash)
 
@@ -169,10 +185,12 @@ Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult: **Dr
 - **Flash auf / Flash zu**: alle Spiegel auf einen festen Tilt. Die Winkel stehen unter Einstellungen → Flash (Platzhalter: auf 90°, zu 0°). „Auf“ für Licht von hinten, „Zu“ für Licht von außen.
 - **Hüllkurve** im Client: oberen Punkt ziehen = Attack (waagerecht) und Stärke (senkrecht), rechten Punkt ziehen = Release. Während eines Flashs läuft ein Punkt auf der Kurve mit.
 - **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn. Beim Loslassen fahren die Elemente in derselben Folge zurück.
+- **Ausbreitung**: Zeit, bis ein Flash ein Element durchquert hat. Aus = alle Spiegel zugleich; sonst laufen die Pads entlang der Ordnung der Grundbewegung durch.
+- **Streifen** (Touchstreifen am Stream Deck, Streifen unter den Pads im Client): Tippen startet den Flash an dieser Stelle und lässt ihn nach beiden Seiten laufen, Wischen lässt ihn vom Rand in Wischrichtung durchlaufen. Ohne Halten: nach dem Attack fährt er gleich zurück. Welcher Flash, wählt man daneben (Stream Deck: Taste „Streifen“). Mit Ausbreitung aus gehen alle Spiegel zugleich.
 - Mehrere Pads dürfen gleichzeitig gedrückt sein; der zuletzt gedrückte liegt oben.
 - Bricht die Verbindung eines iPads ab oder wird die App in den Hintergrund geschickt, lässt der Server dessen Flashs los. Am Stream Deck lassen Zurück und Abziehen los.
 
-Hüllkurve und Element-Folge werden in `daten/impuls.json` gespeichert. Weitere Ideen (Pendelwelle, Wind, Stoß …) stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
+Hüllkurve, Element-Folge und Ausbreitung werden in `daten/impuls.json` gespeichert. Weitere Ideen (Stoß, Glitzern …) stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
 
 ## Vorschau
 

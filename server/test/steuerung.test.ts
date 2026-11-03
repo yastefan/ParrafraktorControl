@@ -14,7 +14,7 @@ describe("Presets", () => {
     expect(s.presets[3]).toMatchObject({ name: "Sinus", look: { amplitude: 77, phase: 90 } });
     expect(s.presets[3]!.look).not.toHaveProperty("laeuft");
 
-    s.waehlePattern("puls");
+    s.waehlePattern("wind");
     expect(s.letztesPreset).toBeNull();
     let blenden = 0;
     s.on("blende", () => blenden++);
@@ -22,14 +22,14 @@ describe("Presets", () => {
     expect(s.parameter).toMatchObject({ modus: "sinus", amplitude: 77, phase: 90 });
     expect(s.letztesPreset).toBe(3);
     expect(blenden).toBe(1);
-    expect(s.blende).toEqual({ id: 2, anteil: 0 });   // 1 war der Wechsel zu Puls
+    expect(s.blende).toEqual({ id: 2, anteil: 0 });   // 1 war der Wechsel zu Wind
   });
 
   it("blendet auch beim Wechsel der Form über", () => {
     const s = neu();
-    s.waehlePattern("puls");
+    s.waehlePattern("wind");
     expect(s.blende).toEqual({ id: 1, anteil: 0 });
-    s.waehlePattern("puls");   // gleiche Form: keine neue Überblendung
+    s.waehlePattern("wind");   // gleiche Form: keine neue Überblendung
     expect(s.blende?.id).toBe(1);
   });
 
@@ -76,9 +76,18 @@ describe("Impulse", () => {
     s.drueckeImpuls("auf", "ws1:auf");
     vor(10);
     s.raeumeImpulse();
-    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 10, losS: null }]);
+    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 10, losS: null, ursprung: null }]);
     s.loeseImpuls("ws1:auf");
     vor(s.impuls.huelle.releaseS + 0.01);
+    s.raeumeImpulse();
+    expect(s.impulse()).toEqual([]);
+  });
+
+  it("Touchstreifen: Impuls ohne Halten, vom Ursprung aus", () => {
+    const { s, vor } = mitUhr();
+    s.tippeImpuls("auf", 1.7);
+    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 0, losS: s.impuls.huelle.attackS, ursprung: 1 }]);
+    vor(s.impuls.huelle.attackS + s.impuls.huelle.releaseS + 0.01);
     s.raeumeImpulse();
     expect(s.impulse()).toEqual([]);
   });

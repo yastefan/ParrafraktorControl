@@ -1,11 +1,12 @@
 // Wertebereiche der Pattern-Parameter. Eine Quelle für alle Bedienungen:
 // Regler im Client, Drehregler am Stream Deck, später MIDI und OSC.
 import {
-  PARAMETER_VORGABE, RICHTUNGEN, RICHTUNG_NAME, SYMMETRIEN, SYMMETRIE_NAME, istModus,
-  type Parameter, type Richtung, type Symmetrie,
+  ELEMENTE, ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, ORDNUNGEN, ORDNUNG_NAME, PARAMETER_VORGABE,
+  istElementFolge, istModus, istOrdnung, type Modus, type Parameter,
 } from "@parrafraktor/engine";
 
-export type ZahlParameter = "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "group" | "faecher";
+export type ZahlParameter =
+  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "group" | "faecher" | "schwuenge" | "wellenlaenge";
 
 export interface Bereich {
   name: string;
@@ -25,18 +26,32 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
   phase: { name: "Phase", kurz: "Phase", min: 0, max: 720, schritt: 1, einheit: "°" },
   group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "aus" },
   faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  schwuenge: { name: "Wiederkehr", kurz: "Wiederk.", min: 4, max: 100, schritt: 1, einheit: " Schw." },
+  wellenlaenge: { name: "Wellenlänge", kurz: "Wellenl.", min: 1, max: 36, schritt: 1, einheit: " Sp." },
 };
 
 // Regler mit festen Stufen (Umschalter im Client, Durchschalten am Stream Deck)
-export type StufenParameter = "symmetrie" | "richtung";
+export type StufenParameter = "ordnung" | "elementFolge";
 
 export const STUFEN = {
-  symmetrie: { name: "Symmetrie", werte: SYMMETRIEN, text: SYMMETRIE_NAME },
-  richtung: { name: "Richtung", werte: RICHTUNGEN, text: RICHTUNG_NAME },
+  ordnung: { name: "Ordnung", werte: ORDNUNGEN, text: ORDNUNG_NAME },
+  elementFolge: { name: "Elemente", werte: ELEMENT_FOLGEN, text: ELEMENT_FOLGE_NAME },
 } as const;
 
-const istSymmetrie = (x: unknown): x is Symmetrie => (SYMMETRIEN as readonly unknown[]).includes(x);
-const istRichtung = (x: unknown): x is Richtung => (RICHTUNGEN as readonly unknown[]).includes(x);
+// Schalter (an/aus)
+export type SchalterParameter = "gegenlauf" | "pingpong";
+export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenlauf", pingpong: "Ping-Pong" };
+
+// Welche Regler eine Grundbewegung nicht benutzt: werden im Client ausgeblendet
+type Regler = ZahlParameter | StufenParameter | SchalterParameter;
+const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
+  sinus: ["schwuenge", "wellenlaenge"],
+  pendelwelle: ["speedBis", "phase", "wellenlaenge", "pingpong"],
+  wind: ["speedBis", "phase", "schwuenge", "pingpong"],
+  rotation: ["amplitude", "phase", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
+  ruhe: ["amplitude", "speedVon", "speedBis", "phase", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
+};
+export const benutzt = (modus: Modus, name: Regler): boolean => !UNBENUTZT[modus]?.includes(name);
 
 export const ZAHL_PARAMETER = Object.keys(BEREICHE) as ZahlParameter[];
 
@@ -67,18 +82,27 @@ export function pruefeParameter(roh: unknown): Partial<Parameter> {
     const w = r[name];
     if (typeof w === "number" && Number.isFinite(w)) teil[name] = begrenze(name, w);
   }
-  if (istSymmetrie(r.symmetrie)) teil.symmetrie = r.symmetrie;
-  if (istRichtung(r.richtung)) teil.richtung = r.richtung;
-  if (typeof r.jeElement === "boolean") teil.jeElement = r.jeElement;
-  if (typeof r.laeuft === "boolean") teil.laeuft = r.laeuft;
+  if (istOrdnung(r.ordnung)) teil.ordnung = r.ordnung;
+  if (istElementFolge(r.elementFolge)) teil.elementFolge = r.elementFolge;
+  for (const name of ["gegenlauf", "pingpong", "offsetGetrennt", "laeuft"] as const) {
+    if (typeof r[name] === "boolean") teil[name] = r[name];
+  }
+  if (Array.isArray(r.offsetElemente) && r.offsetElemente.length === ELEMENTE
+    && r.offsetElemente.every((w) => typeof w === "number" && Number.isFinite(w))) {
+    teil.offsetElemente = (r.offsetElemente as number[]).map((w) => begrenze("offset", w));
+  }
   return teil;
 }
 
 export const vorgabeWert = (name: ZahlParameter): number => PARAMETER_VORGABE[name];
 
-// Gespeicherte Parameter aus der Zeit vor den Reglern Symmetrie, Richtung und Fächer
-// (damals eigene Pattern) in die heutige Form bringen. Nur für Dateien, nicht für Nachrichten.
-const ALTE_PATTERN: Record<string, Partial<Parameter>> = {
+// ---------- Alte Dateien ----------
+// Gespeicherte Parameter und Presets in die heutige Form bringen. Nur für Dateien, nicht für Nachrichten.
+//  1. Pattern aus der Zeit vor Symmetrie/Richtung/Fächer (damals eigene Pattern)
+//  2. Dreieck und Rechteck gibt es nicht mehr (zu harte Bewegungen): werden zum Sinus
+//  3. Symmetrie, Richtung und Reihenfolge sind in Ordnung, Element-Folge, Gegenlauf und Ping-Pong aufgegangen
+//  4. Sägezahn, Puls, Flyout, Blinder und Funkeln sind keine Grundbewegung mehr: werden zum Sinus
+const ALTE_PATTERN: Record<string, Record<string, unknown>> = {
   "sinus-innen": { modus: "sinus", symmetrie: "innen" },
   "sinus-aussen": { modus: "sinus", symmetrie: "aussen" },
   faecher: { modus: "sinus", symmetrie: "innen", faecher: 100 },
@@ -90,13 +114,29 @@ const ALTE_PATTERN: Record<string, Partial<Parameter>> = {
   rechteck: { modus: "sinus" },
 };
 
-// Dreieck und Rechteck gibt es nicht mehr (zu harte Bewegungen): werden zum Sinus
-const ENTFALLEN: Record<string, Partial<Parameter>> = { dreieck: { modus: "sinus" }, rechteck: { modus: "sinus" } };
+const ENTFALLEN: Record<string, Record<string, unknown>> = { dreieck: { modus: "sinus" }, rechteck: { modus: "sinus" } };
+
+const ALS_IMPULS = ["saegezahn", "puls", "flyout", "blinder", "funkeln"];
 
 export function migriereParameter(roh: unknown): unknown {
   if (typeof roh !== "object" || roh === null) return roh;
-  const r = roh as Record<string, unknown>;
-  if (typeof r.modus !== "string") return roh;
-  const neu = ("symmetrie" in r ? ENTFALLEN : ALTE_PATTERN)[r.modus];
-  return neu ? { ...r, ...neu } : roh;
+  const r = migriereVerteilung(roh as Record<string, unknown>);
+  return ALS_IMPULS.includes(r.modus as string) ? { ...r, modus: "sinus" } : r;
+}
+
+function migriereVerteilung(r: Record<string, unknown>): Record<string, unknown> {
+  if ("ordnung" in r) return r;
+  if (typeof r.modus === "string") {
+    const neu = ("symmetrie" in r ? ENTFALLEN : ALTE_PATTERN)[r.modus];
+    if (neu) r = { ...r, ...neu };
+  }
+  const { symmetrie, richtung, jeElement, ...rest } = r;
+  const mitte = symmetrie === "innen" ? "mitteAussen" : symmetrie === "aussen" ? "aussenMitte" : null;
+  return {
+    ...rest,
+    ordnung: mitte ?? (richtung === "zurueck" ? "rechts" : "links"),
+    gegenlauf: mitte !== null,
+    pingpong: richtung === "pingpong",
+    elementFolge: jeElement === true ? "zusammen" : "vorneHinten",
+  };
 }
