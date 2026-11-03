@@ -181,12 +181,6 @@ button, input, select { font: inherit; color: inherit; }
 .art:disabled { opacity: 0.4; }
 
 .impulse-spielen { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.takt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-.takt .tap { white-space: nowrap; transition: background 0.05s; }
-.takt .tap b { font-variant-numeric: tabular-nums; margin-left: 4px; }
-.takt .tap.schlag { background: var(--akzent); color: #111; }
-.takt .umschalter { min-width: 0; }
-.takt .umschalter button { flex: 1; min-width: 0; padding: 0 4px; font-size: 13px; }
 .streifen {
   position: relative;
   height: 72px;

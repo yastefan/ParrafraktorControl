@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  IMPULS_VORGABE, SPIEGEL_GESAMT, SPIEGEL_N, huellenWert, impulsFertig, rasterStart, stossWert, wendeImpulseAn,
+  IMPULS_VORGABE, SPIEGEL_GESAMT, SPIEGEL_N, huellenWert, impulsFertig, stossWert, wendeImpulseAn,
   type ImpulsEinstellung, type LaufenderImpuls,
 } from "../src/index.js";
 
@@ -27,10 +27,6 @@ describe("Impulse anwenden", () => {
     const s = wendeImpulseAn(basis, [impuls({ alterS: 2 })], e, winkel);
     expect(s.every((x) => x.tilt === 90 && x.upm === 0)).toBe(true);
     expect(tilts({ ...e, huelle: { ...h, staerke: 50 } }, { alterS: 2 })[0]).toBe(50);
-  });
-
-  it("vor dem Start (Warten auf den Schlag) passiert nichts", () => {
-    expect(tilts(e, { alterS: -0.3 })).toEqual(basis.map((x) => x.tilt));
   });
 
   it("Element-Folge: erst vorn, dann die anderen – Release in derselben Folge", () => {
@@ -86,12 +82,3 @@ describe("Impulse anwenden", () => {
   });
 });
 
-describe("Raster", () => {
-  it("startet auf dem nächsten Schlag oder Takt, knapp danach noch auf dem letzten", () => {
-    const ee: ImpulsEinstellung = { ...e, bpm: 120, raster: "schlag" };
-    expect(rasterStart(ee, 10, 10.2)).toBeCloseTo(10.5);
-    expect(rasterStart(ee, 10, 10.55)).toBeCloseTo(10.5);
-    expect(rasterStart({ ...ee, raster: "takt" }, 10, 10.2)).toBeCloseTo(12);
-    expect(rasterStart({ ...ee, raster: "aus" }, 10, 10.2)).toBe(10.2);
-  });
-});

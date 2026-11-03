@@ -123,7 +123,6 @@ export class WebServer {
         }
         break;
       case "impulsTippen": s.tippeImpuls(n.ursprung); break;
-      case "tap": s.tippeTakt(); break;
       case "impulsEinstellung": s.setzeImpuls(n.einstellung); break;
       case "ping": this.schicke(ws, { typ: "pong", t: n.t }); break;
     }

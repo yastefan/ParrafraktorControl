@@ -18,10 +18,10 @@
 //   ┌──────────┬──────────┬──────────┬──────────┐
 //   │Flash auf │Flash zu  │  Stoß    │ Glitzern │   obere Reihe: Art wählen (löst nichts aus)
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │‹ Zurück  │ Elemente │ Regler   │   Tap    │   Regler: Seite 1 Attack/Sustain/Release/Stärke,
-//   └──────────┴──────────┴──────────┴──────────┘           Seite 2 Ausbreitung/Versatz/Tempo/Raster
+//   │‹ Zurück  │ Elemente │ Regler   │          │   Regler: Seite 1 Attack/Sustain/Release/Stärke,
+//   └──────────┴──────────┴──────────┴──────────┘           Seite 2 Ausbreitung/Versatz
 // Touchstreifen im Impulse-Menü: Tippen = gewählte Art von dort aus, Wischen = sie läuft in
-// Wischrichtung durch. Wie schnell, sagt die Ausbreitung. Tap: Tempo für das Raster.
+// Wischrichtung durch. Wie schnell, sagt die Ausbreitung.
 //
 // Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Ordnung,
 // Seite 3 Wiederkehr/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
@@ -74,11 +74,9 @@ export const HAUPT = {
 export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf", 1: "zu", 2: "stoss", 3: "glitzern" };
 export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
-export const TASTE_TAP = 7;
-export type ImpulsDrehregler = ImpulsRegler | "raster";
-export const IMPULS_REGLER_SEITEN: ImpulsDrehregler[][] = [
+export const IMPULS_REGLER_SEITEN: ImpulsRegler[][] = [
   ["attackS", "sustainS", "releaseS", "staerke"],
-  ["ausbreitungS", "elementVersatzS", "bpm", "raster"],
+  ["ausbreitungS", "elementVersatzS"],
 ];
 
 // Untermenüs

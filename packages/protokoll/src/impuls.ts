@@ -1,12 +1,12 @@
-// Einstellung der Impulse (Art, Hüllkurve, Element-Folge, Ausbreitung, Takt): Wertebereiche und Prüfung.
+// Einstellung der Impulse (Art, Hüllkurve, Element-Folge, Ausbreitung): Wertebereiche und Prüfung.
 // Gespeichert in daten/impuls.json, bearbeitet im Client und an den Drehreglern des Stream Decks.
 import {
-  ELEMENT_FOLGEN, IMPULS_VORGABE, istImpulsArt, istRaster, type ElementFolge, type ImpulsEinstellung,
+  ELEMENT_FOLGEN, IMPULS_VORGABE, istImpulsArt, type ElementFolge, type ImpulsEinstellung,
 } from "@parrafraktor/engine";
 import type { Bereich } from "./parameter.js";
 
 export type ImpulsRegler =
-  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS" | "bpm";
+  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS";
 
 export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   attackS: { name: "Attack", kurz: "Attack", min: 0, max: 5, schritt: 0.05, einheit: " s" },
@@ -15,7 +15,6 @@ export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   staerke: { name: "Stärke", kurz: "Stärke", min: 0, max: 100, schritt: 1, einheit: " %" },
   elementVersatzS: { name: "Element-Versatz", kurz: "Versatz", min: 0, max: 2, schritt: 0.05, einheit: " s" },
   ausbreitungS: { name: "Ausbreitung", kurz: "Ausbr.", min: 0, max: 3, schritt: 0.05, einheit: " s", nullText: "aus" },
-  bpm: { name: "Tempo", kurz: "Tempo", min: 40, max: 240, schritt: 1, einheit: " BPM" },
 };
 
 export const IMPULS_REGLER = Object.keys(IMPULS_BEREICHE) as ImpulsRegler[];
@@ -60,6 +59,5 @@ export function pruefeImpuls(roh: unknown, basis: ImpulsEinstellung = IMPULS_VOR
   }
   if (istFolge(r.elementFolge)) e.elementFolge = r.elementFolge;
   if (istImpulsArt(r.art)) e.art = r.art;
-  if (istRaster(r.raster)) e.raster = r.raster;
   return e;
 }

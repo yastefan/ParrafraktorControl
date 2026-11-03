@@ -10,7 +10,6 @@
 //
 // Ausbreitung: Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich).
 // Element-Folge: die Elemente nacheinander, mit Element-Versatz.
-// Raster: Ein Impuls wartet auf den nächsten Schlag bzw. Takt (Tempo per Tap).
 // Server (Takt) und Client (Vorschau) rechnen damit gleich.
 import { ELEMENTE, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
 import { gitter, weich, type Stellung } from "./pattern.js";
@@ -19,12 +18,6 @@ export const IMPULS_ARTEN = ["auf", "zu", "stoss", "glitzern"] as const;
 export type ImpulsArt = (typeof IMPULS_ARTEN)[number];
 export const IMPULS_NAME: Record<ImpulsArt, string> = { auf: "Flash auf", zu: "Flash zu", stoss: "Stoß", glitzern: "Glitzern" };
 export const istImpulsArt = (x: unknown): x is ImpulsArt => (IMPULS_ARTEN as readonly unknown[]).includes(x);
-
-// Raster für das Einrasten auf den Takt: aus, jeder Schlag, jeder vierte (ein 4/4-Takt)
-export const RASTER = ["aus", "schlag", "takt"] as const;
-export type Raster = (typeof RASTER)[number];
-export const RASTER_NAME: Record<Raster, string> = { aus: "aus", schlag: "Schlag", takt: "Takt" };
-export const istRaster = (x: unknown): x is Raster => (RASTER as readonly unknown[]).includes(x);
 
 export interface Huelle {
   attackS: number;    // Zeit bis zum vollen Ausschlag
@@ -39,8 +32,6 @@ export interface ImpulsEinstellung {
   elementFolge: ElementFolge;
   elementVersatzS: number;   // Zeit zwischen zwei Elementen
   ausbreitungS: number;      // Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich)
-  bpm: number;               // Tempo für das Raster (Tap)
-  raster: Raster;
 }
 
 export const IMPULS_VORGABE: Readonly<ImpulsEinstellung> = {
@@ -49,12 +40,9 @@ export const IMPULS_VORGABE: Readonly<ImpulsEinstellung> = {
   elementFolge: "zusammen",
   elementVersatzS: 0.3,
   ausbreitungS: 0,
-  bpm: 120,
-  raster: "aus",
 };
 
-// Ein laufender Impuls, Zeiten in Sekunden seit dem Start (vorher negativ, z. B. beim Warten
-// auf den nächsten Schlag)
+// Ein laufender Impuls, Zeiten in Sekunden seit dem Start
 export interface LaufenderImpuls {
   id: number;
   art: ImpulsArt;
@@ -150,16 +138,6 @@ export function impulsDauer(e: ImpulsEinstellung, art: ImpulsArt): number {
 
 export const impulsFertig = (e: ImpulsEinstellung, i: Pick<LaufenderImpuls, "alterS" | "art">): boolean =>
   i.alterS >= impulsDauer(e, i.art);
-
-// Startzeit eines Impulses mit Raster: der nächste Schlag (bzw. Takt). Kommt man knapp nach dem
-// Schlag, gilt noch dieser. nullS: Zeitpunkt eines Schlags (letztes Tap), Sekunden derselben Uhr.
-export const NACH_SCHLAG_S = 0.08;
-export function rasterStart(e: ImpulsEinstellung, nullS: number, jetzt: number): number {
-  if (e.raster === "aus" || e.bpm <= 0) return jetzt;
-  const periode = (60 / e.bpm) * (e.raster === "takt" ? 4 : 1);
-  const letzter = nullS + Math.floor((jetzt - nullS) / periode) * periode;
-  return jetzt - letzter <= NACH_SCHLAG_S ? letzter : letzter + periode;
-}
 
 // Impulse über die Stellungen legen, in der Reihenfolge des Startens (der letzte liegt oben).
 // TiltRotate wird während eines Flashs angehalten, damit der Spiegel wirklich im Ziel steht.

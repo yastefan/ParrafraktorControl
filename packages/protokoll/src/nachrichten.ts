@@ -10,7 +10,7 @@ import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
 import { istPresetNr, presetName, type Presets } from "./presets.js";
 
-export const PROTOKOLL_VERSION = 6;
+export const PROTOKOLL_VERSION = 7;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 
@@ -63,7 +63,6 @@ export interface Stand {
   // Einstellung der Impulse, dazu die gerade laufenden (Zeiten beim Senden)
   impuls: ImpulsEinstellung;
   impulse: LaufenderImpuls[];
-  schlagSeitS: number;   // Sekunden seit dem letzten Tap (beim Senden): Lage der Schläge für das Raster
   warnungen: string[];
 }
 
@@ -85,7 +84,6 @@ export type ClientNachricht =
   // Impuls-Pad gedrückt bzw. losgelassen. Bricht die Verbindung ab, lässt der Server los.
   // Streifen: die gewählte Impuls-Art vom Ursprung (0 = links … 1 = rechts) aus starten
   | { typ: "impulsTippen"; ursprung: number }
-  | { typ: "tap" }   // Tap-Tempo für das Raster
   | { typ: "impulsEinstellung"; einstellung: unknown }   // prüft der Server mit pruefeImpuls
   | { typ: "ping"; t: number };
 
@@ -120,7 +118,6 @@ export function leseClientNachricht(text: string): ClientNachricht | null {
       return typeof r.ursprung === "number" && Number.isFinite(r.ursprung)
         ? { typ: "impulsTippen", ursprung: Math.min(1, Math.max(0, r.ursprung)) }
         : null;
-    case "tap": return { typ: "tap" };
     case "impulsEinstellung": return { typ: "impulsEinstellung", einstellung: r.einstellung };
     case "ping": return typeof r.t === "number" ? { typ: "ping", t: r.t } : null;
     default: return null;

@@ -82,24 +82,6 @@ describe("Impulse", () => {
     expect(s.impulse()).toEqual([]);
   });
 
-  it("Tap setzt das Tempo, mit Raster wartet der Impuls auf den nächsten Schlag", () => {
-    const { s, vor } = mitUhr();
-    vor(10);
-    for (let n = 0; n < 4; n++) { s.tippeTakt(); vor(0.5); }   // 120 BPM, letztes Tap bei 11,5 s
-    expect(s.impuls.bpm).toBe(120);
-    s.setzeImpuls({ raster: "schlag" });
-    vor(0.1);   // 12,1 s: knapp nach dem Schlag bei 12 s – zählt noch nicht
-    s.tippeImpuls(0);
-    expect(s.impulse()[0]!.alterS).toBeCloseTo(-0.4);
-    s.setzeImpuls({ raster: "takt" });   // Takt = 4 Schläge ab 11,5 s: nächster bei 13,5 s
-    s.tippeImpuls(0);
-    expect(s.impulse()[1]!.alterS).toBeCloseTo(-1.4);
-    vor(0.4);
-    s.setzeImpuls({ raster: "schlag" });
-    s.tippeImpuls(0);   // genau auf dem Schlag
-    expect(s.impulse()[2]!.alterS).toBeCloseTo(0);
-  });
-
   it("prüft Hüllkurve und Nachrichten", () => {
     const { s } = mitUhr();
     s.setzeImpuls({ huelle: { attackS: 99, staerke: "x" }, elementFolge: "vorneHinten" });
@@ -109,8 +91,8 @@ describe("Impulse", () => {
     expect(s.impuls.elementVersatzS).toBe(0.4);
     s.vorgabeImpuls("attackS");
     expect(s.impuls.huelle.attackS).toBe(0.4);
-    s.setzeImpuls({ art: "seitlich", raster: "takt" });
-    expect(s.impuls).toMatchObject({ art: "auf", raster: "takt" });
+    s.setzeImpuls({ art: "seitlich" });
+    expect(s.impuls.art).toBe("auf");
     expect(leseClientNachricht('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1 });
     expect(leseClientNachricht('{"typ":"impulsTippen"}')).toBeNull();
   });

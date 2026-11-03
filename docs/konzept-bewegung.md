@@ -80,7 +80,7 @@ Folge wieder zurück.
 3. Grundbewegungen Pendelwelle, Wind und Ruhe ✅; Formen Sägezahn/Puls/Flyout/Blinder/Funkeln entfernt ✅.
 4. Touch-Strip als Ursprung ✅ (Tippen = von dort, Wischen = Richtung; Tempo über **Ausbreitung**, weil der
    Streifen keine Wischgeschwindigkeit meldet; ohne Halten). Flyout ist damit ein Flash mit Ausbreitung.
-5. Stoß, Glitzern, Sustain, Raster mit Tap-Tempo ✅. Die Pads lösen nicht mehr aus, sondern wählen nur
+5. Stoß, Glitzern, Sustain ✅. Quantisierung auf den Takt (Tap-Tempo, Raster) entfällt. Die Pads lösen nicht mehr aus, sondern wählen nur
    die Art; ausgelöst wird immer über den Streifen (kein Halten mehr, dafür Sustain).
 
 ## Offen

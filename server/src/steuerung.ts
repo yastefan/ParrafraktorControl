@@ -3,7 +3,7 @@
 // alle Anzeigen hören auf das Ereignis "aenderung".
 import { EventEmitter } from "node:events";
 import {
-  IMPULS_VORGABE, PARAMETER_VORGABE, impulsFertig, rasterStart,
+  IMPULS_VORGABE, PARAMETER_VORGABE, impulsFertig,
   type ImpulsArt, type ImpulsEinstellung, type LaufenderImpuls, type Modus, type Parameter,
 } from "@parrafraktor/engine";
 import {
@@ -12,14 +12,11 @@ import {
   type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 
-const TAP_PAUSE_S = 2;
-const TAP_ANZAHL = 5;
-
 // Ein gestarteter Impuls
 interface Impuls {
   id: number;
   art: ImpulsArt;
-  start: number;          // Sekunden (Uhr der Steuerung); mit Raster auch in der Zukunft
+  start: number;          // Sekunden (Uhr der Steuerung)
   ursprung: number;
 }
 
@@ -50,8 +47,6 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   private _impuls: ImpulsEinstellung;
   private _impulse: Impuls[] = [];
   private impulsNr = 0;
-  private taps: number[] = [];
-  private schlagNull = 0;   // Zeitpunkt eines Schlags (letztes Tap)
 
   // uhr: Sekunden, austauschbar für Tests
   constructor(
@@ -138,32 +133,12 @@ export class Steuerung extends EventEmitter<Ereignisse> {
 
   // ---------- Impulse ----------
 
-  // Streifen: die gewählte Art vom Ursprung (0 = links … 1 = rechts) aus starten. Mit Raster
-  // wartet der Impuls auf den nächsten Schlag bzw. Takt.
+  // Streifen: die gewählte Art vom Ursprung (0 = links … 1 = rechts) aus starten
   tippeImpuls(ursprung: number): void {
-    const start = rasterStart(this._impuls, this.schlagNull, this.uhr());
+    const start = this.uhr();
     const u = Math.min(1, Math.max(0, ursprung));
     this._impulse.push({ id: ++this.impulsNr, art: this._impuls.art, start, ursprung: u });
     this.geaendert();
-  }
-
-  // Tap-Tempo: Abstand der letzten Taps ergibt das Tempo, das letzte Tap liegt auf dem Schlag.
-  // Nach einer Pause von 2 s fängt das Zählen neu an.
-  tippeTakt(): void {
-    const jetzt = this.uhr();
-    if (this.taps.length && jetzt - this.taps[this.taps.length - 1]! > TAP_PAUSE_S) this.taps = [];
-    this.taps = [...this.taps, jetzt].slice(-TAP_ANZAHL);
-    this.schlagNull = jetzt;
-    if (this.taps.length >= 2) {
-      const abstand = (jetzt - this.taps[0]!) / (this.taps.length - 1);
-      this.aendereImpuls(mitImpulsWert(this._impuls, "bpm", 60 / abstand));
-    }
-    this.geaendert();
-  }
-
-  // Sekunden seit dem letzten Schlag-Bezug (für Anzeigen)
-  schlagSeitS(): number {
-    return this.uhr() - this.schlagNull;
   }
 
   // Der Takt räumt fertige Impulse weg

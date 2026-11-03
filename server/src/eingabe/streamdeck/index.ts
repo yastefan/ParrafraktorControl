@@ -5,7 +5,7 @@
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE, RASTER, RASTER_NAME,
+  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
 import {
   BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
@@ -15,7 +15,7 @@ import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
   HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE,
-  TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_TAP, TASTE_ZURUECK,
+  TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_ZURUECK,
   eintragAuf, seitenAnzahl, type Menue, type Regler,
 } from "./belegung.js";
 import { FARBE, Maler, type Feld, type TastenInhalt } from "./bilder.js";
@@ -219,7 +219,6 @@ export class StreamDeckModul implements Eingabemodul {
         const i = ELEMENT_FOLGEN.indexOf(s.impuls.elementFolge);
         return { tippen: () => s.setzeImpuls({ elementFolge: ELEMENT_FOLGEN[(i + 1) % ELEMENT_FOLGEN.length] }) };
       }
-      if (taste === TASTE_TAP) return { tippen: () => s.tippeTakt() };
       if (taste === TASTE_IMPULS_REGLER) {
         return { tippen: () => { this.impulsReglerSeite = (this.impulsReglerSeite + 1) % IMPULS_REGLER_SEITEN.length; } };
       }
@@ -253,12 +252,7 @@ export class StreamDeckModul implements Eingabemodul {
     this.letzteDrehung[index] = jetzt;
     if (this.menue === "impulse") {
       const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
-      if (name === "raster") {
-        const i = RASTER.indexOf(this.steuerung.impuls.raster) + Math.sign(schritte);
-        this.steuerung.setzeImpuls({ raster: RASTER[Math.min(RASTER.length - 1, Math.max(0, i))] });
-      } else if (name) {
-        this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
-      }
+      if (name) this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
       return;
     }
     const r = this.regler(index);
@@ -278,8 +272,7 @@ export class StreamDeckModul implements Eingabemodul {
   private reglerDruck(index: number): void {
     if (this.menue === "impulse") {
       const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
-      if (name === "raster") this.steuerung.setzeImpuls({ raster: "aus" });
-      else if (name) this.steuerung.vorgabeImpuls(name);
+      if (name) this.steuerung.vorgabeImpuls(name);
       return;
     }
     const r = this.regler(index);
@@ -400,7 +393,6 @@ export class StreamDeckModul implements Eingabemodul {
         };
       }
       if (taste === TASTE_ELEMENT_FOLGE) return { titel: "Elemente", unter: ELEMENT_FOLGE_NAME[this.steuerung.impuls.elementFolge] };
-      if (taste === TASTE_TAP) return { titel: "Tap", unter: zeigeImpuls("bpm", this.steuerung.impuls.bpm) };
       if (taste === TASTE_IMPULS_REGLER) return { titel: `Regler ${this.impulsReglerSeite + 1}/${IMPULS_REGLER_SEITEN.length}`, unter: "umschalten" };
       return { titel: "" };
     }
@@ -431,7 +423,6 @@ export class StreamDeckModul implements Eingabemodul {
       return [0, 1, 2, 3].map((i): Feld => {
         const name = seite[i];
         if (!name) return { titel: "", wert: "", anteil: null };
-        if (name === "raster") return { titel: "Raster", wert: RASTER_NAME[e.raster], anteil: null };
         const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
         return { titel: b.kurz, wert: zeigeImpuls(name, w), anteil: (w - b.min) / (b.max - b.min) };
       });

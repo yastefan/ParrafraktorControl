@@ -1,9 +1,9 @@
 // Impulse: Art wählen (Flash auf, Flash zu, Stoß, Glitzern) und auf dem Streifen auslösen –
 // wie der Touchstreifen des Stream Decks: Tippen = von dort aus, Wischen = läuft in Wischrichtung
 // durch (Tempo: Ausbreitung). Die Hüllkurve (Attack, Sustain, Release, Stärke) läuft danach von
-// selbst ab. Mit Raster wartet ein Impuls auf den nächsten Schlag bzw. Takt (Tempo per Tap).
+// selbst ab.
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_ARTEN, IMPULS_NAME, RASTER, RASTER_NAME, huellenWert, weich,
+  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_ARTEN, IMPULS_NAME, huellenWert, weich,
   type ImpulsEinstellung,
 } from "@parrafraktor/engine";
 import { IMPULS_BEREICHE, begrenzeImpuls, impulsWert, mitImpulsWert, zeigeImpuls, type ImpulsRegler } from "@parrafraktor/protokoll";
@@ -43,7 +43,6 @@ export function Impulse() {
           })}
         </div>
         <Streifen name={IMPULS_NAME[e.art]} />
-        <Takt e={e} sofort={sofort} />
       </div>
       <div class="huelle-feld">
         <Huelle e={e} setze={setze} fertig={fertig} />
@@ -128,51 +127,7 @@ function Streifen({ name }: { name: string }) {
   );
 }
 
-// ---------- Takt ----------
 
-function Takt({ e, sofort }: { e: ImpulsEinstellung; sofort: (e: ImpulsEinstellung) => void }) {
-  const l = useLaden();
-  const tap = useRef<HTMLButtonElement>(null);
-  const bpm = useRef(e.bpm);
-  bpm.current = e.bpm;
-
-  // Tap-Taste blinkt auf jedem Schlag
-  useEffect(() => {
-    let bild = 0;
-    const schleife = () => {
-      const st = laden.stand, t = tap.current;
-      if (st && t) {
-        const seit = st.schlagSeitS + (performance.now() - laden.standZeit) / 1000;
-        const periode = 60 / bpm.current;
-        t.classList.toggle("schlag", ((seit % periode) + periode) % periode < 0.1);
-      }
-      bild = requestAnimationFrame(schleife);
-    };
-    bild = requestAnimationFrame(schleife);
-    return () => cancelAnimationFrame(bild);
-  }, []);
-
-  return (
-    <div class="takt">
-      <button
-        ref={tap} type="button" class="knopf tap" disabled={!l.bedienbar}
-        onPointerDown={() => laden.sende({ typ: "tap" })}
-      >
-        Tap <b>{zeigeImpuls("bpm", e.bpm)}</b>
-      </button>
-      <div class="umschalter" title="Raster: Impulse starten frei, auf dem nächsten Schlag oder dem nächsten Takt">
-        {RASTER.map((r) => (
-          <button
-            type="button" key={r} class={e.raster === r ? "aktiv" : ""} disabled={!l.bedienbar}
-            onClick={() => sofort({ ...e, raster: r })}
-          >
-            {r === "aus" ? "frei" : RASTER_NAME[r]}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ---------- Hüllkurve ----------
 
