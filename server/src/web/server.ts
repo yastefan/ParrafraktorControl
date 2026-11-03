@@ -122,7 +122,7 @@ export class WebServer {
           case "umbenennen": s.benennePreset(n.nr, n.name); break;
         }
         break;
-      case "impulsTippen": s.tippeImpuls(n.ursprung); break;
+      case "impulsTippen": s.tippeImpuls(n.ursprung, n.wischen); break;
       case "impulsEinstellung": s.setzeImpuls(n.einstellung); break;
       case "ping": this.schicke(ws, { typ: "pong", t: n.t }); break;
     }

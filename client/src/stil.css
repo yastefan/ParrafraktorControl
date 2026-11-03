@@ -204,7 +204,7 @@ button, input, select { font: inherit; color: inherit; }
 @keyframes streifen-blitz { from { opacity: 1; transform: scaleX(1); } to { opacity: 0; transform: scaleX(3); } }
 
 .huelle-feld { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.huelle-feld .zeile { padding: 4px 0; border: none; }
+.huelle-feld .zeile, .impulse-spielen .zeile { padding: 4px 0; border: none; }
 .huelle-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
 .huelle {
   width: 100%; height: auto; display: block;

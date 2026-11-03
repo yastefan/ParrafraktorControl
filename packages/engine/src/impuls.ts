@@ -9,6 +9,10 @@
 //   Glitzern      einzelne Spiegel zucken nach Zufall, solange die Hüllkurve offen ist
 //
 // Ausbreitung: Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich).
+// Breite: Beim Tippen wirkt der Impuls nur auf so viele Spiegel um den Startpunkt (0 = alle);
+// Wischen läuft immer durch das ganze Element.
+// Symmetrisch: Der Impuls startet zugleich am gespiegelten Punkt, die rechte Hälfte bewegt sich
+// gespiegelt (wie Gegenlauf).
 // Element-Folge: die Elemente nacheinander, mit Element-Versatz.
 // Server (Takt) und Client (Vorschau) rechnen damit gleich.
 import { ELEMENTE, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
@@ -32,6 +36,8 @@ export interface ImpulsEinstellung {
   elementFolge: ElementFolge;
   elementVersatzS: number;   // Zeit zwischen zwei Elementen
   ausbreitungS: number;      // Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich)
+  breite: number;            // Spiegel um den Startpunkt beim Tippen, 0 = alle
+  symmetrisch: boolean;      // zugleich vom gespiegelten Punkt aus, rechte Hälfte gespiegelt
 }
 
 export const IMPULS_VORGABE: Readonly<ImpulsEinstellung> = {
@@ -40,6 +46,8 @@ export const IMPULS_VORGABE: Readonly<ImpulsEinstellung> = {
   elementFolge: "zusammen",
   elementVersatzS: 0.3,
   ausbreitungS: 0,
+  breite: 0,
+  symmetrisch: false,
 };
 
 // Ein laufender Impuls, Zeiten in Sekunden seit dem Start
@@ -48,6 +56,7 @@ export interface LaufenderImpuls {
   art: ImpulsArt;
   alterS: number;
   ursprung: number;   // 0 … 1 quer über das Element
+  breite: number;     // Spiegel um den Ursprung, 0 = alle (beim Start festgehalten)
 }
 
 // Winkel aus den Einstellungen: Ziel der Flashs, Ausschlag von Stoß und Glitzern (Grad)
@@ -76,9 +85,26 @@ export function elementVerzug(e: ImpulsEinstellung, k: number): number {
 // Lage des Spiegels i (0 … 11) quer über das Element, 0 = links … 1 = rechts
 const lageVon = (i: number): number => i / (SPIEGEL_N - 1);
 
-// Verzögerung des Spiegels i: Abstand zum Ursprung mal Ausbreitung
+// Startpunkte: der Ursprung, symmetrisch auch sein Spiegelbild
+const urspruenge = (e: ImpulsEinstellung, u: number): number[] => (e.symmetrisch ? [u, 1 - u] : [u]);
+
+// Abstand des Spiegels i zum nächsten Startpunkt (Anteil der Elementbreite)
+const abstand = (e: ImpulsEinstellung, u: number, i: number): number =>
+  Math.min(...urspruenge(e, u).map((x) => Math.abs(lageVon(i) - x)));
+
+// Verzögerung des Spiegels i: Abstand zum Startpunkt mal Ausbreitung
 export const spiegelVerzug = (e: ImpulsEinstellung, ursprung: number, i: number): number =>
-  Math.abs(lageVon(i) - ursprung) * e.ausbreitungS;
+  abstand(e, ursprung, i) * e.ausbreitungS;
+
+// Wie stark der Spiegel i mitmacht (0 … 1): voll innerhalb der Breite, am Rand ein Spiegel als Übergang
+export function breitenFaktor(e: ImpulsEinstellung, i: Pick<LaufenderImpuls, "ursprung" | "breite">, s: number): number {
+  if (i.breite <= 0) return 1;
+  const spiegel = abstand(e, i.ursprung, s) * (SPIEGEL_N - 1);
+  return weich(i.breite / 2 + 0.5 - spiegel);
+}
+
+// Gespiegelte Hälfte bei Symmetrie: rechts bewegen sich Stoß und Glitzern umgekehrt
+const seite = (e: ImpulsEinstellung, s: number): number => (e.symmetrisch && s >= SPIEGEL_N / 2 ? -1 : 1);
 
 // ---------- Stoß ----------
 
@@ -96,18 +122,21 @@ function ruck(h: Huelle, t: number): number {
 // Auslenkung an der Lage x (0 … 1), t Sekunden nach dem Stoß. Die Enden werfen zurück
 // (Spiegelquellen jenseits der Enden), jedes Echo schwächer. Nach dem Sustain blendet der
 // Release alles aus.
-export function stossWert(e: ImpulsEinstellung, x: number, ursprung: number, t: number): number {
+// Bei mehreren Startpunkten (symmetrisch) überlagern sich die Stöße.
+export function stossWert(e: ImpulsEinstellung, x: number, urspruenge: readonly number[], t: number): number {
   const lauf = e.ausbreitungS || STOSS_LAUF_S;
   let summe = 0;
-  for (let n = -STOSS_ECHOS; n <= STOSS_ECHOS; n++) {
-    // Quelle bei ursprung + 2n (gerade Zahl Echos) und −ursprung + 2n (ungerade)
-    const quellen: [number, number][] = [[ursprung + 2 * n, Math.abs(2 * n)], [-ursprung + 2 * n, Math.abs(2 * n - 1)]];
-    for (const [quelle, echos] of quellen) {
-      if (echos > STOSS_ECHOS) continue;
-      summe += STOSS_REFLEXION ** echos * ruck(e.huelle, t - Math.abs(x - quelle) * lauf);
+  for (const ursprung of urspruenge) {
+    for (let n = -STOSS_ECHOS; n <= STOSS_ECHOS; n++) {
+      // Quelle bei ursprung + 2n (gerade Zahl Echos) und −ursprung + 2n (ungerade)
+      const quellen: [number, number][] = [[ursprung + 2 * n, Math.abs(2 * n)], [-ursprung + 2 * n, Math.abs(2 * n - 1)]];
+      for (const [quelle, echos] of quellen) {
+        if (echos > STOSS_ECHOS) continue;
+        summe += STOSS_REFLEXION ** echos * ruck(e.huelle, t - Math.abs(x - quelle) * lauf);
+      }
     }
   }
-  // Treffen sich Stoß und Echo (Ursprung am Rand), wird es weich begrenzt (höchstens ~8 % mehr)
+  // Treffen sich Stöße und Echos (Ursprung am Rand, symmetrisch), wird es weich begrenzt
   return (Math.tanh(1.6 * summe) / Math.tanh(1.6)) * huellenWert({ ...e.huelle, attackS: 0 }, t);
 }
 
@@ -156,15 +185,20 @@ export function wendeImpulseAn(
       for (let s = 0; s < SPIEGEL_N; s++) {
         const g = k * SPIEGEL_N + s;
         const st = aus[g]!;
+        const breite = breitenFaktor(e, i, s);
+        if (breite <= 0) continue;
         if (i.art === "stoss") {
-          st.tilt += winkel.ausschlag * staerke * stossWert(e, lageVon(s), i.ursprung, tElement);
+          const w = stossWert(e, lageVon(s), urspruenge(e, i.ursprung), tElement);
+          st.tilt += winkel.ausschlag * staerke * breite * seite(e, s) * w;
           continue;
         }
         const t = tElement - spiegelVerzug(e, i.ursprung, s);
-        const f = huellenWert(e.huelle, t) * staerke;
+        const f = huellenWert(e.huelle, t) * staerke * breite;
         if (f <= 0) continue;
         if (i.art === "glitzern") {
-          st.tilt += winkel.ausschlag * f * glitzerWert(i.id, g, t);
+          // symmetrisch: der gespiegelte Spiegel zuckt gleich, nur umgekehrt
+          const vorbild = seite(e, s) < 0 ? k * SPIEGEL_N + SPIEGEL_N - 1 - s : g;
+          st.tilt += winkel.ausschlag * f * seite(e, s) * glitzerWert(i.id, vorbild, t);
         } else {
           st.tilt += (winkel[i.art] - st.tilt) * f;
           st.upm *= 1 - f;

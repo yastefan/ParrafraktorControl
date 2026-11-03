@@ -6,7 +6,7 @@ import {
 import type { Bereich } from "./parameter.js";
 
 export type ImpulsRegler =
-  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS";
+  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS" | "breite";
 
 export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   attackS: { name: "Attack", kurz: "Attack", min: 0, max: 5, schritt: 0.05, einheit: " s" },
@@ -15,6 +15,7 @@ export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   staerke: { name: "Stärke", kurz: "Stärke", min: 0, max: 100, schritt: 1, einheit: " %" },
   elementVersatzS: { name: "Element-Versatz", kurz: "Versatz", min: 0, max: 2, schritt: 0.05, einheit: " s" },
   ausbreitungS: { name: "Ausbreitung", kurz: "Ausbr.", min: 0, max: 3, schritt: 0.05, einheit: " s", nullText: "aus" },
+  breite: { name: "Breite", kurz: "Breite", min: 0, max: 12, schritt: 1, einheit: " Sp.", nullText: "alle" },
 };
 
 export const IMPULS_REGLER = Object.keys(IMPULS_BEREICHE) as ImpulsRegler[];
@@ -59,5 +60,6 @@ export function pruefeImpuls(roh: unknown, basis: ImpulsEinstellung = IMPULS_VOR
   }
   if (istFolge(r.elementFolge)) e.elementFolge = r.elementFolge;
   if (istImpulsArt(r.art)) e.art = r.art;
+  if (typeof r.symmetrisch === "boolean") e.symmetrisch = r.symmetrisch;
   return e;
 }

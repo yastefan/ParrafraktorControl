@@ -43,6 +43,14 @@ export function Impulse() {
           })}
         </div>
         <Streifen name={IMPULS_NAME[e.art]} />
+        <button
+          type="button" class={`knopf klein ${e.symmetrisch ? "an" : ""}`} disabled={!l.bedienbar}
+          title="Startet zugleich am gespiegelten Punkt, die rechte Hälfte bewegt sich gespiegelt"
+          onClick={() => sofort({ ...e, symmetrisch: !e.symmetrisch })}
+        >
+          Symmetrisch {e.symmetrisch ? "an" : "aus"}
+        </button>
+        <Schieber name="breite" e={e} setze={setze} fertig={fertig} />
       </div>
       <div class="huelle-feld">
         <Huelle e={e} setze={setze} fertig={fertig} />
@@ -63,6 +71,7 @@ export function Impulse() {
           ))}
         </div>
         {e.elementFolge !== "zusammen" && <Schieber name="elementVersatzS" e={e} setze={setze} fertig={fertig} />}
+        <Schieber name="staerke" e={e} setze={setze} fertig={fertig} />
         <Schieber name="ausbreitungS" e={e} setze={setze} fertig={fertig} />
       </div>
     </div>
@@ -98,8 +107,8 @@ function Streifen({ name }: { name: string }) {
     const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
     return Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
   };
-  const loesen = (ursprung: number) => {
-    laden.sende({ typ: "impulsTippen", ursprung });
+  const loesen = (ursprung: number, wischen: boolean) => {
+    laden.sende({ typ: "impulsTippen", ursprung, wischen });
     setBlitz((b) => ({ x: ursprung, n: (b?.n ?? 0) + 1 }));
   };
   return (
@@ -117,7 +126,8 @@ function Streifen({ name }: { name: string }) {
         start.current = null;
         const dx = anteil(ev) - s.x;
         // Tippen: von dort aus; Wischen: vom Rand in Wischrichtung
-        loesen(Math.abs(dx) < WISCHEN ? s.x : dx > 0 ? 0 : 1);
+        if (Math.abs(dx) < WISCHEN) loesen(s.x, false);
+        else loesen(dx > 0 ? 0 : 1, true);
       }}
       onPointerCancel={() => { start.current = null; }}
     >

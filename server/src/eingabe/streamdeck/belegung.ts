@@ -18,8 +18,8 @@
 //   ┌──────────┬──────────┬──────────┬──────────┐
 //   │Flash auf │Flash zu  │  Stoß    │ Glitzern │   obere Reihe: Art wählen (löst nichts aus)
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │‹ Zurück  │ Elemente │ Regler   │          │   Regler: Seite 1 Attack/Sustain/Release/Stärke,
-//   └──────────┴──────────┴──────────┴──────────┘           Seite 2 Ausbreitung/Versatz
+//   │‹ Zurück  │ Elemente │ Regler   │Symmetr.  │   Regler: Seite 1 Attack/Sustain/Release/Stärke,
+//   └──────────┴──────────┴──────────┴──────────┘           Seite 2 Ausbreitung/Breite/Versatz
 // Touchstreifen im Impulse-Menü: Tippen = gewählte Art von dort aus, Wischen = sie läuft in
 // Wischrichtung durch. Wie schnell, sagt die Ausbreitung.
 //
@@ -74,9 +74,10 @@ export const HAUPT = {
 export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf", 1: "zu", 2: "stoss", 3: "glitzern" };
 export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
+export const TASTE_SYMMETRISCH = 7;
 export const IMPULS_REGLER_SEITEN: ImpulsRegler[][] = [
   ["attackS", "sustainS", "releaseS", "staerke"],
-  ["ausbreitungS", "elementVersatzS"],
+  ["ausbreitungS", "breite", "elementVersatzS"],
 ];
 
 // Untermenüs

@@ -8,7 +8,7 @@ const h = { attackS: 1, sustainS: 2, releaseS: 2, staerke: 100 };
 const e: ImpulsEinstellung = { ...IMPULS_VORGABE, huelle: h };
 const basis = Array.from({ length: SPIEGEL_GESAMT }, () => ({ tilt: 10, upm: 4 }));
 const winkel = { auf: 90, zu: -90, ausschlag: 30 };
-const impuls = (teil: Partial<LaufenderImpuls>): LaufenderImpuls => ({ id: 1, art: "auf", alterS: 0, ursprung: 0.5, ...teil });
+const impuls = (teil: Partial<LaufenderImpuls>): LaufenderImpuls => ({ id: 1, art: "auf", alterS: 0, ursprung: 0.5, breite: 0, ...teil });
 const tilts = (ee: ImpulsEinstellung, ...i: Partial<LaufenderImpuls>[]) =>
   wendeImpulseAn(basis, i.map(impuls), ee, winkel).map((s) => s.tilt);
 
@@ -50,6 +50,27 @@ describe("Impulse anwenden", () => {
     expect(r[12 + 11]).toBe(90);   // gilt für jedes Element
   });
 
+  it("Breite: getippt wirkt der Impuls nur um den Startpunkt", () => {
+    const t = tilts(e, { alterS: 2, ursprung: 0, breite: 3 });
+    expect(t.slice(0, 3)).toEqual([90, 90, 10]);   // Spiegel 0 und 1 voll, ab Spiegel 2 nicht mehr
+    const halb = tilts(e, { alterS: 2, ursprung: 0, breite: 2 });
+    expect(halb[1]).toBe(50);                     // Rand: halb
+  });
+
+  it("Symmetrisch: startet auch am gespiegelten Punkt, rechts gespiegelt", () => {
+    const ee: ImpulsEinstellung = { ...e, symmetrisch: true, ausbreitungS: 4.4 };
+    const t = tilts(ee, { alterS: 1, ursprung: 0 });
+    expect(t[0]).toBe(90);
+    expect(t[11]).toBe(90);
+    expect(t[5]).toBe(10);
+    for (const art of ["stoss", "glitzern"] as const) {
+      for (const a of [0.3, 0.8, 1.6]) {
+        const w = tilts(ee, { art, alterS: a, ursprung: 0.2 });
+        for (let s = 0; s < 6; s++) expect(w[11 - s]! - 10).toBeCloseTo(-(w[s]! - 10), 9);
+      }
+    }
+  });
+
   it("der zuletzt gestartete Impuls liegt oben", () => {
     expect(tilts(e, { alterS: 2 }, { id: 2, art: "zu", alterS: 2 })[0]).toBe(-90);
   });
@@ -57,12 +78,12 @@ describe("Impulse anwenden", () => {
   it("Stoß: läuft vom Ursprung los, kommt an den Enden zurück und schwingt aus", () => {
     const ee: ImpulsEinstellung = { ...e, huelle: { ...h, attackS: 0.1 }, ausbreitungS: 1 };
     // kurz nach dem Stoß bewegt sich nur die Nähe des Ursprungs
-    expect(Math.abs(stossWert(ee, 0, 0, 0.1))).toBeGreaterThan(0.3);
-    expect(stossWert(ee, 1, 0, 0.1)).toBe(0);
+    expect(Math.abs(stossWert(ee, 0, [0], 0.1))).toBeGreaterThan(0.3);
+    expect(stossWert(ee, 1, [0], 0.1)).toBe(0);
     // nach 1 s ist er am anderen Ende angekommen
-    expect(Math.abs(stossWert(ee, 1, 0, 1.1))).toBeGreaterThan(0.1);
+    expect(Math.abs(stossWert(ee, 1, [0], 1.1))).toBeGreaterThan(0.1);
     // nach Sustain + Release ist alles still
-    expect(stossWert(ee, 0.5, 0, 4.1)).toBe(0);
+    expect(stossWert(ee, 0.5, [0], 4.1)).toBe(0);
     const t = tilts(ee, { art: "stoss", alterS: 0.1, ursprung: 0 });
     expect(Math.abs(t[0]! - 10)).toBeLessThanOrEqual(30 * 1.09);
     expect(t[11]).toBe(10);

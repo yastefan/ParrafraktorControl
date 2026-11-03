@@ -18,6 +18,7 @@ interface Impuls {
   art: ImpulsArt;
   start: number;          // Sekunden (Uhr der Steuerung)
   ursprung: number;
+  breite: number;
 }
 
 interface Ereignisse {
@@ -76,7 +77,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   impulse(): LaufenderImpuls[] {
     const jetzt = this.uhr();
     return this._impulse.map((i) => ({
-      id: i.id, art: i.art, alterS: jetzt - i.start, ursprung: i.ursprung,
+      id: i.id, art: i.art, alterS: jetzt - i.start, ursprung: i.ursprung, breite: i.breite,
     }));
   }
 
@@ -133,11 +134,13 @@ export class Steuerung extends EventEmitter<Ereignisse> {
 
   // ---------- Impulse ----------
 
-  // Streifen: die gewählte Art vom Ursprung (0 = links … 1 = rechts) aus starten
-  tippeImpuls(ursprung: number): void {
+  // Streifen: die gewählte Art vom Ursprung (0 = links … 1 = rechts) aus starten.
+  // Getippt wirkt sie nur in der eingestellten Breite, gewischt läuft sie durch das ganze Element.
+  tippeImpuls(ursprung: number, wischen = false): void {
     const start = this.uhr();
     const u = Math.min(1, Math.max(0, ursprung));
-    this._impulse.push({ id: ++this.impulsNr, art: this._impuls.art, start, ursprung: u });
+    const breite = wischen ? 0 : this._impuls.breite;
+    this._impulse.push({ id: ++this.impulsNr, art: this._impuls.art, start, ursprung: u, breite });
     this.geaendert();
   }
 

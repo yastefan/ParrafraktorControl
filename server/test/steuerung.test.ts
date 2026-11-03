@@ -75,7 +75,11 @@ describe("Impulse", () => {
     const { s, vor } = mitUhr();
     s.setzeImpuls({ art: "stoss" });
     s.tippeImpuls(1.7);
-    expect(s.impulse()).toEqual([{ id: 1, art: "stoss", alterS: 0, ursprung: 1 }]);
+    expect(s.impulse()).toEqual([{ id: 1, art: "stoss", alterS: 0, ursprung: 1, breite: 0 }]);
+    s.setzeImpuls({ breite: 4 });
+    s.tippeImpuls(0.5);
+    s.tippeImpuls(0, true);   // gewischt: durch das ganze Element
+    expect(s.impulse().map((i) => i.breite)).toEqual([0, 4, 0]);
     const h = s.impuls.huelle;
     vor(h.attackS + h.sustainS + h.releaseS + 0.01);
     s.raeumeImpulse();
@@ -93,7 +97,7 @@ describe("Impulse", () => {
     expect(s.impuls.huelle.attackS).toBe(0.4);
     s.setzeImpuls({ art: "seitlich" });
     expect(s.impuls.art).toBe("auf");
-    expect(leseClientNachricht('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1 });
+    expect(leseClientNachricht('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1, wischen: false });
     expect(leseClientNachricht('{"typ":"impulsTippen"}')).toBeNull();
   });
 });

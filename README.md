@@ -103,7 +103,7 @@ Impulse (Live-Seite)
 ┌─────────┬─────────┬─────────┬─────────┐
 │Flash auf│Flash zu │  Stoß   │Glitzern │
 ├─────────┼─────────┼─────────┼─────────┤
-│‹ Zurück │Elemente │ Regler  │         │
+│‹ Zurück │Elemente │ Regler  │Symmetr. │
 └─────────┴─────────┴─────────┴─────────┘
 ```
 
@@ -113,7 +113,7 @@ Impulse (Live-Seite)
 | Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
 | Regler | Reglerseite umschalten |
 | Elemente, Ordnung | nächste Stufe der Verteilung |
-| Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (1: Attack, Sustain, Release, Stärke; 2: Ausbreitung, Versatz) |
+| Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (1: Attack, Sustain, Release, Stärke; 2: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
@@ -188,10 +188,13 @@ Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben
 - Winkel unter Einstellungen → Impulse: Flash auf/zu (Platzhalter 90° und 0°) und Ausschlag von Stoß und Glitzern (30°).
 - **Hüllkurve**: Attack (hin), Sustain (bleiben), Release (zurück), Stärke. Im Client die Punkte ziehen: oben links = Attack und Stärke, oben rechts = Ende des Sustain, unten = Ende des Release. Während eines Impulses läuft ein Punkt auf der Kurve mit.
 - **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn.
+- **Stärke**: wie weit zum Ziel bzw. wie viel vom Ausschlag (auch als Griff in der Hüllkurve).
+- **Breite**: Getippt wirkt der Impuls nur auf so viele Spiegel um den Startpunkt („alle“ = ganzes Element). Gewischt läuft er immer durch das ganze Element.
+- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt; Stoß und Glitzern bewegen die rechte Hälfte gespiegelt (wie Gegenlauf).
 - **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich (der Stoß läuft dann in 0,8 s durch).
 - Mehrere Impulse dürfen sich überlagern; der zuletzt gestartete liegt oben.
 
-Art, Hüllkurve, Element-Folge und Ausbreitung werden in `daten/impuls.json` gespeichert. Ideen stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
+Art, Hüllkurve, Element-Folge, Ausbreitung, Breite und Symmetrie werden in `daten/impuls.json` gespeichert. Ideen stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
 
 ## Vorschau
 

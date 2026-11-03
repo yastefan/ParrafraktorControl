@@ -15,7 +15,7 @@ import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
   HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE,
-  TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_ZURUECK,
+  TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_SYMMETRISCH, TASTE_ZURUECK,
   eintragAuf, seitenAnzahl, type Menue, type Regler,
 } from "./belegung.js";
 import { FARBE, Maler, type Feld, type TastenInhalt } from "./bilder.js";
@@ -219,6 +219,7 @@ export class StreamDeckModul implements Eingabemodul {
         const i = ELEMENT_FOLGEN.indexOf(s.impuls.elementFolge);
         return { tippen: () => s.setzeImpuls({ elementFolge: ELEMENT_FOLGEN[(i + 1) % ELEMENT_FOLGEN.length] }) };
       }
+      if (taste === TASTE_SYMMETRISCH) return { tippen: () => s.setzeImpuls({ symmetrisch: !s.impuls.symmetrisch }) };
       if (taste === TASTE_IMPULS_REGLER) {
         return { tippen: () => { this.impulsReglerSeite = (this.impulsReglerSeite + 1) % IMPULS_REGLER_SEITEN.length; } };
       }
@@ -296,7 +297,7 @@ export class StreamDeckModul implements Eingabemodul {
     if (this.menue === "impulse") {
       // kurzes Wischen gilt als Tippen, sonst läuft der Flash vom Rand in Wischrichtung durch
       if (Math.abs(dx) < 0.05) this.tippeStreifen(von);
-      else this.steuerung.tippeImpuls(dx > 0 ? 0 : 1);
+      else this.steuerung.tippeImpuls(dx > 0 ? 0 : 1, true);
       return;
     }
     if (Math.abs(dx) < 0.05) return;
@@ -393,6 +394,10 @@ export class StreamDeckModul implements Eingabemodul {
         };
       }
       if (taste === TASTE_ELEMENT_FOLGE) return { titel: "Elemente", unter: ELEMENT_FOLGE_NAME[this.steuerung.impuls.elementFolge] };
+      if (taste === TASTE_SYMMETRISCH) {
+        const an = this.steuerung.impuls.symmetrisch;
+        return { titel: "Symmetrisch", unter: an ? "an" : "aus", rahmen: an ? FARBE.akzent : undefined };
+      }
       if (taste === TASTE_IMPULS_REGLER) return { titel: `Regler ${this.impulsReglerSeite + 1}/${IMPULS_REGLER_SEITEN.length}`, unter: "umschalten" };
       return { titel: "" };
     }
