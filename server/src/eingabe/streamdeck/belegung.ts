@@ -1,15 +1,24 @@
-// Belegung des Stream Deck+: was die Tasten, Drehregler und der Touchstreifen tun.
+// Belegung des Stream Deck+: Menüs auf den Tasten, Drehregler und Touchstreifen.
 //
-// Tasten (2 Reihen à 4):
-//   ┌────────┬────────┬────────┬────────┐
-//   │Pattern │Pattern │Pattern │Pattern │   Pattern der aktuellen Pattern-Seite
-//   ├────────┼────────┼────────┼────────┤
-//   │Pattern │Seite › │ Pause  │Übernahme│  Übernahme: gedrückt halten (Schutz vor Versehen)
-//   └────────┴────────┴────────┴────────┘
+// Hauptmenü:
+//   ┌──────────┬──────────┬──────────┬──────────┐
+//   │Pattern › │Presets › │ Regler   │Reihenf.  │   Regler: Reglerseite umschalten
+//   ├──────────┼──────────┼──────────┼──────────┤
+//   │          │          │  Pause   │  Output  │   Output: gedrückt halten (Schutz vor Versehen)
+//   └──────────┴──────────┴──────────┴──────────┘
+// Untermenü (Pattern, Presets): sechs Plätze, unten links Zurück, unten rechts nächste Seite.
+//   ┌──────────┬──────────┬──────────┬──────────┐
+//   │  Platz   │  Platz   │  Platz   │  Platz   │
+//   ├──────────┼──────────┼──────────┼──────────┤
+//   │‹ Zurück  │  Platz   │  Platz   │ Seite ›  │
+//   └──────────┴──────────┴──────────┴──────────┘
+// Presets: Tippen ruft ab, Halten speichert den aktuellen Look.
+//
 // Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Reihenfolge/Pattern.
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite.
-import { MODI, type Modus } from "@parrafraktor/engine";
 import type { ZahlParameter } from "@parrafraktor/protokoll";
+
+export type Menue = "haupt" | "pattern" | "presets";
 
 export type Regler =
   | { art: "zahl"; name: ZahlParameter }
@@ -31,14 +40,35 @@ export const REGLER_SEITEN: Regler[][] = [
   ],
 ];
 
-export const PATTERN_PRO_SEITE = 5;
-export const PATTERN_SEITEN = Math.ceil(MODI.length / PATTERN_PRO_SEITE);
-export const TASTE_SEITE = 5;
-export const TASTE_PAUSE = 6;
-export const TASTE_UEBERNAHME = 7;
-export const UEBERNAHME_HALTEN_MS = 600;
+// Hauptmenü
+export const HAUPT = {
+  pattern: 0,
+  presets: 1,
+  regler: 2,
+  reihenfolge: 3,
+  pause: 6,
+  output: 7,
+} as const;
 
-export const patternAufTaste = (seite: number, taste: number): Modus | undefined =>
-  taste < PATTERN_PRO_SEITE ? MODI[seite * PATTERN_PRO_SEITE + taste] : undefined;
+// Untermenüs
+export const TASTE_ZURUECK = 4;
+export const TASTE_SEITE = 7;
+export const PLAETZE = [0, 1, 2, 3, 5, 6] as const;
 
-export const patternSeiteVon = (modus: Modus): number => Math.floor(MODI.indexOf(modus) / PATTERN_PRO_SEITE);
+export const HALTEN_MS = { output: 600, presetSpeichern: 800 } as const;
+
+// Platz (0 … 5) einer Taste im Untermenü, sonst undefined
+export const platzVon = (taste: number): number | undefined => {
+  const i = (PLAETZE as readonly number[]).indexOf(taste);
+  return i < 0 ? undefined : i;
+};
+
+export const seitenAnzahl = (eintraege: number): number => Math.ceil(eintraege / PLAETZE.length);
+
+// Index des Eintrags auf einer Taste, wenn es ihn gibt
+export const eintragAuf = (seite: number, taste: number, eintraege: number): number | undefined => {
+  const platz = platzVon(taste);
+  if (platz === undefined) return undefined;
+  const i = seite * PLAETZE.length + platz;
+  return i < eintraege ? i : undefined;
+};

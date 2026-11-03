@@ -5,13 +5,13 @@
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import { MODI, MODUS_NAME } from "@parrafraktor/engine";
-import { BEREICHE, zeigeWert, type ModulStatus } from "@parrafraktor/protokoll";
+import { BEREICHE, PRESET_ANZAHL, zeigeWert, type ModulStatus } from "@parrafraktor/protokoll";
 import { fehlerText, log } from "../../log.js";
 import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
-  PATTERN_SEITEN, REGLER_SEITEN, TASTE_PAUSE, TASTE_SEITE, TASTE_UEBERNAHME, UEBERNAHME_HALTEN_MS,
-  patternAufTaste, patternSeiteVon, type Regler,
+  HAUPT, HALTEN_MS, PLAETZE, REGLER_SEITEN, TASTE_SEITE, TASTE_ZURUECK,
+  eintragAuf, seitenAnzahl, type Menue, type Regler,
 } from "./belegung.js";
 import { FARBE, Maler, type Feld, type TastenInhalt } from "./bilder.js";
 
@@ -20,6 +20,13 @@ type Bibliothek = typeof import("@elgato-stream-deck/node");
 const SUCHEN_MS = 2000;
 const ZEICHNEN_MS = 50;      // höchstens 20 Bilder pro Sekunde
 const SCHNELL_MS = 60;       // Rastungen schneller als das zählen mehrfach
+const GESPEICHERT_MS = 1200; // so lange zeigt eine Preset-Taste "gespeichert"
+
+// Was eine Taste tut: tippen, halten oder beides (dann löst Tippen erst beim Loslassen aus)
+interface Aktion {
+  tippen?: () => void;
+  halten?: { ms: number; tun: () => void };
+}
 
 export class StreamDeckModul implements Eingabemodul {
   readonly name = "Stream Deck+";
@@ -31,11 +38,12 @@ export class StreamDeckModul implements Eingabemodul {
   private text = "suche Gerät …";
   private beendet = false;
 
+  private menue: Menue = "haupt";
+  private seite = 0;            // Seite im Untermenü
   private reglerSeite = 0;
-  private patternSeite = 0;
   private letzteDrehung = [0, 0, 0, 0];
-  private uebernahmeTimer: NodeJS.Timeout | undefined;
-  private uebernahmeGehalten = false;
+  private halten: { taste: number; tippen?: () => void; timer: NodeJS.Timeout; ausgeloest: boolean } | null = null;
+  private gespeichert: { nr: number; bis: number } | null = null;
 
   // Zuletzt gezeichnete Bilder, damit nur Geändertes zum Gerät geht
   private gezeichnet = new Map<string, string>();
@@ -55,7 +63,6 @@ export class StreamDeckModul implements Eingabemodul {
       return;
     }
     this.steuerung.on("aenderung", this.beiAenderung);
-    this.patternSeite = patternSeiteVon(this.steuerung.parameter.modus);
     await this.suche();
   }
 
@@ -138,29 +145,80 @@ export class StreamDeckModul implements Eingabemodul {
   // ---------- Bedienung ----------
 
   private tasteRunter(taste: number): void {
-    const s = this.steuerung;
-    const modus = patternAufTaste(this.patternSeite, taste);
-    if (modus) s.waehlePattern(modus);
-    else if (taste === TASTE_SEITE) {
-      this.patternSeite = (this.patternSeite + 1) % PATTERN_SEITEN;
+    const aktion = this.aktion(taste);
+    if (!aktion) return;
+    if (!aktion.halten) {
+      aktion.tippen?.();
       this.zeichneBald();
-    } else if (taste === TASTE_PAUSE) s.schalteLauf();
-    else if (taste === TASTE_UEBERNAHME) {
-      // Erst nach dem Halten umschalten, damit ein Streifen der Hand nicht die Show übernimmt
-      this.uebernahmeGehalten = true;
-      this.zeichneBald();
-      this.uebernahmeTimer = setTimeout(() => {
-        this.uebernahmeGehalten = false;
-        s.setzeUebernahme(!s.uebernahme.soll);
-      }, UEBERNAHME_HALTEN_MS);
+      return;
     }
+    if (this.halten) clearTimeout(this.halten.timer);
+    const h = aktion.halten;
+    const gehalten = {
+      taste,
+      tippen: aktion.tippen,
+      ausgeloest: false,
+      timer: setTimeout(() => {
+        gehalten.ausgeloest = true;
+        h.tun();
+        this.zeichneBald();
+      }, h.ms),
+    };
+    this.halten = gehalten;
+    this.zeichneBald();
   }
 
   private tasteHoch(taste: number): void {
-    if (taste !== TASTE_UEBERNAHME) return;
-    clearTimeout(this.uebernahmeTimer);
-    this.uebernahmeGehalten = false;
+    const h = this.halten;
+    if (!h || h.taste !== taste) return;
+    clearTimeout(h.timer);
+    this.halten = null;
+    if (!h.ausgeloest) h.tippen?.();   // kurz getippt
     this.zeichneBald();
+  }
+
+  private oeffne(menue: Menue, seite = 0): void {
+    this.menue = menue;
+    this.seite = seite;
+  }
+
+  private aktion(taste: number): Aktion | undefined {
+    const s = this.steuerung;
+    if (this.menue === "haupt") {
+      switch (taste) {
+        case HAUPT.pattern: {
+          const i = MODI.indexOf(s.parameter.modus);
+          return { tippen: () => this.oeffne("pattern", Math.floor(i / PLAETZE.length)) };
+        }
+        case HAUPT.presets: {
+          const i = s.letztesPreset ?? 0;
+          return { tippen: () => this.oeffne("presets", Math.floor(i / PLAETZE.length)) };
+        }
+        case HAUPT.regler: return { tippen: () => { this.reglerSeite = (this.reglerSeite + 1) % REGLER_SEITEN.length; } };
+        case HAUPT.reihenfolge: return { tippen: () => s.schalteReihenfolge() };
+        case HAUPT.pause: return { tippen: () => s.schalteLauf() };
+        // Erst nach dem Halten umschalten, damit ein Streifen der Hand nicht die Show übernimmt
+        case HAUPT.output: return { halten: { ms: HALTEN_MS.output, tun: () => s.setzeUebernahme(!s.uebernahme.soll) } };
+        default: return undefined;
+      }
+    }
+    const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
+    if (taste === TASTE_ZURUECK) return { tippen: () => this.oeffne("haupt") };
+    if (taste === TASTE_SEITE) return { tippen: () => { this.seite = (this.seite + 1) % seitenAnzahl(anzahl); } };
+    const i = eintragAuf(this.seite, taste, anzahl);
+    if (i === undefined) return undefined;
+    if (this.menue === "pattern") return { tippen: () => s.waehlePattern(MODI[i]!) };
+    return {
+      tippen: () => s.rufePresetAuf(i),
+      halten: {
+        ms: HALTEN_MS.presetSpeichern,
+        tun: () => {
+          s.speicherePreset(i);
+          this.gespeichert = { nr: i, bis: Date.now() + GESPEICHERT_MS };
+          setTimeout(() => this.zeichneBald(), GESPEICHERT_MS + 10);
+        },
+      },
+    };
   }
 
   private regler(index: number): Regler | undefined {
@@ -249,29 +307,47 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private tastenInhalt(taste: number): TastenInhalt {
-    const { parameter, uebernahme } = this.steuerung;
-    const modus = patternAufTaste(this.patternSeite, taste);
-    if (modus) {
-      const aktiv = parameter.modus === modus;
-      return { titel: MODUS_NAME[modus], rahmen: aktiv ? FARBE.akzent : undefined };
-    }
-    if (taste === TASTE_SEITE) {
-      return { titel: "Pattern ›", unter: `${this.patternSeite + 1}/${PATTERN_SEITEN}` };
-    }
-    if (taste === TASTE_PAUSE) {
-      return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
-    }
-    if (taste === TASTE_UEBERNAHME) {
-      const halten = this.uebernahmeGehalten ? "halten …" : undefined;
-      switch (uebernahme.zustand) {
-        case "an": return { titel: "LIVE", unter: halten ?? "App fährt", grund: FARBE.live };
-        case "blendetEin":
-        case "blendetAus":
-          return { titel: `${Math.round(uebernahme.anteil * 100)} %`, unter: "blendet", grund: FARBE.blenden };
-        default: return { titel: "MA", unter: halten ?? "halten = live", grund: FARBE.ma };
+    const { parameter, uebernahme, presets, letztesPreset } = this.steuerung;
+    const haelt = this.halten?.taste === taste && !this.halten.ausgeloest ? "halten …" : undefined;
+    if (this.menue === "haupt") {
+      switch (taste) {
+        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus] };
+        case HAUPT.presets: {
+          const p = letztesPreset === null ? null : presets[letztesPreset];
+          return { titel: "Presets ›", unter: p?.name };
+        }
+        case HAUPT.regler: return { titel: `Regler ${this.reglerSeite + 1}/${REGLER_SEITEN.length}`, unter: "umschalten" };
+        case HAUPT.reihenfolge: return { titel: "Reihenfolge", unter: parameter.jeElement ? "je Element" : "alle 36" };
+        case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
+        case HAUPT.output:
+          switch (uebernahme.zustand) {
+            case "an": return { titel: "OUTPUT", unter: haelt ?? "aktiv", grund: FARBE.live };
+            case "blendetEin":
+            case "blendetAus":
+              return { titel: `${Math.round(uebernahme.anteil * 100)} %`, unter: "Output blendet", grund: FARBE.blenden };
+            default: return { titel: "Output", unter: haelt ?? "aus · halten", grund: FARBE.feld };
+          }
+        default: return { titel: "" };
       }
     }
-    return { titel: "" };
+    const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
+    if (taste === TASTE_ZURUECK) return { titel: "‹ Zurück" };
+    if (taste === TASTE_SEITE) {
+      return { titel: "Seite ›", unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` };
+    }
+    const i = eintragAuf(this.seite, taste, anzahl);
+    if (i === undefined) return { titel: "" };
+    if (this.menue === "pattern") {
+      return { titel: MODUS_NAME[MODI[i]!], rahmen: parameter.modus === MODI[i] ? FARBE.akzent : undefined };
+    }
+    const p = presets[i];
+    const gespeichert = this.gespeichert?.nr === i && Date.now() < this.gespeichert.bis;
+    if (!p) return { titel: String(i + 1), unter: gespeichert ? "gespeichert" : haelt ?? "leer · halten", leise: true };
+    return {
+      titel: p.name,
+      unter: gespeichert ? "gespeichert" : haelt ?? String(i + 1),
+      rahmen: letztesPreset === i ? FARBE.akzent : undefined,
+    };
   }
 
   private felder(): Feld[] {

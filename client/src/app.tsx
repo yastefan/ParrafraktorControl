@@ -3,6 +3,7 @@ import { laden, useLaden } from "./laden.js";
 import { Einstellungen } from "./teile/einstellungen.js";
 import { Kopf } from "./teile/kopf.js";
 import { Patterns } from "./teile/patterns.js";
+import { Presets } from "./teile/presets.js";
 import { Regler } from "./teile/regler.js";
 import { Vorschau, type VorderModus } from "./vorschau.js";
 
@@ -20,6 +21,7 @@ export function App() {
         <section class="links">
           <VorschauFlaeche />
           {p && <Patterns modus={p.modus} />}
+          <Presets />
         </section>
         <section class="rechts">{p && <Regler parameter={p} />}</section>
       </main>
@@ -61,6 +63,8 @@ function VorschauFlaeche() {
         live: laden.stand.uebernahme.zustand === "an",
         aufbau: laden.stand.einstellungen.aufbau,
         modus: modusRef.current,
+        blende: laden.stand.blende,
+        blendeDauer: laden.stand.einstellungen.ueberblendungS,
       };
     });
     v.starte();

@@ -1,6 +1,6 @@
 # ParrafraktorControl
 
-Steuer-App für den Parrafraktor, eine Lichtinstallation von Friedrich Gobbesso aus drei Elementen mit je zwölf drehbaren Spiegeln. Ein Server auf einem Mac, Windows-PC oder Raspberry Pi rechnet dieselben Pattern wie die Simulation auf der Website und sendet die Spiegelstellungen per Art-Net oder sACN an den DMX-Node. Bedient wird er über ein Elgato Stream Deck+ am selben Rechner oder über eine Web-App (PWA) auf dem iPad. Die grandMA3 kann parallel im Netz bleiben und übernimmt wieder, sobald die App abgibt.
+Steuer-App für den Parrafraktor, eine Lichtinstallation von Friedrich Gobbesso aus drei Elementen mit je zwölf drehbaren Spiegeln. Ein Server auf einem Mac, Windows-PC oder Raspberry Pi rechnet dieselben Pattern wie die Simulation auf der Website und sendet die Spiegelstellungen per Art-Net oder sACN an den DMX-Node. Bedient wird er über ein Elgato Stream Deck+ am selben Rechner oder über eine Web-App (PWA) auf dem iPad. Die grandMA3 kann parallel im Netz bleiben und fährt wieder, sobald man den Output der App ausschaltet.
 
 ## Aufbau
 
@@ -53,7 +53,7 @@ node packages/engine/scripts/referenz-erzeugen.mjs /pfad/zu/WebsiteKlaus/src/js/
 npm run build && npm start
 ```
 
-Der Server liefert den gebauten Client selbst aus: http://<rechner>:8080. Einstellungen und die zuletzt eingestellten Parameter liegen in `daten/`. Nach einem Neustart ist die Übernahme immer aus, es fährt also zuerst die MA.
+Der Server liefert den gebauten Client selbst aus: http://<rechner>:8080. Einstellungen und die zuletzt eingestellten Parameter liegen in `daten/`. Presets liegen in `daten/presets.json`. Nach einem Neustart ist der Output immer aus, es fährt also zuerst die MA.
 
 | Umgebungsvariable | Bedeutung |
 |---|---|
@@ -89,12 +89,24 @@ printf 'SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", MODE:="666", GROUP="plugdev"\
 
 Das Gerät darf jederzeit ab- und angesteckt werden.
 
+Die Tasten zeigen ein Hauptmenü mit Untermenüs:
+
+```
+Hauptmenü                                   Untermenü (Pattern, Presets)
+┌─────────┬─────────┬─────────┬─────────┐   ┌─────────┬─────────┬─────────┬─────────┐
+│Pattern ›│Presets ›│Regler 1 │Reihenf. │   │  Platz  │  Platz  │  Platz  │  Platz  │
+├─────────┼─────────┼─────────┼─────────┤   ├─────────┼─────────┼─────────┼─────────┤
+│         │         │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
+└─────────┴─────────┴─────────┴─────────┘   └─────────┴─────────┴─────────┴─────────┘
+```
+
 | Bedienteil | Funktion |
 |---|---|
-| Tasten 1–5 | Pattern der aktuellen Pattern-Seite |
-| Taste 6 | nächste Pattern-Seite (3 Seiten) |
-| Taste 7 | Pause / Weiter |
-| Taste 8 | Übernahme: **gedrückt halten** (0,6 s) |
+| Pattern › | Pattern direkt wählen (3 Seiten) |
+| Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
+| Regler | Reglerseite umschalten |
+| Reihenfolge | über alle 36 / je Element |
+| Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
 | Drehregler, Seite 2 | Speed bis, Group, Reihenfolge, Pattern |
 | Regler drücken / Streifen antippen | Vorgabewert |
@@ -133,7 +145,11 @@ Die Vorschau im Client rechnet mit derselben Engine wie der Server. Wie sie auss
 
 Der Aufbau betrifft nur die Vorschau, nicht die Ausgabe an die Spiegel.
 
-## Ausgabe und Übernahme
+## Presets
+
+12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
+
+## Ausgabe und Output
 
 Im Einstellungsmenü lassen sich Art-Net, sACN und (später) RS485 einzeln einschalten, jeweils mit Ziel-IP und Netzwerkkarte.
 

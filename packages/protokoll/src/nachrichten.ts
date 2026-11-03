@@ -6,8 +6,9 @@
 import { istModus, type Modus, type Parameter } from "@parrafraktor/engine";
 import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
+import { istPresetNr, presetName, type Presets } from "./presets.js";
 
-export const PROTOKOLL_VERSION = 2;
+export const PROTOKOLL_VERSION = 3;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 
@@ -52,6 +53,11 @@ export interface Stand {
   netzwerk: Netzwerkschnittstelle[];
   // Umlauf der Engine (Bezug und je Spiegel), damit die Vorschau im Client synchron läuft
   takt: Takt;
+  presets: Presets;
+  letztesPreset: number | null;   // zuletzt abgerufen, solange der Look nicht verändert wurde
+  // läuft gerade eine Überblendung zu einem Preset: Nummer der Überblendung (zählt hoch) und wie weit (0 … 1).
+  // Überblendet wird von der Stellung im Moment des Abrufens zum neuen Look.
+  blende: { id: number; anteil: number } | null;
   warnungen: string[];
 }
 
@@ -68,6 +74,8 @@ export type ClientNachricht =
   | { typ: "vorgabe"; name: ZahlParameter }
   | { typ: "uebernahme"; an: boolean }
   | { typ: "einstellungen"; einstellungen: unknown }   // prüft der Server mit pruefeEinstellungen
+  | { typ: "preset"; aktion: "abrufen" | "speichern" | "loeschen"; nr: number }
+  | { typ: "preset"; aktion: "umbenennen"; nr: number; name: string }
   | { typ: "ping"; t: number };
 
 // Nachricht vom Client prüfen; null bei allem Unbekannten
@@ -86,6 +94,17 @@ export function leseClientNachricht(text: string): ClientNachricht | null {
     case "vorgabe": return istZahlParameter(r.name) ? { typ: "vorgabe", name: r.name } : null;
     case "uebernahme": return typeof r.an === "boolean" ? { typ: "uebernahme", an: r.an } : null;
     case "einstellungen": return { typ: "einstellungen", einstellungen: r.einstellungen };
+    case "preset": {
+      if (!istPresetNr(r.nr)) return null;
+      if (r.aktion === "umbenennen") {
+        const name = presetName(r.name, "");
+        return name ? { typ: "preset", aktion: "umbenennen", nr: r.nr, name } : null;
+      }
+      if (r.aktion === "abrufen" || r.aktion === "speichern" || r.aktion === "loeschen") {
+        return { typ: "preset", aktion: r.aktion, nr: r.nr };
+      }
+      return null;
+    }
     case "ping": return typeof r.t === "number" ? { typ: "ping", t: r.t } : null;
     default: return null;
   }

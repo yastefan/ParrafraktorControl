@@ -114,6 +114,14 @@ export class WebServer {
       case "vorgabe": s.vorgabe(n.name); break;
       case "uebernahme": s.setzeUebernahme(n.an); break;
       case "einstellungen": s.setzeEinstellungen(n.einstellungen); break;
+      case "preset":
+        switch (n.aktion) {
+          case "abrufen": s.rufePresetAuf(n.nr); break;
+          case "speichern": s.speicherePreset(n.nr); break;
+          case "loeschen": s.loeschePreset(n.nr); break;
+          case "umbenennen": s.benennePreset(n.nr, n.name); break;
+        }
+        break;
       case "ping": this.schicke(ws, { typ: "pong", t: n.t }); break;
     }
   }

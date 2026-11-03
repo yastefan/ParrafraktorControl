@@ -9,10 +9,11 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
   const p = l.parameter;
   const warnungen = l.stand?.warnungen.length ?? 0;
 
-  let uebernahmeText = "MA fährt · halten zum Übernehmen";
-  if (u?.zustand === "an") uebernahmeText = "LIVE · halten zum Abgeben";
+  // Output: ob die App die Spiegel fährt (intern "Übernahme"). Aus = die MA fährt.
+  let uebernahmeText = "Output aus · halten zum Aktivieren";
+  if (u?.zustand === "an") uebernahmeText = "OUTPUT AKTIV · halten zum Beenden";
   else if (u?.zustand === "blendetEin" || u?.zustand === "blendetAus") {
-    uebernahmeText = `Überblendung ${Math.round(u.anteil * 100)} %`;
+    uebernahmeText = `Output blendet ${Math.round(u.anteil * 100)} %`;
   }
 
   return (

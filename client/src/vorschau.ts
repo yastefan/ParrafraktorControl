@@ -7,7 +7,7 @@
 //                   hintereinander, jedes in seiner Ebene gedreht. Dazu rechts jedes Element einzeln.
 //                   Modus "spiegel" zeigt die Spiegel, Modus "licht" nur das Licht, das von hinten
 //                   durch alle drei Lagen kommt – das Muster, das das Publikum sieht.
-import { ELEMENTE, Engine, SPIEGEL_N, type Parameter, type Stellung } from "@parrafraktor/engine";
+import { ELEMENTE, Engine, SPIEGEL_N, weich, type Parameter, type Stellung } from "@parrafraktor/engine";
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
 
 export type VorderModus = "spiegel" | "licht";
@@ -17,6 +17,8 @@ export interface VorschauDaten {
   live: boolean;
   aufbau: Aufbau;
   modus: VorderModus;
+  blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
+  blendeDauer: number;                              // Sekunden
 }
 
 const ABWEICHUNG_MAX = 0.05;   // Durchläufe; größere Abweichungen werden sofort übernommen
@@ -50,6 +52,9 @@ export class Vorschau {
   private letzte = performance.now();
   private bild = 0;
   private lichtCanvas = document.createElement("canvas");
+  // Überblendung zu einem Preset: Ausgangsstellung und eigener, flüssig weiterlaufender Anteil
+  private letzteWinkel: number[] = [];
+  private blende: { id: number; von: number[]; anteil: number } | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -63,7 +68,9 @@ export class Vorschau {
       const d = this.daten();
       if (d) {
         this.engine.weiter(d.parameter, dt);
-        this.zeichne(d, this.winkel(this.engine.alle(d.parameter), dt));
+        const winkel = this.blenden(d, this.winkel(this.engine.alle(d.parameter), dt), dt);
+        this.letzteWinkel = winkel;
+        this.zeichne(d, winkel);
       }
       this.bild = requestAnimationFrame(schleife);
     };
@@ -79,6 +86,22 @@ export class Vorschau {
     const e = this.engine;
     e.umlaufVon = nachziehen(e.umlaufVon, takt.umlaufVon);
     takt.umlauf.forEach((u, g) => { if (g < e.umlauf.length) e.umlauf[g] = nachziehen(e.umlauf[g]!, u); });
+  }
+
+  // Wie der Server: von der Stellung beim Abrufen weich zum neuen Look. Den Anteil rechnet die
+  // Vorschau selbst weiter, damit es flüssig läuft; der Server gibt Start und Ende vor.
+  private blenden(d: VorschauDaten, ziel: number[], dt: number): number[] {
+    if (!d.blende) {
+      this.blende = null;
+      return ziel;
+    }
+    if (this.blende?.id !== d.blende.id) {
+      this.blende = { id: d.blende.id, von: this.letzteWinkel.length ? this.letzteWinkel : ziel, anteil: d.blende.anteil };
+    } else if (d.blendeDauer > 0) {
+      this.blende.anteil = Math.min(1, Math.max(d.blende.anteil, this.blende.anteil + dt / d.blendeDauer));
+    }
+    const b = this.blende, f = weich(b.anteil);
+    return ziel.map((w, g) => (b.von[g] ?? w) + (w - (b.von[g] ?? w)) * f);
   }
 
   // Sichtbarer Winkel je Spiegel in Grad: Tilt plus die Drehung über TiltRotate

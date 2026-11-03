@@ -75,11 +75,11 @@ export function Einstellungen({ stand, schliessen }: Props) {
           )}
         </Gruppe>
 
-        <Gruppe titel="Übernahme">
+        <Gruppe titel="Überblendung">
           <Schieber
-            name="Überblendung" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
+            name="Dauer" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
             wert={entwurf.ueberblendungS} setze={(v) => sofort({ ueberblendungS: v })}
-            hilfe="Von bzw. zur Stellung der MA. Geht nur, wenn die App die MA mitlesen kann, sonst springen die Spiegel."
+            hilfe="Beim Abrufen eines Presets und beim Ein- und Ausschalten des Outputs. Für den Output blendet die App von bzw. zur Stellung der MA – nur wenn sie die MA mitlesen kann, sonst springen die Spiegel."
           />
         </Gruppe>
 
@@ -134,7 +134,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
             <Text name="Ziel-IP" wert={entwurf.sacn.ziel} setze={(v) => aendere((e) => { e.sacn.ziel = v; return e; })} />
           )}
           <Schnittstelle stand={stand} wert={entwurf.sacn.quelle} setze={(v) => aendere((e) => { e.sacn.quelle = v; return e; })} />
-          <p class="hilfe">Die MA sendet mit Priority 100. Beim Abgeben fällt der Node sofort auf die MA zurück.</p>
+          <p class="hilfe">Die MA sendet mit Priority 100. Schaltet man den Output aus, fällt der Node sofort auf die MA zurück.</p>
         </Gruppe>
 
         <Gruppe titel="DMX über RS485 (Raspberry Pi)">
