@@ -71,34 +71,33 @@ describe("Impulse", () => {
     return { s, vor: (dt: number) => { t += dt; } };
   };
 
-  it("hält, solange gedrückt, und räumt nach dem Release auf", () => {
+  it("Streifen startet die gewählte Art vom Ursprung aus und räumt nach dem Release auf", () => {
     const { s, vor } = mitUhr();
-    s.drueckeImpuls("auf", "ws1:auf");
+    s.setzeImpuls({ art: "stoss" });
+    s.tippeImpuls(1.7);
+    expect(s.impulse()).toEqual([{ id: 1, art: "stoss", alterS: 0, ursprung: 1 }]);
+    const h = s.impuls.huelle;
+    vor(h.attackS + h.sustainS + h.releaseS + 0.01);
+    s.raeumeImpulse();
+    expect(s.impulse()).toEqual([]);
+  });
+
+  it("Tap setzt das Tempo, mit Raster wartet der Impuls auf den nächsten Schlag", () => {
+    const { s, vor } = mitUhr();
     vor(10);
-    s.raeumeImpulse();
-    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 10, losS: null, ursprung: null }]);
-    s.loeseImpuls("ws1:auf");
-    vor(s.impuls.huelle.releaseS + 0.01);
-    s.raeumeImpulse();
-    expect(s.impulse()).toEqual([]);
-  });
-
-  it("Touchstreifen: Impuls ohne Halten, vom Ursprung aus", () => {
-    const { s, vor } = mitUhr();
-    s.tippeImpuls("auf", 1.7);
-    expect(s.impulse()).toEqual([{ id: 1, ziel: "auf", alterS: 0, losS: s.impuls.huelle.attackS, ursprung: 1 }]);
-    vor(s.impuls.huelle.attackS + s.impuls.huelle.releaseS + 0.01);
-    s.raeumeImpulse();
-    expect(s.impulse()).toEqual([]);
-  });
-
-  it("lässt alles los, was eine abgebrochene Verbindung hält", () => {
-    const { s } = mitUhr();
-    s.drueckeImpuls("auf", "ws1:auf");
-    s.drueckeImpuls("zu", "ws1:zu");
-    s.drueckeImpuls("auf", "ws12:auf");
-    s.loeseImpuls("ws1:", true);
-    expect(s.impulse().map((i) => i.losS)).toEqual([0, 0, null]);
+    for (let n = 0; n < 4; n++) { s.tippeTakt(); vor(0.5); }   // 120 BPM, letztes Tap bei 11,5 s
+    expect(s.impuls.bpm).toBe(120);
+    s.setzeImpuls({ raster: "schlag" });
+    vor(0.1);   // 12,1 s: knapp nach dem Schlag bei 12 s – zählt noch nicht
+    s.tippeImpuls(0);
+    expect(s.impulse()[0]!.alterS).toBeCloseTo(-0.4);
+    s.setzeImpuls({ raster: "takt" });   // Takt = 4 Schläge ab 11,5 s: nächster bei 13,5 s
+    s.tippeImpuls(0);
+    expect(s.impulse()[1]!.alterS).toBeCloseTo(-1.4);
+    vor(0.4);
+    s.setzeImpuls({ raster: "schlag" });
+    s.tippeImpuls(0);   // genau auf dem Schlag
+    expect(s.impulse()[2]!.alterS).toBeCloseTo(0);
   });
 
   it("prüft Hüllkurve und Nachrichten", () => {
@@ -110,7 +109,9 @@ describe("Impulse", () => {
     expect(s.impuls.elementVersatzS).toBe(0.4);
     s.vorgabeImpuls("attackS");
     expect(s.impuls.huelle.attackS).toBe(0.4);
-    expect(leseClientNachricht('{"typ":"impuls","ziel":"auf","gedrueckt":true}')).toEqual({ typ: "impuls", ziel: "auf", gedrueckt: true });
-    expect(leseClientNachricht('{"typ":"impuls","ziel":"seitlich","gedrueckt":true}')).toBeNull();
+    s.setzeImpuls({ art: "seitlich", raster: "takt" });
+    expect(s.impuls).toMatchObject({ art: "auf", raster: "takt" });
+    expect(leseClientNachricht('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1 });
+    expect(leseClientNachricht('{"typ":"impulsTippen"}')).toBeNull();
   });
 });

@@ -90,7 +90,7 @@ export interface Stellung {
 export const weich = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
 
 // Ganzzahliges Gitter → 0 … 1, immer gleich (für das Rauschen)
-const gitter = (x: number, y: number): number => {
+export const gitter = (x: number, y: number): number => {
   let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;

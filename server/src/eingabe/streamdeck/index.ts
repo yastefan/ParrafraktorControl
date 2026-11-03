@@ -4,9 +4,8 @@
 // macOS/Windows: Die Elgato-Software muss beendet sein, sonst ist das Gerät belegt.
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
-import type { ImpulsZiel } from "@parrafraktor/engine";
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE,
+  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE, RASTER, RASTER_NAME,
 } from "@parrafraktor/engine";
 import {
   BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
@@ -15,8 +14,8 @@ import { fehlerText, log } from "../../log.js";
 import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
-  HAUPT, HALTEN_MS, IMPULS_PADS, IMPULS_REGLER_SEITEN, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE, TASTE_IMPULS_REGLER,
-  TASTE_SEITE, TASTE_STREIFEN, TASTE_ZURUECK,
+  HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE,
+  TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_TAP, TASTE_ZURUECK,
   eintragAuf, seitenAnzahl, type Menue, type Regler,
 } from "./belegung.js";
 import { FARBE, Maler, type Feld, type TastenInhalt } from "./bilder.js";
@@ -28,15 +27,11 @@ const ZEICHNEN_MS = 50;      // höchstens 20 Bilder pro Sekunde
 const SCHNELL_MS = 60;       // Rastungen schneller als das zählen mehrfach
 const GESPEICHERT_MS = 1200; // so lange zeigt eine Preset-Taste "gespeichert"
 
-// Was eine Taste tut: tippen, halten oder beides (dann löst Tippen erst beim Loslassen aus).
-// druck: wie ein Flash-Pad – runter beim Drücken, hoch beim Loslassen.
+// Was eine Taste tut: tippen, halten oder beides (dann löst Tippen erst beim Loslassen aus)
 interface Aktion {
   tippen?: () => void;
   halten?: { ms: number; tun: () => void };
-  druck?: { runter: () => void; hoch: () => void };
 }
-
-const QUELLE = "streamdeck:";
 
 export class StreamDeckModul implements Eingabemodul {
   readonly name = "Stream Deck+";
@@ -52,12 +47,9 @@ export class StreamDeckModul implements Eingabemodul {
   private seite = 0;            // Seite im Untermenü
   private reglerSeite = 0;
   private impulsReglerSeite = 0;
-  private streifenZiel: ImpulsZiel = "auf";   // Flash beim Tippen auf den Touchstreifen
   private letzteDrehung = [0, 0, 0, 0];
   private halten: { taste: number; tippen?: () => void; timer: NodeJS.Timeout; ausgeloest: boolean } | null = null;
   private gespeichert: { nr: number; bis: number } | null = null;
-  // gedrückte Pads: Taste → Loslassen (gilt auch, wenn inzwischen das Menü gewechselt hat)
-  private pads = new Map<number, () => void>();
 
   // Zuletzt gezeichnete Bilder, damit nur Geändertes zum Gerät geht
   private gezeichnet = new Map<string, string>();
@@ -87,7 +79,6 @@ export class StreamDeckModul implements Eingabemodul {
     this.steuerung.off("aenderung", this.beiAenderung);
     const deck = this.deck;
     this.deck = null;
-    this.lasseAllesLos();
     if (deck) {
       await deck.clearPanel().catch(() => {});
       await deck.close().catch(() => {});
@@ -147,7 +138,6 @@ export class StreamDeckModul implements Eingabemodul {
     const deck = this.deck;
     this.deck = null;
     await deck?.close().catch(() => {});
-    this.lasseAllesLos();
     this.melde("bereit", "getrennt, suche Gerät …");
     this.suchTimer = setTimeout(() => void this.suche(), SUCHEN_MS);
   }
@@ -164,12 +154,6 @@ export class StreamDeckModul implements Eingabemodul {
   private tasteRunter(taste: number): void {
     const aktion = this.aktion(taste);
     if (!aktion) return;
-    if (aktion.druck) {
-      aktion.druck.runter();
-      this.pads.set(taste, aktion.druck.hoch);
-      this.zeichneBald();
-      return;
-    }
     if (!aktion.halten) {
       aktion.tippen?.();
       this.zeichneBald();
@@ -192,13 +176,6 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private tasteHoch(taste: number): void {
-    const pad = this.pads.get(taste);
-    if (pad) {
-      this.pads.delete(taste);
-      pad();
-      this.zeichneBald();
-      return;
-    }
     const h = this.halten;
     if (!h || h.taste !== taste) return;
     clearTimeout(h.timer);
@@ -207,13 +184,7 @@ export class StreamDeckModul implements Eingabemodul {
     this.zeichneBald();
   }
 
-  private lasseAllesLos(): void {
-    this.pads.clear();
-    this.steuerung.loeseImpuls(QUELLE, true);
-  }
-
   private oeffne(menue: Menue, seite = 0): void {
-    if (this.menue === "impulse" && menue !== "impulse") this.lasseAllesLos();
     this.menue = menue;
     this.seite = seite;
   }
@@ -242,16 +213,13 @@ export class StreamDeckModul implements Eingabemodul {
     }
     if (taste === TASTE_ZURUECK) return { tippen: () => this.oeffne("haupt") };
     if (this.menue === "impulse") {
-      const ziel = IMPULS_PADS[taste];
-      if (ziel) {
-        const quelle = `${QUELLE}${taste}`;
-        return { druck: { runter: () => s.drueckeImpuls(ziel, quelle), hoch: () => s.loeseImpuls(quelle) } };
-      }
+      const art = IMPULS_ARTEN_TASTEN[taste];
+      if (art) return { tippen: () => s.setzeImpuls({ art }) };
       if (taste === TASTE_ELEMENT_FOLGE) {
         const i = ELEMENT_FOLGEN.indexOf(s.impuls.elementFolge);
         return { tippen: () => s.setzeImpuls({ elementFolge: ELEMENT_FOLGEN[(i + 1) % ELEMENT_FOLGEN.length] }) };
       }
-      if (taste === TASTE_STREIFEN) return { tippen: () => { this.streifenZiel = this.streifenZiel === "auf" ? "zu" : "auf"; } };
+      if (taste === TASTE_TAP) return { tippen: () => s.tippeTakt() };
       if (taste === TASTE_IMPULS_REGLER) {
         return { tippen: () => { this.impulsReglerSeite = (this.impulsReglerSeite + 1) % IMPULS_REGLER_SEITEN.length; } };
       }
@@ -285,7 +253,12 @@ export class StreamDeckModul implements Eingabemodul {
     this.letzteDrehung[index] = jetzt;
     if (this.menue === "impulse") {
       const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
-      if (name) this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
+      if (name === "raster") {
+        const i = RASTER.indexOf(this.steuerung.impuls.raster) + Math.sign(schritte);
+        this.steuerung.setzeImpuls({ raster: RASTER[Math.min(RASTER.length - 1, Math.max(0, i))] });
+      } else if (name) {
+        this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
+      }
       return;
     }
     const r = this.regler(index);
@@ -305,7 +278,8 @@ export class StreamDeckModul implements Eingabemodul {
   private reglerDruck(index: number): void {
     if (this.menue === "impulse") {
       const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
-      if (name) this.steuerung.vorgabeImpuls(name);
+      if (name === "raster") this.steuerung.setzeImpuls({ raster: "aus" });
+      else if (name) this.steuerung.vorgabeImpuls(name);
       return;
     }
     const r = this.regler(index);
@@ -318,7 +292,7 @@ export class StreamDeckModul implements Eingabemodul {
   // x: 0 = links … 1 = rechts
   private tippeStreifen(x: number): void {
     if (this.menue === "impulse") {
-      this.steuerung.tippeImpuls(this.streifenZiel, x);
+      this.steuerung.tippeImpuls(x);
       return;
     }
     this.reglerDruck(Math.min(3, Math.floor(x * 4)));
@@ -329,7 +303,7 @@ export class StreamDeckModul implements Eingabemodul {
     if (this.menue === "impulse") {
       // kurzes Wischen gilt als Tippen, sonst läuft der Flash vom Rand in Wischrichtung durch
       if (Math.abs(dx) < 0.05) this.tippeStreifen(von);
-      else this.steuerung.tippeImpuls(this.streifenZiel, dx > 0 ? 0 : 1);
+      else this.steuerung.tippeImpuls(dx > 0 ? 0 : 1);
       return;
     }
     if (Math.abs(dx) < 0.05) return;
@@ -362,7 +336,7 @@ export class StreamDeckModul implements Eingabemodul {
           }
         } else if (c.type === "lcd-segment") {
           const felder = this.felder();
-          const seite = this.menue === "impulse" ? `tippen = ${IMPULS_NAME[this.streifenZiel]}` : `${this.reglerSeite + 1}/${REGLER_SEITEN.length}`;
+          const seite = this.menue === "impulse" ? `Streifen: ${IMPULS_NAME[this.steuerung.impuls.art]}` : `${this.reglerSeite + 1}/${REGLER_SEITEN.length}`;
           if (this.neu("streifen", { felder, seite })) {
             await deck.fillLcd(c.id, maler.streifen(c.pixelSize.width, c.pixelSize.height, felder, seite), { format: "rgba" });
           }
@@ -398,7 +372,7 @@ export class StreamDeckModul implements Eingabemodul {
         }
         case HAUPT.regler: return { titel: `Regler ${this.reglerSeite + 1}/${REGLER_SEITEN.length}`, unter: "umschalten" };
         case HAUPT.elemente: return { titel: "Elemente", unter: STUFEN.elementFolge.text[parameter.elementFolge] };
-        case HAUPT.impulse: return { titel: "Impulse ›", unter: "Flash" };
+        case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art] };
         case HAUPT.ordnung: return { titel: "Ordnung", unter: STUFEN.ordnung.text[parameter.ordnung] };
         case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
         case HAUPT.output:
@@ -414,18 +388,19 @@ export class StreamDeckModul implements Eingabemodul {
     }
     if (taste === TASTE_ZURUECK) return { titel: "‹ Zurück" };
     if (this.menue === "impulse") {
-      const ziel = IMPULS_PADS[taste];
-      if (ziel) {
-        const gedrueckt = this.pads.has(taste);
-        const laeuft = this.steuerung.impulse().some((i) => i.ziel === ziel);
+      const art = IMPULS_ARTEN_TASTEN[taste];
+      if (art) {
+        // gewählte Art hell, laufende mit Rahmen
+        const gewaehlt = this.steuerung.impuls.art === art;
+        const laeuft = this.steuerung.impulse().some((i) => i.art === art);
         return {
-          titel: IMPULS_NAME[ziel],
-          grund: gedrueckt ? FARBE.akzent : undefined,
-          rahmen: !gedrueckt && laeuft ? FARBE.akzent : undefined,
+          titel: IMPULS_NAME[art],
+          grund: gewaehlt ? FARBE.akzent : undefined,
+          rahmen: !gewaehlt && laeuft ? FARBE.akzent : undefined,
         };
       }
       if (taste === TASTE_ELEMENT_FOLGE) return { titel: "Elemente", unter: ELEMENT_FOLGE_NAME[this.steuerung.impuls.elementFolge] };
-      if (taste === TASTE_STREIFEN) return { titel: "Streifen", unter: IMPULS_NAME[this.streifenZiel] };
+      if (taste === TASTE_TAP) return { titel: "Tap", unter: zeigeImpuls("bpm", this.steuerung.impuls.bpm) };
       if (taste === TASTE_IMPULS_REGLER) return { titel: `Regler ${this.impulsReglerSeite + 1}/${IMPULS_REGLER_SEITEN.length}`, unter: "umschalten" };
       return { titel: "" };
     }
@@ -456,6 +431,7 @@ export class StreamDeckModul implements Eingabemodul {
       return [0, 1, 2, 3].map((i): Feld => {
         const name = seite[i];
         if (!name) return { titel: "", wert: "", anteil: null };
+        if (name === "raster") return { titel: "Raster", wert: RASTER_NAME[e.raster], anteil: null };
         const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
         return { titel: b.kurz, wert: zeigeImpuls(name, w), anteil: (w - b.min) / (b.max - b.min) };
       });

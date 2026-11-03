@@ -109,6 +109,7 @@ function stand(): Stand {
     blende: steuerung.blende ? { ...steuerung.blende } : null,
     impuls: steuerung.impuls,
     impulse: steuerung.impulse(),
+    schlagSeitS: steuerung.schlagSeitS(),
     warnungen,
   };
 }

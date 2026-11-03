@@ -1,105 +1,196 @@
 // Impulse: live gespielte Ereignisse über der Grundbewegung, wie Flash-Tasten am Lichtpult.
-// Drücken = Attack (hinfahren), Halten = Hold (bleiben), Loslassen = Release (zurück).
-// Ein Flash fährt alle Spiegel zu einer Ziel-Stellung ("auf" oder "zu", Winkel aus den Einstellungen).
-// Mit Element-Folge gehen die Elemente nacheinander auf und in derselben Folge wieder zurück.
-// Mit Ausbreitung läuft der Impuls auch innerhalb jedes Elements durch: von einem Ursprung
-// (Touchstreifen, 0 = links … 1 = rechts) nach außen, sonst entlang der Ordnung der Grundbewegung.
-// Am Touchstreifen gibt es kein Halten: ein Tippen fährt hin und gleich wieder zurück ("Go").
+// Man wählt die Art und löst sie auf dem Touchstreifen aus: Tippen startet sie an dieser Stelle
+// (Ursprung 0 = links … 1 = rechts), Wischen vom Rand in Wischrichtung. Danach läuft die Hüllkurve
+// ab: Attack (hin), Sustain (bleiben), Release (zurück) – der Streifen kennt kein Halten.
+//
+//   Flash auf/zu  alle Spiegel zu einer Ziel-Stellung (Winkel aus den Einstellungen)
+//   Stoß          ein Ruck läuft als Welle vom Ursprung durch die Reihe, wird an den Enden
+//                 zurückgeworfen und schwingt aus
+//   Glitzern      einzelne Spiegel zucken nach Zufall, solange die Hüllkurve offen ist
+//
+// Ausbreitung: Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich).
+// Element-Folge: die Elemente nacheinander, mit Element-Versatz.
+// Raster: Ein Impuls wartet auf den nächsten Schlag bzw. Takt (Tempo per Tap).
 // Server (Takt) und Client (Vorschau) rechnen damit gleich.
 import { ELEMENTE, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
-import { ordnungsPlatz, weich, type Ordnung, type Stellung } from "./pattern.js";
+import { gitter, weich, type Stellung } from "./pattern.js";
 
-export const IMPULS_ZIELE = ["auf", "zu"] as const;
-export type ImpulsZiel = (typeof IMPULS_ZIELE)[number];
-export const IMPULS_NAME: Record<ImpulsZiel, string> = { auf: "Flash auf", zu: "Flash zu" };
-export const istImpulsZiel = (x: unknown): x is ImpulsZiel => (IMPULS_ZIELE as readonly unknown[]).includes(x);
+export const IMPULS_ARTEN = ["auf", "zu", "stoss", "glitzern"] as const;
+export type ImpulsArt = (typeof IMPULS_ARTEN)[number];
+export const IMPULS_NAME: Record<ImpulsArt, string> = { auf: "Flash auf", zu: "Flash zu", stoss: "Stoß", glitzern: "Glitzern" };
+export const istImpulsArt = (x: unknown): x is ImpulsArt => (IMPULS_ARTEN as readonly unknown[]).includes(x);
+
+// Raster für das Einrasten auf den Takt: aus, jeder Schlag, jeder vierte (ein 4/4-Takt)
+export const RASTER = ["aus", "schlag", "takt"] as const;
+export type Raster = (typeof RASTER)[number];
+export const RASTER_NAME: Record<Raster, string> = { aus: "aus", schlag: "Schlag", takt: "Takt" };
+export const istRaster = (x: unknown): x is Raster => (RASTER as readonly unknown[]).includes(x);
 
 export interface Huelle {
   attackS: number;    // Zeit bis zum vollen Ausschlag
-  releaseS: number;   // Zeit zurück nach dem Loslassen
-  staerke: number;    // %, wie weit zur Ziel-Stellung (100 = ganz)
+  sustainS: number;   // so lange bleibt der volle Ausschlag
+  releaseS: number;   // Zeit zurück
+  staerke: number;    // %, wie weit zur Ziel-Stellung bzw. wie viel vom Ausschlag (100 = ganz)
 }
 
 export interface ImpulsEinstellung {
+  art: ImpulsArt;            // was der Touchstreifen auslöst
   huelle: Huelle;
   elementFolge: ElementFolge;
   elementVersatzS: number;   // Zeit zwischen zwei Elementen
   ausbreitungS: number;      // Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich)
+  bpm: number;               // Tempo für das Raster (Tap)
+  raster: Raster;
 }
 
 export const IMPULS_VORGABE: Readonly<ImpulsEinstellung> = {
-  huelle: { attackS: 0.4, releaseS: 1.5, staerke: 100 },
+  art: "auf",
+  huelle: { attackS: 0.4, sustainS: 0.5, releaseS: 1.5, staerke: 100 },
   elementFolge: "zusammen",
   elementVersatzS: 0.3,
   ausbreitungS: 0,
+  bpm: 120,
+  raster: "aus",
 };
 
-// Ein laufender Impuls, Zeiten in Sekunden seit dem Drücken
+// Ein laufender Impuls, Zeiten in Sekunden seit dem Start (vorher negativ, z. B. beim Warten
+// auf den nächsten Schlag)
 export interface LaufenderImpuls {
   id: number;
-  ziel: ImpulsZiel;
-  alterS: number;            // seit dem Drücken
-  losS: number | null;       // losgelassen nach so vielen Sekunden, null = wird gehalten
-  ursprung: number | null;   // 0 … 1 quer über das Element (Touchstreifen), null = entlang der Ordnung
+  art: ImpulsArt;
+  alterS: number;
+  ursprung: number;   // 0 … 1 quer über das Element
 }
 
-// Ziel-Winkel (Tilt in Grad) der Flashes
-export type FlashZiele = Record<ImpulsZiel, number>;
+// Winkel aus den Einstellungen: Ziel der Flashs, Ausschlag von Stoß und Glitzern (Grad)
+export interface ImpulsWinkel {
+  auf: number;
+  zu: number;
+  ausschlag: number;
+}
 
-// Ausschlag der Hüllkurve 0 … 1. t: Sekunden seit dem Start (bei diesem Element),
-// los: Haltezeit oder null. Wird schon während des Attack losgelassen, fährt der Spiegel
-// von dort zurück.
-export function huellenWert(h: Huelle, t: number, los: number | null): number {
+// Ausschlag der Hüllkurve 0 … 1, t: Sekunden seit dem Start (bei diesem Spiegel)
+export function huellenWert(h: Huelle, t: number): number {
   if (t <= 0) return 0;
-  const hin = (x: number) => (h.attackS > 0 ? weich(x / h.attackS) : 1);
-  if (los === null || t < los) return hin(t);
-  const zurueck = h.releaseS > 0 ? 1 - weich((t - los) / h.releaseS) : 0;
-  return hin(los) * zurueck;
+  if (t < h.attackS) return weich(t / h.attackS);
+  const r = t - h.attackS - h.sustainS;
+  if (r <= 0) return 1;
+  return h.releaseS > 0 ? 1 - weich(r / h.releaseS) : 0;
 }
+
+export const huellenDauer = (h: Huelle): number => h.attackS + h.sustainS + h.releaseS;
 
 // Verzögerung des Elements k (Sekunden) gemäß Element-Folge
 export function elementVerzug(e: ImpulsEinstellung, k: number): number {
   return (elementRang(e.elementFolge, k) ?? 0) * e.elementVersatzS;
 }
 
-// Verzögerung des Spiegels i (0 … 11) innerhalb seines Elements: Abstand zum Ursprung bzw. Platz
-// in der Ordnung, mal Ausbreitung
-export function spiegelVerzug(e: ImpulsEinstellung, ordnung: Ordnung, ursprung: number | null, i: number): number {
-  if (e.ausbreitungS <= 0) return 0;
-  if (ursprung !== null) return Math.abs(i / (SPIEGEL_N - 1) - ursprung) * e.ausbreitungS;
-  const { platz, anzahl } = ordnungsPlatz(ordnung, i);
-  return (anzahl > 1 ? platz / (anzahl - 1) : 0) * e.ausbreitungS;
+// Lage des Spiegels i (0 … 11) quer über das Element, 0 = links … 1 = rechts
+const lageVon = (i: number): number => i / (SPIEGEL_N - 1);
+
+// Verzögerung des Spiegels i: Abstand zum Ursprung mal Ausbreitung
+export const spiegelVerzug = (e: ImpulsEinstellung, ursprung: number, i: number): number =>
+  Math.abs(lageVon(i) - ursprung) * e.ausbreitungS;
+
+// ---------- Stoß ----------
+
+const STOSS_LAUF_S = 0.8;      // ohne Ausbreitung: so lange braucht der Stoß quer über ein Element
+const STOSS_REFLEXION = 0.6;   // so viel kommt an einem Ende zurück
+const STOSS_ECHOS = 3;         // so oft wird höchstens zurückgeworfen
+
+// Ein Ruck: eine weich beginnende, gedämpfte Schwingung; die Periode wächst mit dem Attack
+function ruck(h: Huelle, t: number): number {
+  if (t <= 0) return 0;
+  const periode = Math.max(0.3, 4 * h.attackS);
+  return Math.sin((2 * Math.PI * t) / periode) * weich(t / (periode / 4)) * Math.exp(-t / periode);
 }
 
-// Ist der Impuls vorbei (losgelassen und auch das letzte Element zurück)?
-export function impulsFertig(e: ImpulsEinstellung, i: Pick<LaufenderImpuls, "alterS" | "losS">): boolean {
-  if (i.losS === null) return false;
-  const letzter = Math.max(...Array.from({ length: ELEMENTE }, (_, k) => elementVerzug(e, k)));
-  return i.alterS >= Math.max(i.losS, 0) + letzter + e.ausbreitungS + e.huelle.releaseS;
+// Auslenkung an der Lage x (0 … 1), t Sekunden nach dem Stoß. Die Enden werfen zurück
+// (Spiegelquellen jenseits der Enden), jedes Echo schwächer. Nach dem Sustain blendet der
+// Release alles aus.
+export function stossWert(e: ImpulsEinstellung, x: number, ursprung: number, t: number): number {
+  const lauf = e.ausbreitungS || STOSS_LAUF_S;
+  let summe = 0;
+  for (let n = -STOSS_ECHOS; n <= STOSS_ECHOS; n++) {
+    // Quelle bei ursprung + 2n (gerade Zahl Echos) und −ursprung + 2n (ungerade)
+    const quellen: [number, number][] = [[ursprung + 2 * n, Math.abs(2 * n)], [-ursprung + 2 * n, Math.abs(2 * n - 1)]];
+    for (const [quelle, echos] of quellen) {
+      if (echos > STOSS_ECHOS) continue;
+      summe += STOSS_REFLEXION ** echos * ruck(e.huelle, t - Math.abs(x - quelle) * lauf);
+    }
+  }
+  // Treffen sich Stoß und Echo (Ursprung am Rand), wird es weich begrenzt (höchstens ~8 % mehr)
+  return (Math.tanh(1.6 * summe) / Math.tanh(1.6)) * huellenWert({ ...e.huelle, attackS: 0 }, t);
 }
 
-// Impulse über die Stellungen legen, in der Reihenfolge des Drückens (der letzte liegt oben).
+// ---------- Glitzern ----------
+
+const GLITZER_S = 0.35;       // Dauer eines Zuckens
+const GLITZER_ANTEIL = 0.3;   // so viele Zeitfenster eines Spiegels haben ein Zucken
+
+// Zucken des Spiegels g (−1 … 1), t Sekunden seit dem Start bei diesem Spiegel. Immer gleich für
+// denselben Impuls, damit Server und Vorschau dasselbe zeigen.
+export function glitzerWert(id: number, g: number, t: number): number {
+  if (t <= 0) return 0;
+  const lauf = t / GLITZER_S + gitter(g, id * 7919);
+  const nr = Math.floor(lauf);
+  if (gitter(g * 31 + id, nr) > GLITZER_ANTEIL) return 0;
+  const richtung = gitter(nr, g * 17 + id) < 0.5 ? -1 : 1;
+  return (richtung * (1 - Math.cos(2 * Math.PI * (lauf - nr)))) / 2;
+}
+
+// ---------- Ablauf ----------
+
+// Wie lange ein Impuls ab dem Start dauert, bis auch der letzte Spiegel zurück ist
+export function impulsDauer(e: ImpulsEinstellung, art: ImpulsArt): number {
+  const elemente = Math.max(...Array.from({ length: ELEMENTE }, (_, k) => elementVerzug(e, k)));
+  // Stoß: die Echos laufen weiter hin und her, aber Sustain und Release blenden ihn aus
+  return elemente + (art === "stoss" ? 0 : e.ausbreitungS) + huellenDauer(e.huelle);
+}
+
+export const impulsFertig = (e: ImpulsEinstellung, i: Pick<LaufenderImpuls, "alterS" | "art">): boolean =>
+  i.alterS >= impulsDauer(e, i.art);
+
+// Startzeit eines Impulses mit Raster: der nächste Schlag (bzw. Takt). Kommt man knapp nach dem
+// Schlag, gilt noch dieser. nullS: Zeitpunkt eines Schlags (letztes Tap), Sekunden derselben Uhr.
+export const NACH_SCHLAG_S = 0.08;
+export function rasterStart(e: ImpulsEinstellung, nullS: number, jetzt: number): number {
+  if (e.raster === "aus" || e.bpm <= 0) return jetzt;
+  const periode = (60 / e.bpm) * (e.raster === "takt" ? 4 : 1);
+  const letzter = nullS + Math.floor((jetzt - nullS) / periode) * periode;
+  return jetzt - letzter <= NACH_SCHLAG_S ? letzter : letzter + periode;
+}
+
+// Impulse über die Stellungen legen, in der Reihenfolge des Startens (der letzte liegt oben).
 // TiltRotate wird während eines Flashs angehalten, damit der Spiegel wirklich im Ziel steht.
 export function wendeImpulseAn(
   stellungen: readonly Stellung[],
   impulse: readonly LaufenderImpuls[],
   e: ImpulsEinstellung,
-  ziele: FlashZiele,
-  ordnung: Ordnung,
+  winkel: ImpulsWinkel,
 ): Stellung[] {
   const aus = stellungen.map((s) => ({ ...s }));
   const staerke = e.huelle.staerke / 100;
   for (const i of impulse) {
-    const ziel = ziele[i.ziel];
-    const verzug = Array.from({ length: SPIEGEL_N }, (_, s) => spiegelVerzug(e, ordnung, i.ursprung, s));
     for (let k = 0; k < ELEMENTE; k++) {
+      const tElement = i.alterS - elementVerzug(e, k);
+      if (tElement <= 0) continue;
       for (let s = 0; s < SPIEGEL_N; s++) {
-        // Release in derselben Folge wie Attack: jeder Spiegel hält gleich lang
-        const f = huellenWert(e.huelle, i.alterS - elementVerzug(e, k) - verzug[s]!, i.losS) * staerke;
+        const g = k * SPIEGEL_N + s;
+        const st = aus[g]!;
+        if (i.art === "stoss") {
+          st.tilt += winkel.ausschlag * staerke * stossWert(e, lageVon(s), i.ursprung, tElement);
+          continue;
+        }
+        const t = tElement - spiegelVerzug(e, i.ursprung, s);
+        const f = huellenWert(e.huelle, t) * staerke;
         if (f <= 0) continue;
-        const st = aus[k * SPIEGEL_N + s]!;
-        st.tilt += (ziel - st.tilt) * f;
-        st.upm *= 1 - f;
+        if (i.art === "glitzern") {
+          st.tilt += winkel.ausschlag * f * glitzerWert(i.id, g, t);
+        } else {
+          st.tilt += (winkel[i.art] - st.tilt) * f;
+          st.upm *= 1 - f;
+        }
       }
     }
   }

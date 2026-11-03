@@ -4,13 +4,13 @@
 // Der Client braucht dadurch nach einem Verbindungsabbruch nichts nachzuholen: Die erste
 // Nachricht nach dem Wiederverbinden ist wieder der vollständige Stand.
 import {
-  istImpulsZiel, istModus, type ImpulsEinstellung, type ImpulsZiel, type LaufenderImpuls, type Modus, type Parameter,
+  istModus, type ImpulsEinstellung, type LaufenderImpuls, type Modus, type Parameter,
 } from "@parrafraktor/engine";
 import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
 import { istPresetNr, presetName, type Presets } from "./presets.js";
 
-export const PROTOKOLL_VERSION = 5;
+export const PROTOKOLL_VERSION = 6;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 
@@ -60,9 +60,10 @@ export interface Stand {
   // läuft gerade eine Überblendung zu einem Preset: Nummer der Überblendung (zählt hoch) und wie weit (0 … 1).
   // Überblendet wird von der Stellung im Moment des Abrufens zum neuen Look.
   blende: { id: number; anteil: number } | null;
-  // Hüllkurve und Element-Folge der Impulse, dazu die gerade laufenden (Zeiten beim Senden)
+  // Einstellung der Impulse, dazu die gerade laufenden (Zeiten beim Senden)
   impuls: ImpulsEinstellung;
   impulse: LaufenderImpuls[];
+  schlagSeitS: number;   // Sekunden seit dem letzten Tap (beim Senden): Lage der Schläge für das Raster
   warnungen: string[];
 }
 
@@ -82,9 +83,9 @@ export type ClientNachricht =
   | { typ: "preset"; aktion: "abrufen" | "speichern" | "loeschen"; nr: number }
   | { typ: "preset"; aktion: "umbenennen"; nr: number; name: string }
   // Impuls-Pad gedrückt bzw. losgelassen. Bricht die Verbindung ab, lässt der Server los.
-  | { typ: "impuls"; ziel: ImpulsZiel; gedrueckt: boolean }
-  // Touchstreifen: Impuls ohne Halten vom Ursprung (0 = links … 1 = rechts) aus
-  | { typ: "impulsTippen"; ziel: ImpulsZiel; ursprung: number }
+  // Streifen: die gewählte Impuls-Art vom Ursprung (0 = links … 1 = rechts) aus starten
+  | { typ: "impulsTippen"; ursprung: number }
+  | { typ: "tap" }   // Tap-Tempo für das Raster
   | { typ: "impulsEinstellung"; einstellung: unknown }   // prüft der Server mit pruefeImpuls
   | { typ: "ping"; t: number };
 
@@ -115,14 +116,11 @@ export function leseClientNachricht(text: string): ClientNachricht | null {
       }
       return null;
     }
-    case "impuls":
-      return istImpulsZiel(r.ziel) && typeof r.gedrueckt === "boolean"
-        ? { typ: "impuls", ziel: r.ziel, gedrueckt: r.gedrueckt }
-        : null;
     case "impulsTippen":
-      return istImpulsZiel(r.ziel) && typeof r.ursprung === "number" && Number.isFinite(r.ursprung)
-        ? { typ: "impulsTippen", ziel: r.ziel, ursprung: Math.min(1, Math.max(0, r.ursprung)) }
+      return typeof r.ursprung === "number" && Number.isFinite(r.ursprung)
+        ? { typ: "impulsTippen", ursprung: Math.min(1, Math.max(0, r.ursprung)) }
         : null;
+    case "tap": return { typ: "tap" };
     case "impulsEinstellung": return { typ: "impulsEinstellung", einstellung: r.einstellung };
     case "ping": return typeof r.t === "number" ? { typ: "ping", t: r.t } : null;
     default: return null;

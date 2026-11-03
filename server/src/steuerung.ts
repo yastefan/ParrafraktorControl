@@ -3,8 +3,8 @@
 // alle Anzeigen hören auf das Ereignis "aenderung".
 import { EventEmitter } from "node:events";
 import {
-  IMPULS_VORGABE, PARAMETER_VORGABE, impulsFertig,
-  type ImpulsEinstellung, type ImpulsZiel, type LaufenderImpuls, type Modus, type Parameter,
+  IMPULS_VORGABE, PARAMETER_VORGABE, impulsFertig, rasterStart,
+  type ImpulsArt, type ImpulsEinstellung, type LaufenderImpuls, type Modus, type Parameter,
 } from "@parrafraktor/engine";
 import {
   BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeEinstellungen,
@@ -12,15 +12,15 @@ import {
   type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 
-// Ein gedrückter Impuls. quelle: wer ihn hält (z. B. "ws3:auf", "streamdeck:0"), damit
-// genau diese Taste ihn loslässt – oder alle, wenn das Gerät verschwindet.
+const TAP_PAUSE_S = 2;
+const TAP_ANZAHL = 5;
+
+// Ein gestarteter Impuls
 interface Impuls {
   id: number;
-  ziel: ImpulsZiel;
-  quelle: string;
-  start: number;          // Sekunden (Uhr der Steuerung)
-  los: number | null;     // Zeitpunkt des Loslassens
-  ursprung: number | null;
+  art: ImpulsArt;
+  start: number;          // Sekunden (Uhr der Steuerung); mit Raster auch in der Zukunft
+  ursprung: number;
 }
 
 interface Ereignisse {
@@ -50,6 +50,8 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   private _impuls: ImpulsEinstellung;
   private _impulse: Impuls[] = [];
   private impulsNr = 0;
+  private taps: number[] = [];
+  private schlagNull = 0;   // Zeitpunkt eines Schlags (letztes Tap)
 
   // uhr: Sekunden, austauschbar für Tests
   constructor(
@@ -79,7 +81,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   impulse(): LaufenderImpuls[] {
     const jetzt = this.uhr();
     return this._impulse.map((i) => ({
-      id: i.id, ziel: i.ziel, alterS: jetzt - i.start, losS: i.los === null ? null : i.los - i.start, ursprung: i.ursprung,
+      id: i.id, art: i.art, alterS: jetzt - i.start, ursprung: i.ursprung,
     }));
   }
 
@@ -136,33 +138,32 @@ export class Steuerung extends EventEmitter<Ereignisse> {
 
   // ---------- Impulse ----------
 
-  // Pad gedrückt. Hält dieselbe Quelle schon einen Impuls, wird der zuerst losgelassen.
-  drueckeImpuls(ziel: ImpulsZiel, quelle: string): void {
-    this.loeseImpuls(quelle);
-    this._impulse.push({ id: ++this.impulsNr, ziel, quelle, start: this.uhr(), los: null, ursprung: null });
-    this.geaendert();
-  }
-
-  // Touchstreifen: ein Impuls vom Ursprung (0 = links … 1 = rechts) aus, ohne Halten –
-  // nach dem Attack geht es gleich zurück
-  tippeImpuls(ziel: ImpulsZiel, ursprung: number): void {
-    const start = this.uhr();
+  // Streifen: die gewählte Art vom Ursprung (0 = links … 1 = rechts) aus starten. Mit Raster
+  // wartet der Impuls auf den nächsten Schlag bzw. Takt.
+  tippeImpuls(ursprung: number): void {
+    const start = rasterStart(this._impuls, this.schlagNull, this.uhr());
     const u = Math.min(1, Math.max(0, ursprung));
-    this._impulse.push({ id: ++this.impulsNr, ziel, quelle: "", start, los: start + this._impuls.huelle.attackS, ursprung: u });
+    this._impulse.push({ id: ++this.impulsNr, art: this._impuls.art, start, ursprung: u });
     this.geaendert();
   }
 
-  // Pad losgelassen. Ein Präfix (z. B. "ws3:") lässt alles los, was diese Verbindung hält.
-  loeseImpuls(quelle: string, alleMitPraefix = false): void {
+  // Tap-Tempo: Abstand der letzten Taps ergibt das Tempo, das letzte Tap liegt auf dem Schlag.
+  // Nach einer Pause von 2 s fängt das Zählen neu an.
+  tippeTakt(): void {
     const jetzt = this.uhr();
-    let geaendert = false;
-    for (const i of this._impulse) {
-      if (i.los === null && (alleMitPraefix ? i.quelle.startsWith(quelle) : i.quelle === quelle)) {
-        i.los = jetzt;
-        geaendert = true;
-      }
+    if (this.taps.length && jetzt - this.taps[this.taps.length - 1]! > TAP_PAUSE_S) this.taps = [];
+    this.taps = [...this.taps, jetzt].slice(-TAP_ANZAHL);
+    this.schlagNull = jetzt;
+    if (this.taps.length >= 2) {
+      const abstand = (jetzt - this.taps[0]!) / (this.taps.length - 1);
+      this.aendereImpuls(mitImpulsWert(this._impuls, "bpm", 60 / abstand));
     }
-    if (geaendert) this.geaendert();
+    this.geaendert();
+  }
+
+  // Sekunden seit dem letzten Schlag-Bezug (für Anzeigen)
+  schlagSeitS(): number {
+    return this.uhr() - this.schlagNull;
   }
 
   // Der Takt räumt fertige Impulse weg
