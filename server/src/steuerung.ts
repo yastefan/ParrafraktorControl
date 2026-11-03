@@ -20,6 +20,7 @@ interface Impuls {
   quelle: string;
   start: number;          // Sekunden (Uhr der Steuerung)
   los: number | null;     // Zeitpunkt des Loslassens
+  ursprung: number | null;
 }
 
 interface Ereignisse {
@@ -78,7 +79,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   impulse(): LaufenderImpuls[] {
     const jetzt = this.uhr();
     return this._impulse.map((i) => ({
-      id: i.id, ziel: i.ziel, alterS: jetzt - i.start, losS: i.los === null ? null : i.los - i.start,
+      id: i.id, ziel: i.ziel, alterS: jetzt - i.start, losS: i.los === null ? null : i.los - i.start, ursprung: i.ursprung,
     }));
   }
 
@@ -138,7 +139,16 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // Pad gedrückt. Hält dieselbe Quelle schon einen Impuls, wird der zuerst losgelassen.
   drueckeImpuls(ziel: ImpulsZiel, quelle: string): void {
     this.loeseImpuls(quelle);
-    this._impulse.push({ id: ++this.impulsNr, ziel, quelle, start: this.uhr(), los: null });
+    this._impulse.push({ id: ++this.impulsNr, ziel, quelle, start: this.uhr(), los: null, ursprung: null });
+    this.geaendert();
+  }
+
+  // Touchstreifen: ein Impuls vom Ursprung (0 = links … 1 = rechts) aus, ohne Halten –
+  // nach dem Attack geht es gleich zurück
+  tippeImpuls(ziel: ImpulsZiel, ursprung: number): void {
+    const start = this.uhr();
+    const u = Math.min(1, Math.max(0, ursprung));
+    this._impulse.push({ id: ++this.impulsNr, ziel, quelle: "", start, los: start + this._impuls.huelle.attackS, ursprung: u });
     this.geaendert();
   }
 

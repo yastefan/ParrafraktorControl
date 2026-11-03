@@ -1,11 +1,13 @@
 // Impulse: Flash-Pads zum Live-Spielen und die Hüllkurve (Attack, Hold, Release, Stärke).
 // Pads reagieren wie Flash-Tasten am Pult: drücken fährt hin, halten bleibt, loslassen fährt zurück.
 // Mehrere Finger gleichzeitig gehen. Verliert die App die Verbindung, lässt der Server los.
+// Der Streifen darunter wirkt wie der Touchstreifen des Stream Decks: Tippen = Flash von dort aus,
+// Wischen = Flash läuft in Wischrichtung durch (ohne Halten). Tempo: Ausbreitung.
 import {
   ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, IMPULS_ZIELE, huellenWert, weich,
   type ImpulsEinstellung, type ImpulsZiel,
 } from "@parrafraktor/engine";
-import { IMPULS_BEREICHE, begrenzeImpuls, zeigeImpuls } from "@parrafraktor/protokoll";
+import { IMPULS_BEREICHE, begrenzeImpuls, impulsWert, mitImpulsWert, zeigeImpuls, type ImpulsRegler } from "@parrafraktor/protokoll";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { laden, useLaden } from "../laden.js";
 
@@ -25,8 +27,11 @@ export function Impulse() {
 
   return (
     <div class="impulse">
-      <div class="pads">
-        {IMPULS_ZIELE.map((z) => <Pad key={z} ziel={z} />)}
+      <div class="impulse-spielen">
+        <div class="pads">
+          {IMPULS_ZIELE.map((z) => <Pad key={z} ziel={z} />)}
+        </div>
+        <Streifen />
       </div>
       <div class="huelle-feld">
         <Huelle e={e} setze={setze} fertig={fertig} />
@@ -45,19 +50,76 @@ export function Impulse() {
             </button>
           ))}
         </div>
-        {e.elementFolge !== "zusammen" && (
-          <label class="zeile">
-            <span class="name">{IMPULS_BEREICHE.elementVersatzS.name}</span>
-            <output>{zeigeImpuls("elementVersatzS", e.elementVersatzS)}</output>
-            <input
-              type="range" min={0} max={IMPULS_BEREICHE.elementVersatzS.max} step={IMPULS_BEREICHE.elementVersatzS.schritt}
-              value={e.elementVersatzS} disabled={!l.bedienbar}
-              style={{ "--fuellung": `${(e.elementVersatzS / IMPULS_BEREICHE.elementVersatzS.max) * 100}%` }}
-              onInput={(ev) => setze({ ...e, elementVersatzS: Number((ev.currentTarget as HTMLInputElement).value) })}
-              onChange={fertig}
-            />
-          </label>
-        )}
+        {e.elementFolge !== "zusammen" && <Schieber name="elementVersatzS" e={e} setze={setze} fertig={fertig} />}
+        <Schieber name="ausbreitungS" e={e} setze={setze} fertig={fertig} />
+      </div>
+    </div>
+  );
+}
+
+function Schieber({ name, e, setze, fertig }: { name: ImpulsRegler } & HuelleProps) {
+  const l = useLaden();
+  const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
+  return (
+    <label class="zeile">
+      <span class="name">{b.name}</span>
+      <output>{zeigeImpuls(name, w)}</output>
+      <input
+        type="range" min={b.min} max={b.max} step={b.schritt} value={w} disabled={!l.bedienbar}
+        style={{ "--fuellung": `${((w - b.min) / (b.max - b.min)) * 100}%` }}
+        onInput={(ev) => setze(mitImpulsWert(e, name, Number((ev.currentTarget as HTMLInputElement).value)))}
+        onChange={fertig}
+      />
+    </label>
+  );
+}
+
+// ---------- Streifen ----------
+
+const WISCHEN = 0.08;   // ab so viel Weg (Anteil der Breite) gilt es als Wischen
+
+function Streifen() {
+  const l = useLaden();
+  const [ziel, setZiel] = useState<ImpulsZiel>("auf");
+  const start = useRef<{ id: number; x: number } | null>(null);
+  const [blitz, setBlitz] = useState<{ x: number; n: number } | null>(null);
+  const anteil = (ev: PointerEvent) => {
+    const r = (ev.currentTarget as HTMLElement).getBoundingClientRect();
+    return Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+  };
+  const loesen = (ursprung: number, zeigen: number) => {
+    laden.sende({ typ: "impulsTippen", ziel, ursprung });
+    setBlitz((b) => ({ x: zeigen, n: (b?.n ?? 0) + 1 }));
+  };
+  return (
+    <div class="streifen-feld">
+      <div
+        class={`streifen ${l.bedienbar ? "" : "gesperrt"}`}
+        role="button"
+        aria-label={`Streifen: ${IMPULS_NAME[ziel]} von hier aus`}
+        onPointerDown={(ev) => {
+          if (!l.bedienbar) return;
+          start.current = { id: ev.pointerId, x: anteil(ev) };
+        }}
+        onPointerUp={(ev) => {
+          const s = start.current;
+          if (!s || s.id !== ev.pointerId) return;
+          start.current = null;
+          const x = anteil(ev), dx = x - s.x;
+          if (Math.abs(dx) < WISCHEN) loesen(s.x, s.x);
+          else loesen(dx > 0 ? 0 : 1, dx > 0 ? 0 : 1);   // vom Rand in Wischrichtung
+        }}
+        onPointerCancel={() => { start.current = null; }}
+      >
+        <span class="streifen-text">tippen oder wischen</span>
+        {blitz && <span key={blitz.n} class="streifen-blitz" style={{ left: `${blitz.x * 100}%` }} />}
+      </div>
+      <div class="umschalter">
+        {IMPULS_ZIELE.map((z) => (
+          <button type="button" key={z} class={ziel === z ? "aktiv" : ""} onClick={() => setZiel(z)}>
+            {IMPULS_NAME[z]}
+          </button>
+        ))}
       </div>
     </div>
   );

@@ -17,7 +17,7 @@ if (anfang < 0 || ende < 0) throw new Error("Pattern-Engine in parrafraktor.js n
 const SPIEGEL_N = 12;
 const erzeuge = new Function("zustand", "SPIEGEL_N", `${quelle.slice(anfang, ende)}\nreturn { pattern };`);
 
-const modi = ["sinus", "pendelwelle", "wind", "saegezahn", "puls", "flyout", "blinder", "funkeln"];
+const modi = ["sinus", "pendelwelle", "wind", "ruhe"];
 const varianten = [
   { group: 0, ordnung: "links", elementFolge: "vorneHinten", gegenlauf: false, pingpong: false, faecher: 0, phase: 360 },
   { group: 5, ordnung: "mitteAussen", elementFolge: "vorneHinten", gegenlauf: true, pingpong: false, faecher: 60, phase: 180 },

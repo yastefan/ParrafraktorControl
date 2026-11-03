@@ -1,27 +1,21 @@
 // Pattern-Engine (Grundbewegung): dieselbe Rechnung wie die Simulation auf der Website (parrafraktor.js).
-// Ein Pattern ist nur eine Form (Sinus, Pendelwelle, Wind, …). Alle Formen beginnen und enden ohne Ruck
-// (Geschwindigkeit und Beschleunigung gehen weich gegen null), damit die Motoren sanft fahren.
+// Ein Pattern ist eine Grundbewegung (Sinus, Pendelwelle, Wind, Rotation, Ruhe), die dauerhaft läuft;
+// Ereignisse wie Flash oder Flyout sind Impulse (impuls.ts). Alle Bewegungen sind weich, ohne Ruck.
 // Wie sie über die Spiegel läuft, bestimmen die Regler: Offset, Amplitude, Speed von/bis, Phase und
 // Group wie die MAtricks der grandMA3, dazu die Verteilung aus Ordnung (innerhalb eines Elements),
 // Element-Folge, Gegenlauf und Fächer.
 // Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren.
 import { ELEMENTE, SPIEGEL_GESAMT, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
 
-export const MODI = [
-  "sinus", "pendelwelle", "wind", "saegezahn", "puls", "flyout", "blinder", "funkeln", "rotation",
-] as const;
+export const MODI = ["sinus", "pendelwelle", "wind", "rotation", "ruhe"] as const;
 export type Modus = (typeof MODI)[number];
 
 export const MODUS_NAME: Record<Modus, string> = {
   sinus: "Sinus",
   pendelwelle: "Pendelwelle",
   wind: "Wind",
-  saegezahn: "Sägezahn",
-  puls: "Puls",
-  flyout: "Flyout",
-  blinder: "Blinder",
-  funkeln: "Funkeln",
   rotation: "Rotation",
+  ruhe: "Ruhe",
 };
 
 export const istModus = (x: unknown): x is Modus => typeof x === "string" && (MODI as readonly string[]).includes(x);
@@ -95,15 +89,6 @@ export interface Stellung {
 // Weicher Übergang 0 → 1: Geschwindigkeit und Beschleunigung sind am Anfang und Ende null
 export const weich = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
 
-// Weicher Ausschlag 0 → 1 → 0 über x = 0 … 1 (angehobener Kosinus)
-const buckel = (x: number): number => (1 - Math.cos(2 * Math.PI * x)) / 2;
-
-// Zufallszahl 0 … 1, immer gleich für dieselben Eingaben (fürs Funkeln)
-const zufall = (a: number, b: number): number => {
-  const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return x - Math.floor(x);
-};
-
 // Ganzzahliges Gitter → 0 … 1, immer gleich (für das Rauschen)
 const gitter = (x: number, y: number): number => {
   let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
@@ -141,21 +126,27 @@ interface Auswahl {
   seite: number;   // −1 für die gespiegelte Hälfte bei Gegenlauf
 }
 
+// Platz des Spiegels i (0 … 11) innerhalb seines Elements gemäß Ordnung, von anzahl Plätzen.
+// Bei Mitte/außen teilen sich die beiden Hälften die Plätze.
+export function ordnungsPlatz(ordnung: Ordnung, i: number): { platz: number; anzahl: number } {
+  const h = SPIEGEL_N / 2, vonInnen = i < h ? h - 1 - i : i - h;
+  switch (ordnung) {
+    case "rechts": return { platz: SPIEGEL_N - 1 - i, anzahl: SPIEGEL_N };
+    case "mitteAussen": return { platz: vonInnen, anzahl: h };
+    case "aussenMitte": return { platz: h - 1 - vonInnen, anzahl: h };
+    case "verschachtelt": return { platz: i % 2 === 0 ? i / 2 : h + (i - 1) / 2, anzahl: SPIEGEL_N };
+    case "zufall": return { platz: ZUFALL_FOLGE[i]!, anzahl: SPIEGEL_N };
+    default: return { platz: i, anzahl: SPIEGEL_N };
+  }
+}
+
 // Platz des Spiegels g in der Auswahl, wie in der grandMA3: daraus ergibt sich sein Phasenversatz
 // (Bruchteil eines Durchlaufs, 0 … 1). Erst die Ordnung innerhalb des Elements, dann die Element-Folge
 // (laufen die Elemente nacheinander, zählen die Plätze über alle drei weiter), zuletzt die Groups.
 export function auswahl(p: Parameter, g: number): Auswahl {
   const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N, h = SPIEGEL_N / 2;
   const vonInnen = i < h ? h - 1 - i : i - h;
-  let platz: number, anzahl = SPIEGEL_N;
-  switch (p.ordnung) {
-    case "rechts": platz = SPIEGEL_N - 1 - i; break;
-    case "mitteAussen": platz = vonInnen; anzahl = h; break;
-    case "aussenMitte": platz = h - 1 - vonInnen; anzahl = h; break;
-    case "verschachtelt": platz = i % 2 === 0 ? i / 2 : h + (i - 1) / 2; break;
-    case "zufall": platz = ZUFALL_FOLGE[i]!; break;
-    default: platz = i;
-  }
+  let { platz, anzahl } = ordnungsPlatz(p.ordnung, i);
   const rang = elementRang(p.elementFolge, k);
   if (rang !== null) { platz += rang * anzahl; anzahl *= ELEMENTE; }
   const mitte = p.ordnung === "mitteAussen" || p.ordnung === "aussenMitte";
@@ -244,41 +235,14 @@ export class Engine {
       // Wind: weiches Rauschen über die Spiegel und die Zeit, wiederholt sich nie
       case "wind": return seite * A * wind(platz / p.wellenlaenge, this.umlaufVon);
       case "rotation": return 0;   // läuft über TiltRotate, siehe spiegel()
+      case "ruhe": return 0;       // alle auf Offset, nur Impulse bewegen
     }
-    // Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den
+    // Sinus. Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den
     // letzten Spiegel, damit es am Wendepunkt nicht auf den ersten überspringt
     const lauf = p.pingpong ? (1 - Math.abs(2 * (((u % 1) + 1) % 1) - 1)) * (1 - 1 / anzahl) : u;
     // bisherige Laufzeit im Bogenmaß, verschoben um die Phase
     const t = 2 * Math.PI * (lauf - versatz);
-    const zyklus = (((t / (2 * Math.PI)) % 1) + 1) % 1;   // 0 … 1, wiederholt sich
-    switch (p.modus) {
-      // Sägezahn, weich: langsam von −A nach +A, dann zügig, aber ohne Sprung zurück
-      case "saegezahn": {
-        const hin = 0.8;
-        return seite * A * (zyklus < hin ? 2 * weich(zyklus / hin) - 1 : 1 - 2 * weich((zyklus - hin) / (1 - hin)));
-      }
-      // Puls: jeder Spiegel klappt einmal auf und wieder zu. Bei Phase 360° läuft eine weiche Welle
-      // von etwa drei Spiegeln Breite durch – breit genug, dass kein Spiegel hektisch fährt.
-      case "puls": {
-        const breite = Math.min(1, 3 / anzahl);
-        return zyklus < breite ? seite * A * buckel(zyklus / breite) : 0;
-      }
-      // Flyout: geschlossen, dann klappen die Spiegel nacheinander auf, halten offen und schließen
-      // wieder in derselben Reihenfolge
-      case "flyout": return seite * A * (weich(zyklus / 0.18) - weich((zyklus - 0.55) / 0.18));
-      // Blinder: öffnet zügig und schließt langsam wieder (bei Phase 0 alle gleichzeitig)
-      case "blinder": return seite * A * (weich(zyklus / 0.12) - weich((zyklus - 0.15) / 0.6));
-      // Funkeln: einzelne Spiegel blitzen zu zufälligen Zeiten in zufällige Richtungen auf
-      case "funkeln": {
-        const takt = u * 6 + zufall(g, 0);
-        const nummer = Math.floor(takt);
-        if (zufall(g, nummer) > 0.3) return 0;
-        const richtung = zufall(nummer, g) < 0.5 ? -1 : 1;
-        return richtung * A * buckel(takt - nummer);
-      }
-      case "sinus":
-      default: return seite * A * Math.sin(t);
-    }
+    return seite * A * Math.sin(t);
   }
 }
 

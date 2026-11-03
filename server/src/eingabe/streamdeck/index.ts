@@ -4,6 +4,7 @@
 // macOS/Windows: Die Elgato-Software muss beendet sein, sonst ist das Gerät belegt.
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
+import type { ImpulsZiel } from "@parrafraktor/engine";
 import {
   ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
@@ -14,7 +15,8 @@ import { fehlerText, log } from "../../log.js";
 import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
-  HAUPT, HALTEN_MS, IMPULS_PADS, IMPULS_REGLER_SEITE, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE, TASTE_SEITE, TASTE_ZURUECK,
+  HAUPT, HALTEN_MS, IMPULS_PADS, IMPULS_REGLER_SEITEN, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE, TASTE_IMPULS_REGLER,
+  TASTE_SEITE, TASTE_STREIFEN, TASTE_ZURUECK,
   eintragAuf, seitenAnzahl, type Menue, type Regler,
 } from "./belegung.js";
 import { FARBE, Maler, type Feld, type TastenInhalt } from "./bilder.js";
@@ -49,6 +51,8 @@ export class StreamDeckModul implements Eingabemodul {
   private menue: Menue = "haupt";
   private seite = 0;            // Seite im Untermenü
   private reglerSeite = 0;
+  private impulsReglerSeite = 0;
+  private streifenZiel: ImpulsZiel = "auf";   // Flash beim Tippen auf den Touchstreifen
   private letzteDrehung = [0, 0, 0, 0];
   private halten: { taste: number; tippen?: () => void; timer: NodeJS.Timeout; ausgeloest: boolean } | null = null;
   private gespeichert: { nr: number; bis: number } | null = null;
@@ -119,9 +123,10 @@ export class StreamDeckModul implements Eingabemodul {
       deck.on("down", (c) => (c.type === "button" ? this.tasteRunter(c.index) : this.reglerDruck(c.index)));
       deck.on("up", (c) => { if (c.type === "button") this.tasteHoch(c.index); });
       deck.on("rotate", (c, schritte) => this.drehe(c.index, schritte));
-      // Tippen auf den Streifen wirkt wie Drücken des Reglers darunter
-      deck.on("lcdShortPress", (c, pos) => this.reglerDruck(Math.floor((pos.x / c.pixelSize.width) * 4)));
-      deck.on("lcdSwipe", (_c, von, bis) => this.wische(bis.x - von.x));
+      // Tippen auf den Streifen wirkt wie Drücken des Reglers darunter, im Impulse-Menü löst es einen Flash aus
+      deck.on("lcdShortPress", (c, pos) => this.tippeStreifen(pos.x / c.pixelSize.width));
+      deck.on("lcdLongPress", (c, pos) => this.tippeStreifen(pos.x / c.pixelSize.width));
+      deck.on("lcdSwipe", (c, von, bis) => this.wische(von.x / c.pixelSize.width, (bis.x - von.x) / c.pixelSize.width));
       deck.on("error", (e) => void this.getrennt(e));
       await deck.setBrightness(80);
       await deck.clearPanel();
@@ -246,6 +251,10 @@ export class StreamDeckModul implements Eingabemodul {
         const i = ELEMENT_FOLGEN.indexOf(s.impuls.elementFolge);
         return { tippen: () => s.setzeImpuls({ elementFolge: ELEMENT_FOLGEN[(i + 1) % ELEMENT_FOLGEN.length] }) };
       }
+      if (taste === TASTE_STREIFEN) return { tippen: () => { this.streifenZiel = this.streifenZiel === "auf" ? "zu" : "auf"; } };
+      if (taste === TASTE_IMPULS_REGLER) {
+        return { tippen: () => { this.impulsReglerSeite = (this.impulsReglerSeite + 1) % IMPULS_REGLER_SEITEN.length; } };
+      }
       return undefined;
     }
     const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
@@ -275,7 +284,7 @@ export class StreamDeckModul implements Eingabemodul {
     const schnell = jetzt - (this.letzteDrehung[index] ?? 0) < SCHNELL_MS;
     this.letzteDrehung[index] = jetzt;
     if (this.menue === "impulse") {
-      const name = IMPULS_REGLER_SEITE[index];
+      const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
       if (name) this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
       return;
     }
@@ -295,7 +304,7 @@ export class StreamDeckModul implements Eingabemodul {
 
   private reglerDruck(index: number): void {
     if (this.menue === "impulse") {
-      const name = IMPULS_REGLER_SEITE[index];
+      const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
       if (name) this.steuerung.vorgabeImpuls(name);
       return;
     }
@@ -306,8 +315,24 @@ export class StreamDeckModul implements Eingabemodul {
     else this.steuerung.setze({ [r.name]: PARAMETER_VORGABE[r.name] });
   }
 
-  private wische(dx: number): void {
-    if (Math.abs(dx) < 40 || this.menue === "impulse") return;
+  // x: 0 = links … 1 = rechts
+  private tippeStreifen(x: number): void {
+    if (this.menue === "impulse") {
+      this.steuerung.tippeImpuls(this.streifenZiel, x);
+      return;
+    }
+    this.reglerDruck(Math.min(3, Math.floor(x * 4)));
+  }
+
+  // von: Anfang (0 … 1), dx: Weg als Anteil der Streifenbreite
+  private wische(von: number, dx: number): void {
+    if (this.menue === "impulse") {
+      // kurzes Wischen gilt als Tippen, sonst läuft der Flash vom Rand in Wischrichtung durch
+      if (Math.abs(dx) < 0.05) this.tippeStreifen(von);
+      else this.steuerung.tippeImpuls(this.streifenZiel, dx > 0 ? 0 : 1);
+      return;
+    }
+    if (Math.abs(dx) < 0.05) return;
     const n = REGLER_SEITEN.length;
     this.reglerSeite = (((this.reglerSeite + (dx < 0 ? 1 : -1)) % n) + n) % n;
     this.zeichneBald();
@@ -337,7 +362,7 @@ export class StreamDeckModul implements Eingabemodul {
           }
         } else if (c.type === "lcd-segment") {
           const felder = this.felder();
-          const seite = this.menue === "impulse" ? "Impulse" : `${this.reglerSeite + 1}/${REGLER_SEITEN.length}`;
+          const seite = this.menue === "impulse" ? `tippen = ${IMPULS_NAME[this.streifenZiel]}` : `${this.reglerSeite + 1}/${REGLER_SEITEN.length}`;
           if (this.neu("streifen", { felder, seite })) {
             await deck.fillLcd(c.id, maler.streifen(c.pixelSize.width, c.pixelSize.height, felder, seite), { format: "rgba" });
           }
@@ -400,6 +425,8 @@ export class StreamDeckModul implements Eingabemodul {
         };
       }
       if (taste === TASTE_ELEMENT_FOLGE) return { titel: "Elemente", unter: ELEMENT_FOLGE_NAME[this.steuerung.impuls.elementFolge] };
+      if (taste === TASTE_STREIFEN) return { titel: "Streifen", unter: IMPULS_NAME[this.streifenZiel] };
+      if (taste === TASTE_IMPULS_REGLER) return { titel: `Regler ${this.impulsReglerSeite + 1}/${IMPULS_REGLER_SEITEN.length}`, unter: "umschalten" };
       return { titel: "" };
     }
     const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
@@ -424,7 +451,11 @@ export class StreamDeckModul implements Eingabemodul {
   private felder(): Feld[] {
     if (this.menue === "impulse") {
       const e = this.steuerung.impuls;
-      return IMPULS_REGLER_SEITE.map((name): Feld => {
+      const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite] ?? [];
+      // immer vier Felder, damit jedes über seinem Drehregler steht
+      return [0, 1, 2, 3].map((i): Feld => {
+        const name = seite[i];
+        if (!name) return { titel: "", wert: "", anteil: null };
         const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
         return { titel: b.kurz, wert: zeigeImpuls(name, w), anteil: (w - b.min) / (b.max - b.min) };
       });

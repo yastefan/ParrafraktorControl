@@ -164,7 +164,7 @@ describe("weiche Formen", () => {
   // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
   // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
   it("springen nirgends", () => {
-    for (const modus of MODI.filter((m) => m !== "rotation" && m !== "funkeln")) {
+    for (const modus of MODI.filter((m) => m !== "rotation")) {
       const p: Parameter = { ...PARAMETER_VORGABE, modus, amplitude: 1, speedVon: 60, phase: 360 };
       const e = new Engine();
       let vorher = e.alle(p);

@@ -78,12 +78,13 @@ Folge wieder zurück.
 1. **Prototyp Impulse:** Flash auf/zu, Hüllkurve, Element-Folge – Engine, Server, Client, Stream Deck. ✅
 2. Verteilung zusammenlegen (Ordnung, Gegenlauf), Offset je Element. ✅ (Ordnung gilt innerhalb jedes
    Elements, die Element-Folge ersetzt „alle 36 / je Element“; Element-Folge der Impulse bleibt eigene Einstellung)
-3. Grundbewegungen Pendelwelle und Wind ✅; Formen Flyout/Blinder/Sägezahn/Funkeln werden Impulse (offen,
-   bleiben bis dahin als Formen).
-4. Impulse Stoß (Federkopplung), Flyout, Glitzern; Touch-Strip als Ursprung; Quantisierung auf den Takt.
+3. Grundbewegungen Pendelwelle, Wind und Ruhe ✅; Formen Sägezahn/Puls/Flyout/Blinder/Funkeln entfernt ✅.
+4. Touch-Strip als Ursprung ✅ (Tippen = von dort, Wischen = Richtung; Tempo über **Ausbreitung**, weil der
+   Streifen keine Wischgeschwindigkeit meldet; ohne Halten). Flyout ist damit ein Flash mit Ausbreitung.
+   Offen: Stoß (Federkopplung), Glitzern, Quantisierung auf den Takt.
 
 ## Offen
 
 - Wie schnell fährt Tilt wirklich? Davon hängt ab, wie kurz Attack sinnvoll ist.
 - Winkel für „auf“ und „zu“ am echten Aufbau bestimmen (Vorgabe: auf 90°, zu 0°, Platzhalter).
-- Website-Simulation: bleibt vorerst beim alten Modell.
+- Website-Simulation: rechnet die Grundbewegungen gleich, kennt aber keine Impulse.

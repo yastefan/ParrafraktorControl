@@ -30,15 +30,15 @@ describe("alte Dateien", () => {
     const { migriereParameter, pruefeParameter, pruefePreset } = await import("@parrafraktor/protokoll");
     expect(pruefeParameter(migriereParameter({ modus: "sinus-innen", phase: 180 })))
       .toMatchObject({ modus: "sinus", ordnung: "mitteAussen", gegenlauf: true, phase: 180 });
-    expect(pruefeParameter(migriereParameter({ modus: "pingpong" }))).toMatchObject({ modus: "puls", pingpong: true, ordnung: "links" });
+    expect(pruefeParameter(migriereParameter({ modus: "pingpong" }))).toMatchObject({ modus: "sinus", pingpong: true, ordnung: "links" });
     expect(pruefeParameter(migriereParameter({ modus: "faecher" }))).toMatchObject({ ordnung: "mitteAussen", faecher: 100 });
-    expect(pruefePreset({ name: "Alt", look: { modus: "chase" } })?.look).toMatchObject({ modus: "puls", ordnung: "links" });
+    expect(pruefePreset({ name: "Alt", look: { modus: "chase" } })?.look).toMatchObject({ modus: "sinus", ordnung: "links" });
   });
 
   it("Symmetrie, Richtung und Reihenfolge gehen in Ordnung und Element-Folge auf", async () => {
     const { migriereParameter, pruefeParameter } = await import("@parrafraktor/protokoll");
     expect(pruefeParameter(migriereParameter({ modus: "flyout", symmetrie: "aussen", richtung: "vor", jeElement: true })))
-      .toMatchObject({ modus: "flyout", ordnung: "aussenMitte", gegenlauf: true, elementFolge: "zusammen", pingpong: false });
+      .toMatchObject({ modus: "sinus", ordnung: "aussenMitte", gegenlauf: true, elementFolge: "zusammen", pingpong: false });
     expect(pruefeParameter(migriereParameter({ modus: "sinus", symmetrie: "aus", richtung: "zurueck", jeElement: false })))
       .toMatchObject({ ordnung: "rechts", gegenlauf: false, elementFolge: "vorneHinten" });
     expect(pruefeParameter(migriereParameter({ modus: "rechteck", symmetrie: "innen" }))).toMatchObject({ modus: "sinus", ordnung: "mitteAussen" });

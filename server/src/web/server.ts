@@ -134,6 +134,7 @@ export class WebServer {
         if (n.gedrueckt) s.drueckeImpuls(n.ziel, this.quelle(ws, n.ziel));
         else s.loeseImpuls(this.quelle(ws, n.ziel));
         break;
+      case "impulsTippen": s.tippeImpuls(n.ziel, n.ursprung); break;
       case "impulsEinstellung": s.setzeImpuls(n.einstellung); break;
       case "ping": this.schicke(ws, { typ: "pong", t: n.t }); break;
     }

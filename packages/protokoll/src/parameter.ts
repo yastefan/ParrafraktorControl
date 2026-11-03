@@ -46,14 +46,10 @@ export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenla
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
 const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   sinus: ["schwuenge", "wellenlaenge"],
-  saegezahn: ["schwuenge", "wellenlaenge"],
-  puls: ["schwuenge", "wellenlaenge"],
-  flyout: ["schwuenge", "wellenlaenge"],
-  blinder: ["schwuenge", "wellenlaenge"],
-  funkeln: ["schwuenge", "wellenlaenge", "pingpong"],
   pendelwelle: ["speedBis", "phase", "wellenlaenge", "pingpong"],
   wind: ["speedBis", "phase", "schwuenge", "pingpong"],
   rotation: ["amplitude", "phase", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
+  ruhe: ["amplitude", "speedVon", "speedBis", "phase", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
 };
 export const benutzt = (modus: Modus, name: Regler): boolean => !UNBENUTZT[modus]?.includes(name);
 
@@ -105,6 +101,7 @@ export const vorgabeWert = (name: ZahlParameter): number => PARAMETER_VORGABE[na
 //  1. Pattern aus der Zeit vor Symmetrie/Richtung/Fächer (damals eigene Pattern)
 //  2. Dreieck und Rechteck gibt es nicht mehr (zu harte Bewegungen): werden zum Sinus
 //  3. Symmetrie, Richtung und Reihenfolge sind in Ordnung, Element-Folge, Gegenlauf und Ping-Pong aufgegangen
+//  4. Sägezahn, Puls, Flyout, Blinder und Funkeln sind keine Grundbewegung mehr: werden zum Sinus
 const ALTE_PATTERN: Record<string, Record<string, unknown>> = {
   "sinus-innen": { modus: "sinus", symmetrie: "innen" },
   "sinus-aussen": { modus: "sinus", symmetrie: "aussen" },
@@ -119,9 +116,15 @@ const ALTE_PATTERN: Record<string, Record<string, unknown>> = {
 
 const ENTFALLEN: Record<string, Record<string, unknown>> = { dreieck: { modus: "sinus" }, rechteck: { modus: "sinus" } };
 
+const ALS_IMPULS = ["saegezahn", "puls", "flyout", "blinder", "funkeln"];
+
 export function migriereParameter(roh: unknown): unknown {
   if (typeof roh !== "object" || roh === null) return roh;
-  let r = roh as Record<string, unknown>;
+  const r = migriereVerteilung(roh as Record<string, unknown>);
+  return ALS_IMPULS.includes(r.modus as string) ? { ...r, modus: "sinus" } : r;
+}
+
+function migriereVerteilung(r: Record<string, unknown>): Record<string, unknown> {
   if ("ordnung" in r) return r;
   if (typeof r.modus === "string") {
     const neu = ("symmetrie" in r ? ENTFALLEN : ALTE_PATTERN)[r.modus];

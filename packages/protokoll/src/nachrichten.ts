@@ -10,7 +10,7 @@ import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
 import { istPresetNr, presetName, type Presets } from "./presets.js";
 
-export const PROTOKOLL_VERSION = 4;
+export const PROTOKOLL_VERSION = 5;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 
@@ -83,6 +83,8 @@ export type ClientNachricht =
   | { typ: "preset"; aktion: "umbenennen"; nr: number; name: string }
   // Impuls-Pad gedrückt bzw. losgelassen. Bricht die Verbindung ab, lässt der Server los.
   | { typ: "impuls"; ziel: ImpulsZiel; gedrueckt: boolean }
+  // Touchstreifen: Impuls ohne Halten vom Ursprung (0 = links … 1 = rechts) aus
+  | { typ: "impulsTippen"; ziel: ImpulsZiel; ursprung: number }
   | { typ: "impulsEinstellung"; einstellung: unknown }   // prüft der Server mit pruefeImpuls
   | { typ: "ping"; t: number };
 
@@ -116,6 +118,10 @@ export function leseClientNachricht(text: string): ClientNachricht | null {
     case "impuls":
       return istImpulsZiel(r.ziel) && typeof r.gedrueckt === "boolean"
         ? { typ: "impuls", ziel: r.ziel, gedrueckt: r.gedrueckt }
+        : null;
+    case "impulsTippen":
+      return istImpulsZiel(r.ziel) && typeof r.ursprung === "number" && Number.isFinite(r.ursprung)
+        ? { typ: "impulsTippen", ziel: r.ziel, ursprung: Math.min(1, Math.max(0, r.ursprung)) }
         : null;
     case "impulsEinstellung": return { typ: "impulsEinstellung", einstellung: r.einstellung };
     case "ping": return typeof r.t === "number" ? { typ: "ping", t: r.t } : null;
