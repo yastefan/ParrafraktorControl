@@ -23,9 +23,10 @@ Vor der Show wird die Grundbewegung eingestellt, live werden Impulse gedrückt.
 
 - **Ruhe** – alle auf Offset, nur Impulse bewegen.
 - **Welle** – der bisherige Sinus, mit Ping-Pong als Option.
-- **Pendelwelle** – jeder Spiegel mit leicht anderer Periode (z. B. T/(20+i)): Gleichlauf → Schlangen →
-  Chaos → Gleichlauf. Regler: Zykluslänge, Amplitude, Spreizung.
-- **Wind** – weiches Rauschfeld über Raum und Zeit, wiederholt sich nie. Regler: Wellenlänge, Tempo, Amplitude.
+- **Pendelwelle** – jeder Spiegel mit leicht anderer Periode (Speed × (1 + Platz/Wiederkehr)): Gleichlauf →
+  Schlangen → Chaos → Gleichlauf. Regler: Speed (ganzes Bild), Wiederkehr (Schwünge), Amplitude.
+- **Wind** – Böen ziehen entlang der Ordnung durch und verändern sich langsam, wiederholt sich nie.
+  Regler: Wellenlänge, Tempo, Amplitude.
 - **Drehen** – TiltRotate (bisher „Rotation“).
 
 **Offset je Element:** Normal ein Offset für alle. Im Client öffnet ein Schloss drei Schieber

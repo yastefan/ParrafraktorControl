@@ -22,7 +22,7 @@
 //   └──────────┴──────────┴──────────┴──────────┘
 //
 // Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Ordnung,
-// Seite 3 Zyklus/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
+// Seite 3 Wiederkehr/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite.
 import type { ImpulsZiel } from "@parrafraktor/engine";
 import type { ImpulsRegler, SchalterParameter, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
@@ -48,7 +48,7 @@ export const REGLER_SEITEN: Regler[][] = [
     { art: "stufe", name: "ordnung" },
   ],
   [
-    { art: "zahl", name: "zyklusS" },
+    { art: "zahl", name: "schwuenge" },
     { art: "zahl", name: "wellenlaenge" },
     { art: "schalter", name: "gegenlauf" },
     { art: "schalter", name: "pingpong" },

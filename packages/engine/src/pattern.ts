@@ -57,7 +57,7 @@ export interface Parameter {
   phase: number;       // Grad, Versatz über die Auswahl wie MAtricks-Phase
   group: number;       // Gruppengröße wie MAtricks-Groups, 0 = aus
   faecher: number;     // %, Amplitude wächst entlang der Ordnung (bei Mitte/außen: zum Rand hin)
-  zyklusS: number;     // Pendelwelle: nach so vielen Sekunden laufen alle wieder gleich
+  schwuenge: number;   // Pendelwelle: nach so vielen Schwüngen des ersten Spiegels laufen alle wieder gleich
   wellenlaenge: number; // Wind: so viele Spiegel bewegen sich ähnlich
   ordnung: Ordnung;
   elementFolge: ElementFolge;
@@ -77,7 +77,7 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   phase: 360,
   group: 0,
   faecher: 0,
-  zyklusS: 60,
+  schwuenge: 24,
   wellenlaenge: 8,
   ordnung: "links",
   elementFolge: "vorneHinten",
@@ -124,9 +124,10 @@ function rauschen(x: number, t: number): number {
   return (a + (b - a) * sx + (c - a) * st + (a - b - c + d) * sx * st) * Math.SQRT2;
 }
 
-// Wind: zwei Lagen Rauschen, weich auf −1 … 1 begrenzt
+// Wind: Böen ziehen entlang der Ordnung durch (eine Wellenlänge je Durchlauf) und verändern sich
+// dabei langsam. Eine Lage Rauschen, weich auf −1 … 1 begrenzt.
 export const wind = (x: number, t: number): number =>
-  Math.tanh(1.6 * (0.7 * rauschen(x, t) + 0.3 * rauschen(2 * x + 17.3, 2 * t + 5.1))) / Math.tanh(1.6);
+  Math.tanh(1.3 * rauschen(x - t, 0.4 * t + 3.7)) / Math.tanh(1.3);
 
 // Steht ein Regler auf aus (0), übernimmt er den Wert des anderen
 const speeds = (p: Parameter): [number, number] => [p.speedVon || p.speedBis, p.speedBis || p.speedVon];
@@ -191,9 +192,10 @@ export class Engine {
     const zug = 1 - Math.exp(-dt / GLEICHLAUF_S);
     for (let g = 0; g < SPIEGEL_GESAMT; g++) {
       if (p.modus === "pendelwelle") {
-        // Jeder Spiegel schafft pro Zyklus einen Durchlauf mehr als sein Vorgänger:
-        // nach einem Zyklus stehen wieder alle gleich
-        this.umlauf[g] += (dt * von) / 60 + (dt * auswahl(p, g).platz) / p.zyklusS;
+        // Wie bei echten Pendeln: Während der erste Spiegel "schwuenge" Mal schwingt, schafft jeder
+        // folgende einen Schwung mehr als sein Vorgänger – dann stehen wieder alle gleich.
+        // Speed ist das Tempo des ersten Spiegels und beschleunigt damit das ganze Bild.
+        this.umlauf[g] += ((dt * von) / 60) * (1 + auswahl(p, g).platz / p.schwuenge);
       } else if (von === bis) {
         // Alle gleich schnell (Speed bis aus): Abstand zum Bezug abbauen, damit bei Phase 0 wieder
         // alle Spiegel gleich laufen. Ganze Durchläufe sind unsichtbar und fallen sofort weg,

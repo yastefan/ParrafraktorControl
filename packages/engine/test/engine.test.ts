@@ -123,15 +123,27 @@ describe("Regler", () => {
     expect([w[0], w[12], w[35]]).toEqual([-30, 0, 45]);
   });
 
-  it("Pendelwelle läuft auseinander und nach einem Zyklus wieder zusammen", () => {
-    const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", zyklusS: 20, speedVon: 6 };
+  it("Pendelwelle läuft auseinander und nach der Wiederkehr wieder zusammen", () => {
+    // 2 Schwünge des ersten Spiegels bei 6 BPM: nach 20 s wieder gleich
+    const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", schwuenge: 2, speedVon: 6 };
     const e = new Engine();
-    for (let i = 0; i < 200; i++) e.weiter(p, 0.025);   // 5 s: Viertelzyklus
+    for (let i = 0; i < 200; i++) e.weiter(p, 0.025);   // 5 s: Viertel
     const mitte = e.alle(p).map((s) => s.tilt);
     expect(Math.max(...mitte) - Math.min(...mitte)).toBeGreaterThan(40);
-    for (let i = 0; i < 600; i++) e.weiter(p, 0.025);   // 20 s: ganzer Zyklus
+    for (let i = 0; i < 600; i++) e.weiter(p, 0.025);   // 20 s: ganze Wiederkehr
     const ende = e.alle(p).map((s) => s.tilt);
     expect(Math.max(...ende) - Math.min(...ende)).toBeLessThan(0.01);
+  });
+
+  it("Pendelwelle: doppelter Speed zeigt dasselbe Bild in der halben Zeit", () => {
+    const bild = (speedVon: number, schritte: number) => {
+      const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", speedVon };
+      const e = new Engine();
+      for (let i = 0; i < schritte; i++) e.weiter(p, 0.025);
+      return e.alle(p).map((s) => s.tilt);
+    };
+    const langsam = bild(5, 400), schnell = bild(10, 200);
+    langsam.forEach((w, g) => expect(schnell[g]).toBeCloseTo(w, 6));
   });
 
   it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {

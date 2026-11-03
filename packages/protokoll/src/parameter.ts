@@ -6,7 +6,7 @@ import {
 } from "@parrafraktor/engine";
 
 export type ZahlParameter =
-  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "group" | "faecher" | "zyklusS" | "wellenlaenge";
+  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "group" | "faecher" | "schwuenge" | "wellenlaenge";
 
 export interface Bereich {
   name: string;
@@ -26,7 +26,7 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
   phase: { name: "Phase", kurz: "Phase", min: 0, max: 720, schritt: 1, einheit: "°" },
   group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "aus" },
   faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
-  zyklusS: { name: "Zyklus", kurz: "Zyklus", min: 10, max: 300, schritt: 1, einheit: " s" },
+  schwuenge: { name: "Wiederkehr", kurz: "Wiederk.", min: 4, max: 100, schritt: 1, einheit: " Schw." },
   wellenlaenge: { name: "Wellenlänge", kurz: "Wellenl.", min: 1, max: 36, schritt: 1, einheit: " Sp." },
 };
 
@@ -45,15 +45,15 @@ export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenla
 // Welche Regler eine Grundbewegung nicht benutzt: werden im Client ausgeblendet
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
 const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
-  sinus: ["zyklusS", "wellenlaenge"],
-  saegezahn: ["zyklusS", "wellenlaenge"],
-  puls: ["zyklusS", "wellenlaenge"],
-  flyout: ["zyklusS", "wellenlaenge"],
-  blinder: ["zyklusS", "wellenlaenge"],
-  funkeln: ["zyklusS", "wellenlaenge", "pingpong"],
+  sinus: ["schwuenge", "wellenlaenge"],
+  saegezahn: ["schwuenge", "wellenlaenge"],
+  puls: ["schwuenge", "wellenlaenge"],
+  flyout: ["schwuenge", "wellenlaenge"],
+  blinder: ["schwuenge", "wellenlaenge"],
+  funkeln: ["schwuenge", "wellenlaenge", "pingpong"],
   pendelwelle: ["speedBis", "phase", "wellenlaenge", "pingpong"],
-  wind: ["speedBis", "phase", "zyklusS", "pingpong"],
-  rotation: ["amplitude", "phase", "faecher", "zyklusS", "wellenlaenge", "gegenlauf", "pingpong"],
+  wind: ["speedBis", "phase", "schwuenge", "pingpong"],
+  rotation: ["amplitude", "phase", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
 };
 export const benutzt = (modus: Modus, name: Regler): boolean => !UNBENUTZT[modus]?.includes(name);
 

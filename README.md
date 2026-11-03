@@ -117,7 +117,7 @@ Impulse (Live-Seite)
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
 | Drehregler, Seite 2 | Speed bis, Group, Fächer, Ordnung |
-| Drehregler, Seite 3 | Zyklus, Wellenlänge, Gegenlauf, Ping-Pong (Schalter: rechts drehen = an, drücken = umschalten) |
+| Drehregler, Seite 3 | Wiederkehr, Wellenlänge, Gegenlauf, Ping-Pong (Schalter: rechts drehen = an, drücken = umschalten) |
 | Regler drücken / Streifen antippen | Vorgabewert |
 | Touchstreifen wischen | Reglerseite wechseln |
 
@@ -150,8 +150,8 @@ sudo systemctl enable --now parrafraktor
 Ein Pattern ist die Grundbewegung, die dauerhaft läuft:
 
 - **Sinus**: die klassische Welle.
-- **Pendelwelle**: Jeder Spiegel schwingt etwas schneller als sein Vorgänger. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und nach einem **Zyklus** (Regler, in Sekunden) wieder zusammen. Startet beim Wählen im Gleichlauf.
-- **Wind**: weiches Rauschen, wiederholt sich nie. **Wellenlänge** = wie viele Spiegel sich ähnlich bewegen, Speed = Tempo.
+- **Pendelwelle**: Jeder Spiegel schwingt etwas schneller als sein Vorgänger, wie bei einer Pendelwelle aus echten Pendeln. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und wieder zusammen, wenn der erste Spiegel so oft geschwungen hat, wie **Wiederkehr** sagt (dann hat jeder folgende einen Schwung mehr geschafft). Speed ist das Tempo des ersten Spiegels und beschleunigt das ganze Bild; je kleiner die Wiederkehr, desto schneller laufen die hinteren Spiegel. Startet beim Wählen im Gleichlauf.
+- **Wind**: Böen ziehen entlang der Ordnung durch die Spiegel und verändern sich dabei langsam, wiederholt sich nie. **Wellenlänge** = wie viele Spiegel eine Böe breit ist, Speed = Tempo (eine Wellenlänge je Durchlauf).
 - **Sägezahn, Puls, Flyout, Blinder, Funkeln**: die bisherigen Formen. Sie sollen später Impulse werden (siehe Konzept).
 - **Rotation**: endlos über TiltRotate.
 

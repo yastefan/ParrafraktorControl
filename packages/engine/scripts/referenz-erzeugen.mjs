@@ -32,7 +32,7 @@ for (const modus of modi) {
   for (const v of varianten) {
     const parameter = {
       modus, offset: 12, offsetGetrennt: false, offsetElemente: [0, 0, 0], amplitude: 55, speedVon: 3, speedBis: 0,
-      zyklusS: 45, wellenlaenge: 6, laeuft: true, ...v,
+      schwuenge: 45, wellenlaenge: 6, laeuft: true, ...v,
     };
     for (let schritt = 0; schritt < 6; schritt++) {
       // Umlauf je Spiegel beliebig, aber fest: geprüft wird die Form, nicht der Lauf
