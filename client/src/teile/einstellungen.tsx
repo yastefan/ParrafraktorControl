@@ -79,7 +79,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
           <Schieber
             name="Dauer" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
             wert={entwurf.ueberblendungS} setze={(v) => sofort({ ueberblendungS: v })}
-            hilfe="Beim Abrufen eines Presets und beim Ein- und Ausschalten des Outputs. Für den Output blendet die App von bzw. zur Stellung der MA – nur wenn sie die MA mitlesen kann, sonst springen die Spiegel."
+            hilfe="Beim Wechsel der Form, beim Abrufen eines Presets und beim Ein- und Ausschalten des Outputs. Für den Output blendet die App von bzw. zur Stellung der MA – nur wenn sie die MA mitlesen kann, sonst springen die Spiegel."
           />
         </Gruppe>
 
@@ -88,6 +88,18 @@ export function Einstellungen({ stand, schliessen }: Props) {
             name="TiltRotate max." einheit=" U/min" schritt={1} grenzen={GRENZEN.rotateMaxUpm}
             wert={entwurf.rotateMaxUpm} setze={(v) => sofort({ rotateMaxUpm: v })}
             hilfe="Drehzahl bei DMX 0 bzw. 255. Platzhalter, bis die Spiegel-Firmware bekannt ist."
+          />
+        </Gruppe>
+
+        <Gruppe titel="Flash">
+          <Schieber
+            name="Flash auf" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            wert={entwurf.flash.auf} setze={(v) => sofort({ flash: { ...entwurf.flash, auf: v } })}
+          />
+          <Schieber
+            name="Flash zu" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            wert={entwurf.flash.zu} setze={(v) => sofort({ flash: { ...entwurf.flash, zu: v } })}
+            hilfe="Tilt, auf den die Flash-Pads die Spiegel fahren. „Auf“ für Licht von hinten, „Zu“ für Licht von außen. Platzhalter, bis die Winkel am Aufbau bestimmt sind."
           />
         </Gruppe>
 

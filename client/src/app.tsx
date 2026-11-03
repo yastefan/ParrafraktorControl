@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { laden, useLaden } from "./laden.js";
 import { Einstellungen } from "./teile/einstellungen.js";
+import { Impulse } from "./teile/impulse.js";
 import { Kopf } from "./teile/kopf.js";
 import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
@@ -20,6 +21,7 @@ export function App() {
       <main class="haupt">
         <section class="links">
           <VorschauFlaeche />
+          {l.stand && <Impulse />}
           {p && <Patterns modus={p.modus} />}
           <Presets />
         </section>
@@ -65,6 +67,10 @@ function VorschauFlaeche() {
         modus: modusRef.current,
         blende: laden.stand.blende,
         blendeDauer: laden.stand.einstellungen.ueberblendungS,
+        impuls: laden.stand.impuls,
+        impulse: laden.stand.impulse,
+        impulseSeitS: (performance.now() - laden.standZeit) / 1000,
+        flash: laden.stand.einstellungen.flash,
       };
     });
     v.starte();

@@ -4,7 +4,7 @@
 //   ┌──────────┬──────────┬──────────┬──────────┐
 //   │Pattern › │Presets › │ Regler   │Reihenf.  │   Regler: Reglerseite umschalten
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │Symmetrie │ Richtung │  Pause   │  Output  │   Symmetrie/Richtung: Stufe weiterschalten
+//   │Impulse › │ Richtung │  Pause   │  Output  │   Richtung: Stufe weiterschalten (Symmetrie: Drehregler)
 //   └──────────┴──────────┴──────────┴──────────┘   Output: gedrückt halten (Schutz vor Versehen)
 // Untermenü (Pattern, Presets): sechs Plätze, unten links Zurück, unten rechts nächste Seite.
 //   ┌──────────┬──────────┬──────────┬──────────┐
@@ -14,11 +14,19 @@
 //   └──────────┴──────────┴──────────┴──────────┘
 // Presets: Tippen ruft ab, Halten speichert den aktuellen Look.
 //
+// Impulse (Live-Seite):
+//   ┌──────────┬──────────┬──────────┬──────────┐
+//   │Flash auf │Flash zu  │El.-Folge │          │   Pads wie Flash-Tasten: drücken, halten, loslassen
+//   ├──────────┼──────────┼──────────┼──────────┤
+//   │‹ Zurück  │          │          │          │   Drehregler: Attack, Release, Stärke, Versatz
+//   └──────────┴──────────┴──────────┴──────────┘
+//
 // Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Symmetrie.
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite.
-import type { StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
+import type { ImpulsZiel } from "@parrafraktor/engine";
+import type { ImpulsRegler, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
 
-export type Menue = "haupt" | "pattern" | "presets";
+export type Menue = "haupt" | "pattern" | "presets" | "impulse";
 
 export type Regler =
   | { art: "zahl"; name: ZahlParameter }
@@ -45,11 +53,16 @@ export const HAUPT = {
   presets: 1,
   regler: 2,
   reihenfolge: 3,
-  symmetrie: 4,
+  impulse: 4,
   richtung: 5,
   pause: 6,
   output: 7,
 } as const;
+
+// Impulse
+export const IMPULS_PADS: Partial<Record<number, ImpulsZiel>> = { 0: "auf", 1: "zu" };
+export const TASTE_ELEMENT_FOLGE = 2;
+export const IMPULS_REGLER_SEITE: ImpulsRegler[] = ["attackS", "releaseS", "staerke", "elementVersatzS"];
 
 // Untermenüs
 export const TASTE_ZURUECK = 4;

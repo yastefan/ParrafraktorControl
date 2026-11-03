@@ -86,12 +86,17 @@ const ALTE_PATTERN: Record<string, Partial<Parameter>> = {
   pingpong: { modus: "puls", richtung: "pingpong" },
   flyout: { modus: "flyout", symmetrie: "innen" },
   blinder: { modus: "blinder", symmetrie: "innen" },
+  dreieck: { modus: "sinus" },
+  rechteck: { modus: "sinus" },
 };
+
+// Dreieck und Rechteck gibt es nicht mehr (zu harte Bewegungen): werden zum Sinus
+const ENTFALLEN: Record<string, Partial<Parameter>> = { dreieck: { modus: "sinus" }, rechteck: { modus: "sinus" } };
 
 export function migriereParameter(roh: unknown): unknown {
   if (typeof roh !== "object" || roh === null) return roh;
   const r = roh as Record<string, unknown>;
-  if ("symmetrie" in r || typeof r.modus !== "string") return roh;
-  const neu = ALTE_PATTERN[r.modus];
+  if (typeof r.modus !== "string") return roh;
+  const neu = ("symmetrie" in r ? ENTFALLEN : ALTE_PATTERN)[r.modus];
   return neu ? { ...r, ...neu } : roh;
 }

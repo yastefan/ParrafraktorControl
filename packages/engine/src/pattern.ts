@@ -1,19 +1,16 @@
 // Pattern-Engine: dieselbe Rechnung wie die Simulation auf der Website (parrafraktor.js).
-// Ein Pattern ist nur noch eine Form (Sinus, Puls, …). Wie sie über die Spiegel läuft, bestimmen die
+// Ein Pattern ist nur noch eine Form (Sinus, Puls, …). Alle Formen beginnen und enden ohne Ruck
+// (Geschwindigkeit und Beschleunigung gehen weich gegen null), damit die Motoren sanft fahren. Wie sie über die Spiegel läuft, bestimmen die
 // Regler: Offset, Amplitude, Speed von/bis, Phase und Group wie die MAtricks der grandMA3, dazu
 // Symmetrie, Richtung, Fächer und Reihenfolge.
 // Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren.
 import { SPIEGEL_GESAMT, SPIEGEL_N } from "./aufbau.js";
 
-export const MODI = [
-  "sinus", "dreieck", "rechteck", "saegezahn", "puls", "flyout", "blinder", "funkeln", "rotation",
-] as const;
+export const MODI = ["sinus", "saegezahn", "puls", "flyout", "blinder", "funkeln", "rotation"] as const;
 export type Modus = (typeof MODI)[number];
 
 export const MODUS_NAME: Record<Modus, string> = {
   sinus: "Sinus",
-  dreieck: "Dreieck",
-  rechteck: "Rechteck",
   saegezahn: "Sägezahn",
   puls: "Puls",
   flyout: "Flyout",
@@ -74,8 +71,11 @@ export interface Stellung {
   upm: number;
 }
 
-// Weicher Übergang 0 → 1
-export const weich = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+// Weicher Übergang 0 → 1: Geschwindigkeit und Beschleunigung sind am Anfang und Ende null
+export const weich = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
+
+// Weicher Ausschlag 0 → 1 → 0 über x = 0 … 1 (angehobener Kosinus)
+const buckel = (x: number): number => (1 - Math.cos(2 * Math.PI * x)) / 2;
 
 // Zufallszahl 0 … 1, immer gleich für dieselben Eingaben (fürs Funkeln)
 const zufall = (a: number, b: number): number => {
@@ -190,27 +190,29 @@ export class Engine {
     const t = 2 * Math.PI * (lauf - versatz);
     const zyklus = (((t / (2 * Math.PI)) % 1) + 1) % 1;   // 0 … 1, wiederholt sich
     switch (p.modus) {
-      // Formen wie in der grandMA3, jeweils mit Nulldurchgang am Anfang wie der Sinus
-      case "dreieck": return seite * A * (4 * Math.abs(((zyklus + 0.75) % 1) - 0.5) - 1);
-      case "rechteck": return seite * (zyklus < 0.5 ? A : -A);
-      case "saegezahn": return seite * A * (2 * zyklus - 1);
-      // Puls: jeder Spiegel klappt einmal kurz auf (bei Phase 360° ist immer genau einer offen)
+      // Sägezahn, weich: langsam von −A nach +A, dann zügig, aber ohne Sprung zurück
+      case "saegezahn": {
+        const hin = 0.8;
+        return seite * A * (zyklus < hin ? 2 * weich(zyklus / hin) - 1 : 1 - 2 * weich((zyklus - hin) / (1 - hin)));
+      }
+      // Puls: jeder Spiegel klappt einmal auf und wieder zu. Bei Phase 360° läuft eine weiche Welle
+      // von etwa drei Spiegeln Breite durch – breit genug, dass kein Spiegel hektisch fährt.
       case "puls": {
-        const breite = 1 / anzahl;
-        return zyklus < breite ? seite * A * Math.sin((Math.PI * zyklus) / breite) : 0;
+        const breite = Math.min(1, 3 / anzahl);
+        return zyklus < breite ? seite * A * buckel(zyklus / breite) : 0;
       }
       // Flyout: geschlossen, dann klappen die Spiegel nacheinander auf, halten offen und schließen
       // wieder in derselben Reihenfolge
-      case "flyout": return seite * A * (weich(zyklus / 0.12) - weich((zyklus - 0.55) / 0.12));
-      // Blinder: reißt auf und schließt langsam wieder (bei Phase 0 alle gleichzeitig)
-      case "blinder": return seite * A * (weich(zyklus / 0.04) - weich((zyklus - 0.08) / 0.6));
+      case "flyout": return seite * A * (weich(zyklus / 0.18) - weich((zyklus - 0.55) / 0.18));
+      // Blinder: öffnet zügig und schließt langsam wieder (bei Phase 0 alle gleichzeitig)
+      case "blinder": return seite * A * (weich(zyklus / 0.12) - weich((zyklus - 0.15) / 0.6));
       // Funkeln: einzelne Spiegel blitzen zu zufälligen Zeiten in zufällige Richtungen auf
       case "funkeln": {
         const takt = u * 6 + zufall(g, 0);
         const nummer = Math.floor(takt);
         if (zufall(g, nummer) > 0.3) return 0;
         const richtung = zufall(nummer, g) < 0.5 ? -1 : 1;
-        return richtung * A * Math.sin(Math.PI * (takt - nummer));
+        return richtung * A * buckel(takt - nummer);
       }
       case "rotation": return 0;   // läuft über TiltRotate, siehe spiegel()
       case "sinus":

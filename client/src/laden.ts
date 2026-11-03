@@ -13,6 +13,8 @@ type Lokal = { [K in keyof Parameter]?: { wert: Parameter[K]; zeit: number } };
 
 class Laden {
   stand: Stand | null = null;
+  // performance.now() beim Empfang des Stands: Impulse laufen von da an lokal weiter
+  standZeit = 0;
   verbindung: VerbindungsZustand = "verbinde";
   updateBereit: (() => void) | null = null;
   private lokal: Lokal = {};
@@ -74,6 +76,7 @@ class Laden {
   private empfange(n: ServerNachricht): void {
     if (n.typ !== "stand") return;
     this.stand = n;
+    this.standZeit = performance.now();
     // Bestätigte oder zu alte lokale Werte verwerfen
     const jetzt = Date.now();
     for (const [k, v] of Object.entries(this.lokal) as [keyof Parameter, { wert: unknown; zeit: number }][]) {
