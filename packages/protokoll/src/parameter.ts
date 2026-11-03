@@ -1,8 +1,11 @@
 // Wertebereiche der Pattern-Parameter. Eine Quelle für alle Bedienungen:
 // Regler im Client, Drehregler am Stream Deck, später MIDI und OSC.
-import { PARAMETER_VORGABE, istModus, type Parameter } from "@parrafraktor/engine";
+import {
+  PARAMETER_VORGABE, RICHTUNGEN, RICHTUNG_NAME, SYMMETRIEN, SYMMETRIE_NAME, istModus,
+  type Parameter, type Richtung, type Symmetrie,
+} from "@parrafraktor/engine";
 
-export type ZahlParameter = "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "group";
+export type ZahlParameter = "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "group" | "faecher";
 
 export interface Bereich {
   name: string;
@@ -17,11 +20,23 @@ export interface Bereich {
 export const BEREICHE: Record<ZahlParameter, Bereich> = {
   offset: { name: "Offset", kurz: "Offset", min: -180, max: 180, schritt: 1, einheit: "°" },
   amplitude: { name: "Amplitude", kurz: "Ampl.", min: 0, max: 180, schritt: 1, einheit: "°" },
-  speedVon: { name: "Speed von", kurz: "Speed", min: 0, max: 60, schritt: 0.1, einheit: " BPM", nullText: "aus" },
-  speedBis: { name: "Speed bis", kurz: "bis", min: 0, max: 60, schritt: 0.1, einheit: " BPM", nullText: "aus" },
+  speedVon: { name: "Speed von", kurz: "Speed von", min: 0, max: 60, schritt: 0.1, einheit: " BPM", nullText: "aus" },
+  speedBis: { name: "Speed bis", kurz: "Speed bis", min: 0, max: 60, schritt: 0.1, einheit: " BPM", nullText: "aus" },
   phase: { name: "Phase", kurz: "Phase", min: 0, max: 720, schritt: 1, einheit: "°" },
   group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "aus" },
+  faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
 };
+
+// Regler mit festen Stufen (Umschalter im Client, Durchschalten am Stream Deck)
+export type StufenParameter = "symmetrie" | "richtung";
+
+export const STUFEN = {
+  symmetrie: { name: "Symmetrie", werte: SYMMETRIEN, text: SYMMETRIE_NAME },
+  richtung: { name: "Richtung", werte: RICHTUNGEN, text: RICHTUNG_NAME },
+} as const;
+
+const istSymmetrie = (x: unknown): x is Symmetrie => (SYMMETRIEN as readonly unknown[]).includes(x);
+const istRichtung = (x: unknown): x is Richtung => (RICHTUNGEN as readonly unknown[]).includes(x);
 
 export const ZAHL_PARAMETER = Object.keys(BEREICHE) as ZahlParameter[];
 
@@ -52,9 +67,31 @@ export function pruefeParameter(roh: unknown): Partial<Parameter> {
     const w = r[name];
     if (typeof w === "number" && Number.isFinite(w)) teil[name] = begrenze(name, w);
   }
+  if (istSymmetrie(r.symmetrie)) teil.symmetrie = r.symmetrie;
+  if (istRichtung(r.richtung)) teil.richtung = r.richtung;
   if (typeof r.jeElement === "boolean") teil.jeElement = r.jeElement;
   if (typeof r.laeuft === "boolean") teil.laeuft = r.laeuft;
   return teil;
 }
 
 export const vorgabeWert = (name: ZahlParameter): number => PARAMETER_VORGABE[name];
+
+// Gespeicherte Parameter aus der Zeit vor den Reglern Symmetrie, Richtung und Fächer
+// (damals eigene Pattern) in die heutige Form bringen. Nur für Dateien, nicht für Nachrichten.
+const ALTE_PATTERN: Record<string, Partial<Parameter>> = {
+  "sinus-innen": { modus: "sinus", symmetrie: "innen" },
+  "sinus-aussen": { modus: "sinus", symmetrie: "aussen" },
+  faecher: { modus: "sinus", symmetrie: "innen", faecher: 100 },
+  chase: { modus: "puls" },
+  pingpong: { modus: "puls", richtung: "pingpong" },
+  flyout: { modus: "flyout", symmetrie: "innen" },
+  blinder: { modus: "blinder", symmetrie: "innen" },
+};
+
+export function migriereParameter(roh: unknown): unknown {
+  if (typeof roh !== "object" || roh === null) return roh;
+  const r = roh as Record<string, unknown>;
+  if ("symmetrie" in r || typeof r.modus !== "string") return roh;
+  const neu = ALTE_PATTERN[r.modus];
+  return neu ? { ...r, ...neu } : roh;
+}

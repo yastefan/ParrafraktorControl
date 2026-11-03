@@ -1,7 +1,7 @@
 // Schieberegler für die Pattern-Parameter. Bereiche kommen aus dem Protokoll, damit Client,
 // Stream Deck und später MIDI dieselben Grenzen haben. Doppeltippen auf den Namen setzt den Vorgabewert.
 import type { Parameter } from "@parrafraktor/engine";
-import { BEREICHE, ZAHL_PARAMETER, zeigeWert, type ZahlParameter } from "@parrafraktor/protokoll";
+import { BEREICHE, STUFEN, ZAHL_PARAMETER, zeigeWert, type StufenParameter, type ZahlParameter } from "@parrafraktor/protokoll";
 import { useRef } from "preact/hooks";
 import { useLaden } from "../laden.js";
 
@@ -11,6 +11,9 @@ export function Regler({ parameter }: { parameter: Parameter }) {
     <div class="regler">
       {ZAHL_PARAMETER.map((name) => (
         <Schieber key={name} name={name} wert={parameter[name]} />
+      ))}
+      {(Object.keys(STUFEN) as StufenParameter[]).map((name) => (
+        <Stufen key={name} name={name} wert={parameter[name]} />
       ))}
       <div class="zeile">
         <span class="name">Reihenfolge</span>
@@ -27,6 +30,27 @@ export function Regler({ parameter }: { parameter: Parameter }) {
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Stufen({ name, wert }: { name: StufenParameter; wert: string }) {
+  const l = useLaden();
+  const st = STUFEN[name];
+  const text = st.text as Record<string, string>;
+  return (
+    <div class="zeile">
+      <span class="name">{st.name}</span>
+      <div class="umschalter">
+        {st.werte.map((w) => (
+          <button
+            type="button" key={w} class={wert === w ? "aktiv" : ""} disabled={!l.bedienbar}
+            onClick={() => l.setze({ [name]: w })}
+          >
+            {text[w]}
+          </button>
+        ))}
       </div>
     </div>
   );

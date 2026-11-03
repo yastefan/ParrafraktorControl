@@ -24,3 +24,16 @@ describe("Einstellungen", () => {
     expect(pruefeEinstellungen({ aufbau: { anordnung: "kreis" } }).aufbau.anordnung).toBe("reihe");
   });
 });
+
+describe("alte Pattern", () => {
+  it("werden beim Laden in Form und Regler umgewandelt", async () => {
+    const { migriereParameter, pruefeParameter, pruefePreset } = await import("@parrafraktor/protokoll");
+    expect(pruefeParameter(migriereParameter({ modus: "sinus-innen", phase: 180 })))
+      .toMatchObject({ modus: "sinus", symmetrie: "innen", phase: 180 });
+    expect(pruefeParameter(migriereParameter({ modus: "pingpong" }))).toMatchObject({ modus: "puls", richtung: "pingpong" });
+    expect(pruefeParameter(migriereParameter({ modus: "faecher" }))).toMatchObject({ symmetrie: "innen", faecher: 100 });
+    // neue Daten mit Symmetrie bleiben, wie sie sind
+    expect(pruefeParameter(migriereParameter({ modus: "flyout", symmetrie: "aus" }))).toMatchObject({ modus: "flyout", symmetrie: "aus" });
+    expect(pruefePreset({ name: "Alt", look: { modus: "chase" } })?.look).toMatchObject({ modus: "puls", symmetrie: "aus" });
+  });
+});

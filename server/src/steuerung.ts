@@ -2,10 +2,10 @@
 // Alle Bedienungen (Client, Stream Deck, MIDI, OSC) ändern den Zustand nur über diese Aktionen,
 // alle Anzeigen hören auf das Ereignis "aenderung".
 import { EventEmitter } from "node:events";
-import { MODI, PARAMETER_VORGABE, phaseVorgabe, type Modus, type Parameter } from "@parrafraktor/engine";
+import { PARAMETER_VORGABE, type Modus, type Parameter } from "@parrafraktor/engine";
 import {
-  BEREICHE, begrenze, lookAus, pruefeEinstellungen, pruefeParameter, vorgabeName, vorgabeWert,
-  type Einstellungen, type Presets, type Uebernahme, type ZahlParameter,
+  BEREICHE, STUFEN, begrenze, lookAus, migriereParameter, pruefeEinstellungen, pruefeParameter, vorgabeName, vorgabeWert,
+  type Einstellungen, type Presets, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 
 interface Ereignisse {
@@ -59,17 +59,9 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   waehlePattern(modus: Modus): void {
-    const teil: Partial<Parameter> = { modus, phase: phaseVorgabe(modus), laeuft: true };
-    // Flyout und Blinder leben vom vollen Öffnen
-    if ((modus === "flyout" || modus === "blinder") && this._parameter.amplitude < 90) teil.amplitude = 90;
+    // Nur die Form wechselt; die Regler bleiben, wie sie sind
+    const teil: Partial<Parameter> = { modus, laeuft: true };
     this.aendere(teil);
-  }
-
-  // Pattern in der Liste weiterschalten (z. B. per Drehregler)
-  naechstesPattern(schritte: number): void {
-    const i = MODI.indexOf(this._parameter.modus);
-    const n = MODI.length;
-    this.waehlePattern(MODI[(((i + schritte) % n) + n) % n]!);
   }
 
   // Relativ verstellen, z. B. per Drehregler: schritte × kleinster Schritt
@@ -78,12 +70,19 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   vorgabe(name: ZahlParameter): void {
-    const wert = name === "phase" ? phaseVorgabe(this._parameter.modus) : vorgabeWert(name);
-    this.aendere({ [name]: wert });
+    this.aendere({ [name]: vorgabeWert(name) });
   }
 
   schalteLauf(): void {
     this.aendere({ laeuft: !this._parameter.laeuft });
+  }
+
+  // Regler mit Stufen (Symmetrie, Richtung) eine Stufe weiterschalten
+  schalteStufe(name: StufenParameter, schritte = 1): void {
+    const werte: readonly string[] = STUFEN[name].werte;
+    const n = werte.length;
+    const i = werte.indexOf(this._parameter[name]);
+    this.aendere({ [name]: werte[(((i + schritte) % n) + n) % n] });
   }
 
   schalteReihenfolge(): void {
@@ -178,4 +177,4 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 }
 
-export const parameterAus = (roh: unknown): Parameter => ({ ...PARAMETER_VORGABE, ...pruefeParameter(roh) });
+export const parameterAus = (roh: unknown): Parameter => ({ ...PARAMETER_VORGABE, ...pruefeParameter(migriereParameter(roh)) });

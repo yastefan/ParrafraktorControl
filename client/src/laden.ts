@@ -39,7 +39,8 @@ class Laden {
     return this.verbindung === "verbunden" && this.stand !== null;
   }
 
-  // Parameter ändern. Gesendet wird höchstens einmal pro Bild (requestAnimationFrame).
+  // Parameter ändern. Gesendet wird höchstens alle 16 ms. Bewusst setTimeout statt
+  // requestAnimationFrame: das pausiert, solange die Seite nicht sichtbar ist.
   setze(teil: Partial<Parameter>): void {
     if (!this.bedienbar) return;
     const zeit = Date.now();
@@ -47,11 +48,11 @@ class Laden {
     const erstes = this.ausstehend === null;
     this.ausstehend = { ...this.ausstehend, ...teil };
     if (erstes) {
-      requestAnimationFrame(() => {
+      window.setTimeout(() => {
         const p = this.ausstehend;
         this.ausstehend = null;
         if (p) this.ws.sende({ typ: "setze", parameter: p });
-      });
+      }, 16);
     }
     this.melde();
   }
