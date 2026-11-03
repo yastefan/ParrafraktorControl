@@ -2,9 +2,9 @@
 //
 // Hauptmenü:
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Pattern › │Presets › │ Regler   │Reihenf.  │   Regler: Reglerseite umschalten
+//   │Pattern › │Presets › │ Regler   │ Elemente │   Regler: Reglerseite umschalten
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │Impulse › │ Richtung │  Pause   │  Output  │   Richtung: Stufe weiterschalten (Symmetrie: Drehregler)
+//   │Impulse › │ Ordnung  │  Pause   │  Output  │   Elemente/Ordnung: Stufe weiterschalten
 //   └──────────┴──────────┴──────────┴──────────┘   Output: gedrückt halten (Schutz vor Versehen)
 // Untermenü (Pattern, Presets): sechs Plätze, unten links Zurück, unten rechts nächste Seite.
 //   ┌──────────┬──────────┬──────────┬──────────┐
@@ -21,16 +21,18 @@
 //   │‹ Zurück  │          │          │          │   Drehregler: Attack, Release, Stärke, Versatz
 //   └──────────┴──────────┴──────────┴──────────┘
 //
-// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Symmetrie.
+// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Ordnung,
+// Seite 3 Zyklus/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite.
 import type { ImpulsZiel } from "@parrafraktor/engine";
-import type { ImpulsRegler, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
+import type { ImpulsRegler, SchalterParameter, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
 
 export type Menue = "haupt" | "pattern" | "presets" | "impulse";
 
 export type Regler =
   | { art: "zahl"; name: ZahlParameter }
-  | { art: "stufe"; name: StufenParameter };
+  | { art: "stufe"; name: StufenParameter }
+  | { art: "schalter"; name: SchalterParameter };
 
 export const REGLER_SEITEN: Regler[][] = [
   [
@@ -43,7 +45,13 @@ export const REGLER_SEITEN: Regler[][] = [
     { art: "zahl", name: "speedBis" },
     { art: "zahl", name: "group" },
     { art: "zahl", name: "faecher" },
-    { art: "stufe", name: "symmetrie" },
+    { art: "stufe", name: "ordnung" },
+  ],
+  [
+    { art: "zahl", name: "zyklusS" },
+    { art: "zahl", name: "wellenlaenge" },
+    { art: "schalter", name: "gegenlauf" },
+    { art: "schalter", name: "pingpong" },
   ],
 ];
 
@@ -52,9 +60,9 @@ export const HAUPT = {
   pattern: 0,
   presets: 1,
   regler: 2,
-  reihenfolge: 3,
+  elemente: 3,
   impulse: 4,
-  richtung: 5,
+  ordnung: 5,
   pause: 6,
   output: 7,
 } as const;

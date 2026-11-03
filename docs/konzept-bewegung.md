@@ -75,8 +75,10 @@ Folge wieder zurück.
 ## Reihenfolge der Umsetzung
 
 1. **Prototyp Impulse:** Flash auf/zu, Hüllkurve, Element-Folge – Engine, Server, Client, Stream Deck. ✅
-2. Verteilung zusammenlegen (Ordnung, Gegenlauf), Offset je Element.
-3. Grundbewegungen Pendelwelle und Wind; Formen Flyout/Blinder/Sägezahn/Funkeln werden Impulse.
+2. Verteilung zusammenlegen (Ordnung, Gegenlauf), Offset je Element. ✅ (Ordnung gilt innerhalb jedes
+   Elements, die Element-Folge ersetzt „alle 36 / je Element“; Element-Folge der Impulse bleibt eigene Einstellung)
+3. Grundbewegungen Pendelwelle und Wind ✅; Formen Flyout/Blinder/Sägezahn/Funkeln werden Impulse (offen,
+   bleiben bis dahin als Formen).
 4. Impulse Stoß (Federkopplung), Flyout, Glitzern; Touch-Strip als Ursprung; Quantisierung auf den Takt.
 
 ## Offen

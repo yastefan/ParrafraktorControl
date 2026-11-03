@@ -268,6 +268,15 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
+.regler-titel { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin: 16px 0 0; font-weight: 600; }
+.schalter-zeile { display: flex; gap: 8px; flex-wrap: wrap; }
+.umschalter.umbrechen { flex-wrap: wrap; grid-column: 1 / -1; }
+.umschalter.umbrechen button { flex: 1 0 auto; }
+.schloss {
+  border: none; background: transparent; cursor: pointer; font-size: 16px; padding: 0 4px;
+  opacity: 0.6; vertical-align: middle;
+}
+.schloss.offen { opacity: 1; }
 .umschalter { display: flex; gap: 4px; background: var(--grund); border-radius: 10px; padding: 3px; }
 .umschalter button {
   min-height: 40px; padding: 0 14px; border: none; border-radius: 8px;

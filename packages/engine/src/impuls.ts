@@ -3,22 +3,13 @@
 // Ein Flash fährt alle Spiegel zu einer Ziel-Stellung ("auf" oder "zu", Winkel aus den Einstellungen).
 // Mit Element-Folge gehen die Elemente nacheinander auf und in derselben Folge wieder zurück.
 // Server (Takt) und Client (Vorschau) rechnen damit gleich.
-import { ELEMENTE, SPIEGEL_N } from "./aufbau.js";
+import { ELEMENTE, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
 import { weich, type Stellung } from "./pattern.js";
 
 export const IMPULS_ZIELE = ["auf", "zu"] as const;
 export type ImpulsZiel = (typeof IMPULS_ZIELE)[number];
 export const IMPULS_NAME: Record<ImpulsZiel, string> = { auf: "Flash auf", zu: "Flash zu" };
 export const istImpulsZiel = (x: unknown): x is ImpulsZiel => (IMPULS_ZIELE as readonly unknown[]).includes(x);
-
-// Reihenfolge der Elemente (Element 1 = vorn)
-export const ELEMENT_FOLGEN = ["zusammen", "vorneHinten", "hintenVorne"] as const;
-export type ElementFolge = (typeof ELEMENT_FOLGEN)[number];
-export const ELEMENT_FOLGE_NAME: Record<ElementFolge, string> = {
-  zusammen: "zusammen",
-  vorneHinten: "vorn → hinten",
-  hintenVorne: "hinten → vorn",
-};
 
 export interface Huelle {
   attackS: number;    // Zeit bis zum vollen Ausschlag
@@ -62,11 +53,7 @@ export function huellenWert(h: Huelle, t: number, los: number | null): number {
 
 // Verzögerung des Elements k (Sekunden) gemäß Element-Folge
 export function elementVerzug(e: ImpulsEinstellung, k: number): number {
-  switch (e.elementFolge) {
-    case "vorneHinten": return k * e.elementVersatzS;
-    case "hintenVorne": return (ELEMENTE - 1 - k) * e.elementVersatzS;
-    default: return 0;
-  }
+  return (elementRang(e.elementFolge, k) ?? 0) * e.elementVersatzS;
 }
 
 // Ist der Impuls vorbei (losgelassen und auch das letzte Element zurück)?

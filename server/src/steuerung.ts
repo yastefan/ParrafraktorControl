@@ -9,7 +9,7 @@ import {
 import {
   BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeEinstellungen,
   pruefeImpuls, pruefeParameter, vorgabeName, vorgabeWert,
-  type Einstellungen, type ImpulsRegler, type Presets, type StufenParameter, type Uebernahme, type ZahlParameter,
+  type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 
 // Ein gedrückter Impuls. quelle: wer ihn hält (z. B. "ws3:auf", "streamdeck:0"), damit
@@ -115,7 +115,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     this.aendere({ laeuft: !this._parameter.laeuft });
   }
 
-  // Regler mit Stufen (Symmetrie, Richtung) eine Stufe weiterschalten
+  // Regler mit Stufen (Ordnung, Element-Folge) eine Stufe weiterschalten
   schalteStufe(name: StufenParameter, schritte = 1): void {
     const werte: readonly string[] = STUFEN[name].werte;
     const n = werte.length;
@@ -123,8 +123,8 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     this.aendere({ [name]: werte[(((i + schritte) % n) + n) % n] });
   }
 
-  schalteReihenfolge(): void {
-    this.aendere({ jeElement: !this._parameter.jeElement });
+  schalte(name: SchalterParameter): void {
+    this.aendere({ [name]: !this._parameter[name] });
   }
 
   setzeUebernahme(an: boolean): void {

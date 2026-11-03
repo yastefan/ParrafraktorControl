@@ -8,7 +8,7 @@ import {
   ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
 import {
-  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
+  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
 } from "@parrafraktor/protokoll";
 import { fehlerText, log } from "../../log.js";
 import type { Steuerung } from "../../steuerung.js";
@@ -226,9 +226,9 @@ export class StreamDeckModul implements Eingabemodul {
           return { tippen: () => this.oeffne("presets", Math.floor(i / PLAETZE.length)) };
         }
         case HAUPT.regler: return { tippen: () => { this.reglerSeite = (this.reglerSeite + 1) % REGLER_SEITEN.length; } };
-        case HAUPT.reihenfolge: return { tippen: () => s.schalteReihenfolge() };
+        case HAUPT.elemente: return { tippen: () => s.schalteStufe("elementFolge") };
         case HAUPT.impulse: return { tippen: () => this.oeffne("impulse") };
-        case HAUPT.richtung: return { tippen: () => s.schalteStufe("richtung") };
+        case HAUPT.ordnung: return { tippen: () => s.schalteStufe("ordnung") };
         case HAUPT.pause: return { tippen: () => s.schalteLauf() };
         // Erst nach dem Halten umschalten, damit ein Streifen der Hand nicht die Show übernimmt
         case HAUPT.output: return { halten: { ms: HALTEN_MS.output, tun: () => s.setzeUebernahme(!s.uebernahme.soll) } };
@@ -286,8 +286,10 @@ export class StreamDeckModul implements Eingabemodul {
       // Bei großen Bereichen mit feinem Schritt (Speed) wirkt schnelles Drehen stärker
       const faktor = schnell ? (b.schritt < 1 ? 10 : 5) : 1;
       this.steuerung.verstelle(r.name, schritte * faktor);
-    } else {
+    } else if (r.art === "stufe") {
       this.steuerung.schalteStufe(r.name, Math.sign(schritte));
+    } else if ((schritte > 0) !== this.steuerung.parameter[r.name]) {
+      this.steuerung.schalte(r.name);   // rechts drehen = an, links = aus
     }
   }
 
@@ -300,6 +302,7 @@ export class StreamDeckModul implements Eingabemodul {
     const r = this.regler(index);
     if (!r) return;
     if (r.art === "zahl") this.steuerung.vorgabe(r.name);
+    else if (r.art === "schalter") this.steuerung.schalte(r.name);
     else this.steuerung.setze({ [r.name]: PARAMETER_VORGABE[r.name] });
   }
 
@@ -369,9 +372,9 @@ export class StreamDeckModul implements Eingabemodul {
           return { titel: "Presets ›", unter: p?.name };
         }
         case HAUPT.regler: return { titel: `Regler ${this.reglerSeite + 1}/${REGLER_SEITEN.length}`, unter: "umschalten" };
-        case HAUPT.reihenfolge: return { titel: "Reihenfolge", unter: parameter.jeElement ? "je Element" : "alle 36" };
+        case HAUPT.elemente: return { titel: "Elemente", unter: STUFEN.elementFolge.text[parameter.elementFolge] };
         case HAUPT.impulse: return { titel: "Impulse ›", unter: "Flash" };
-        case HAUPT.richtung: return { titel: "Richtung", unter: STUFEN.richtung.text[parameter.richtung] };
+        case HAUPT.ordnung: return { titel: "Ordnung", unter: STUFEN.ordnung.text[parameter.ordnung] };
         case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
         case HAUPT.output:
           switch (uebernahme.zustand) {
@@ -432,6 +435,7 @@ export class StreamDeckModul implements Eingabemodul {
         const b = BEREICHE[r.name];
         return { titel: b.kurz, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
       }
+      if (r.art === "schalter") return { titel: SCHALTER[r.name], wert: p[r.name] ? "an" : "aus", anteil: null };
       const st = STUFEN[r.name];
       return { titel: st.name, wert: (st.text as Record<string, string>)[p[r.name]] ?? "", anteil: null };
     });

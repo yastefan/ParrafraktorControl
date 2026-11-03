@@ -15,37 +15,36 @@ const anfang = quelle.indexOf("const weich");
 const ende = quelle.indexOf("function spiegel()");
 if (anfang < 0 || ende < 0) throw new Error("Pattern-Engine in parrafraktor.js nicht gefunden");
 const SPIEGEL_N = 12;
-const erzeuge = new Function("zustand", "SPIEGEL_N", `${quelle.slice(anfang, ende)}\nreturn { pattern, anteilVon };`);
+const erzeuge = new Function("zustand", "SPIEGEL_N", `${quelle.slice(anfang, ende)}\nreturn { pattern };`);
 
-const modi = ["sinus", "saegezahn", "puls", "flyout", "blinder", "funkeln"];
+const modi = ["sinus", "pendelwelle", "wind", "saegezahn", "puls", "flyout", "blinder", "funkeln"];
 const varianten = [
-  { group: 0, jeElement: false, speedBis: 0, symmetrie: "aus", richtung: "vor", faecher: 0, phase: 360 },
-  { group: 5, jeElement: false, speedBis: 7, symmetrie: "innen", richtung: "vor", faecher: 60, phase: 180 },
-  { group: 0, jeElement: true, speedBis: 2, symmetrie: "aussen", richtung: "zurueck", faecher: 0, phase: 360 },
-  { group: 4, jeElement: true, speedBis: 0, symmetrie: "aus", richtung: "pingpong", faecher: 100, phase: 120 },
-  { group: 0, jeElement: false, speedBis: 0, symmetrie: "innen", richtung: "pingpong", faecher: 0, phase: 720 },
-  { group: 3, jeElement: false, speedBis: 5, symmetrie: "aussen", richtung: "zurueck", faecher: 30, phase: 0 },
+  { group: 0, ordnung: "links", elementFolge: "vorneHinten", gegenlauf: false, pingpong: false, faecher: 0, phase: 360 },
+  { group: 5, ordnung: "mitteAussen", elementFolge: "vorneHinten", gegenlauf: true, pingpong: false, faecher: 60, phase: 180 },
+  { group: 0, ordnung: "aussenMitte", elementFolge: "zusammen", gegenlauf: true, pingpong: false, faecher: 0, phase: 360 },
+  { group: 4, ordnung: "rechts", elementFolge: "zusammen", gegenlauf: false, pingpong: true, faecher: 100, phase: 120 },
+  { group: 0, ordnung: "verschachtelt", elementFolge: "hintenVorne", gegenlauf: false, pingpong: true, faecher: 0, phase: 720 },
+  { group: 3, ordnung: "zufall", elementFolge: "vorneHinten", gegenlauf: true, pingpong: false, faecher: 30, phase: 0 },
 ];
 
 const faelle = [];
 for (const modus of modi) {
   for (const v of varianten) {
     const parameter = {
-      modus, offset: 12, amplitude: 55, speedVon: 3, speedBis: v.speedBis, phase: v.phase, group: v.group,
-      symmetrie: v.symmetrie, richtung: v.richtung, faecher: v.faecher, jeElement: v.jeElement, laeuft: true,
+      modus, offset: 12, offsetGetrennt: false, offsetElemente: [0, 0, 0], amplitude: 55, speedVon: 3, speedBis: 0,
+      zyklusS: 45, wellenlaenge: 6, laeuft: true, ...v,
     };
     for (let schritt = 0; schritt < 6; schritt++) {
+      // Umlauf je Spiegel beliebig, aber fest: geprüft wird die Form, nicht der Lauf
       const umlaufVon = schritt * 0.1731;
-      const umlaufBis = schritt * (v.speedBis ? 0.2913 : 0.1731);
-      const zustand = { ...parameter, anordnung: v.jeElement ? "classic" : "reihe", umlaufVon, umlauf: [] };
-      const { pattern, anteilVon } = erzeuge(zustand, SPIEGEL_N);
-      // Umlauf je Spiegel wie nach gleichmäßigem Lauf mit Speed von/bis
-      for (let g = 0; g < 3 * SPIEGEL_N; g++) zustand.umlauf[g] = umlaufVon + (umlaufBis - umlaufVon) * anteilVon(g);
+      const umlauf = Array.from({ length: 3 * SPIEGEL_N }, (_, g) => +(umlaufVon + schritt * 0.0377 * ((g * 7) % 11)).toFixed(6));
+      const zustand = { ...parameter, umlaufVon, umlauf };
+      const { pattern } = erzeuge(zustand, SPIEGEL_N);
       const tilt = [];
       for (let g = 0; g < 3 * SPIEGEL_N; g++) {
         tilt.push(+(zustand.offset + pattern(Math.floor(g / SPIEGEL_N), g % SPIEGEL_N, g)).toFixed(6));
       }
-      faelle.push({ parameter, umlaufVon, umlaufBis, tilt });
+      faelle.push({ parameter, umlaufVon, umlauf, tilt });
     }
   }
 }
