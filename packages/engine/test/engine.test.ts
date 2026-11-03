@@ -20,8 +20,7 @@ describe("Pattern-Engine", () => {
     expect(faelle.length).toBeGreaterThan(0);
     for (const f of faelle) {
       const engine = new Engine();
-      engine.umlaufVon = f.umlaufVon;
-      engine.umlaufBis = f.umlaufBis;
+      engine.setzeUmlauf(f.parameter, f.umlaufVon, f.umlaufBis);
       const tilt = engine.alle(f.parameter).map((s) => s.tilt);
       tilt.forEach((w, g) => expect(w, `${f.parameter.modus} Spiegel ${g}`).toBeCloseTo(f.tilt[g]!, 5));
     }
@@ -33,6 +32,25 @@ describe("Pattern-Engine", () => {
     expect(s[0]).toEqual({ tilt: 20, upm: 2 });
     expect(s[35]).toEqual({ tilt: 20, upm: 6 });
     expect(new Engine().spiegel({ ...p, laeuft: false }, 0).upm).toBe(0);
+  });
+
+  it("läuft nach Speed bis wieder gleich, sodass bei Phase 0 alle Spiegel gleich stehen", () => {
+    const engine = new Engine();
+    const p: Parameter = { ...PARAMETER_VORGABE, phase: 0, speedVon: 5, speedBis: 20 };
+    for (let i = 0; i < 40 * 60; i++) engine.weiter(p, 0.025);   // eine Minute gespreizt
+    const gespreizt = engine.alle(p).map((s) => s.tilt);
+    expect(Math.max(...gespreizt) - Math.min(...gespreizt)).toBeGreaterThan(10);
+    const aus = { ...p, speedBis: 0 };
+    let vorher = engine.alle(aus);
+    for (let i = 0; i < 40 * 3; i++) {
+      engine.weiter(aus, 0.025);
+      const jetzt = engine.alle(aus);
+      // weich: kein Spiegel springt pro Takt mehr als die Bewegung selbst hergibt
+      jetzt.forEach((s, g) => expect(Math.abs(s.tilt - vorher[g]!.tilt)).toBeLessThan(15));
+      vorher = jetzt;
+    }
+    const gleich = engine.alle(aus).map((s) => s.tilt);
+    expect(Math.max(...gleich) - Math.min(...gleich)).toBeLessThan(0.01);
   });
 
   it("läuft nicht weiter, wenn pausiert", () => {

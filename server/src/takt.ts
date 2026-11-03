@@ -6,6 +6,9 @@
 //   aus ──(soll an)──▶ blendetEin ──(anteil 1)──▶ an ──(soll aus)──▶ blendetAus ──(anteil 0)──▶ aus
 // Überblendet wird von bzw. zur Stellung der MA (siehe Mitlesen). Ist die unbekannt oder die
 // Überblendzeit 0, wird direkt umgeschaltet.
+//
+// Preset abrufen: Die Stellung im Moment des Abrufens wird festgehalten und über die
+// Überblendzeit in den neuen Look überblendet, damit die Motoren nicht springen.
 import { Engine, mische, schreibeUniversen, weich, type Stellung } from "@parrafraktor/engine";
 import type { UebernahmeZustand } from "@parrafraktor/protokoll";
 import type { Ausgabe } from "./ausgabe/index.js";
@@ -46,8 +49,15 @@ export class Takt {
   readonly engine = new Engine();
   private timer: NodeJS.Timeout | undefined;
   private letzte = performance.now();
+  // zuletzt gerechnete Stellungen der App und, während einer Überblendung zum Preset, der Ausgangspunkt
+  private app: Stellung[] = [];
+  private blendeVon: Stellung[] | null = null;
 
-  constructor(private readonly steuerung: Steuerung, private readonly quellen: Quellen) {}
+  constructor(private readonly steuerung: Steuerung, private readonly quellen: Quellen) {
+    steuerung.on("blende", () => {
+      this.blendeVon = this.app.length ? this.app : this.engine.alle(steuerung.parameter);
+    });
+  }
 
   starte(): void {
     this.letzte = performance.now();
@@ -68,11 +78,28 @@ export class Takt {
     return this.engine.alle(this.steuerung.parameter);
   }
 
+  // Stellungen des Looks, während einer Überblendung zum Preset gemischt
+  private appStellungen(dt: number): Stellung[] {
+    const ziel = this.engine.alle(this.steuerung.parameter);
+    const blende = this.steuerung.blende;
+    if (!blende || !this.blendeVon) {
+      this.blendeVon = null;
+      this.app = ziel;
+      return ziel;
+    }
+    const dauer = this.steuerung.einstellungen.ueberblendungS;
+    const anteil = dauer > 0 ? Math.min(1, blende.anteil + dt / dauer) : 1;
+    this.app = anteil >= 1 ? ziel : mische(this.blendeVon, ziel, weich(anteil));
+    this.steuerung.meldeBlende(anteil >= 1 ? null : anteil);
+    if (anteil >= 1) this.blendeVon = null;
+    return this.app;
+  }
+
   private schritt(dt: number): void {
     const { parameter, einstellungen, uebernahme } = this.steuerung;
     this.engine.weiter(parameter, dt);
 
-    const ma = this.quellen.mitlesen()?.stellungen() ?? null;
+    const ma = this.quellen.mitlesen()?.stellungen(einstellungen.rotateMaxUpm) ?? null;
     const vorher = uebernahme.zustand;
     const { zustand, anteil } = uebernahmeSchritt(
       vorher, uebernahme.anteil, uebernahme.soll, dt, einstellungen.ueberblendungS, ma !== null,
@@ -81,10 +108,11 @@ export class Takt {
 
     const ausgaben = this.quellen.ausgaben();
     if (zustand === "aus") {
+      this.appStellungen(dt);   // Überblendung zum Preset läuft auch ohne Output weiter
       if (vorher !== "aus") for (const a of ausgaben) a.gibFrei();
       return;
     }
-    const app = this.engine.alle(parameter);
+    const app = this.appStellungen(dt);
     const stellungen = ma && anteil < 1 ? mische(ma, app, weich(anteil)) : app;
     const universen = schreibeUniversen(stellungen, einstellungen.patch, einstellungen.rotateMaxUpm);
     for (const a of ausgaben) a.sende(universen);

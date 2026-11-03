@@ -92,7 +92,7 @@ button, input, select { font: inherit; color: inherit; }
   display: grid; place-items: center; padding: 0 5px;
 }
 
-/* Übernahme: Halten füllt den Knopf von links */
+/* Output (Übernahme): Halten füllt den Knopf von links */
 .halt {
   min-height: 48px;
   min-width: 240px;
@@ -103,7 +103,9 @@ button, input, select { font: inherit; color: inherit; }
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  background: var(--ma);
+  /* Output aus: neutral, die MA fährt */
+  background: var(--flaeche-2);
+  box-shadow: inset 0 0 0 1px var(--linie);
 }
 .halt::before {
   content: "";
@@ -139,6 +141,10 @@ button, input, select { font: inherit; color: inherit; }
 
 .links { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
+.vorschau-rahmen { position: relative; }
+.vorschau-modus { position: absolute; left: 10px; bottom: 10px; }
+.vorschau-modus button { min-height: 34px; }
+
 .vorschau {
   width: 100%;
   aspect-ratio: 4 / 1;
@@ -146,6 +152,8 @@ button, input, select { font: inherit; color: inherit; }
   border-radius: var(--radius);
   display: block;
 }
+/* Vorderansicht: Gesamtbild plus Spalte mit den Elementen einzeln */
+.vorn .vorschau { aspect-ratio: 4 / 3; max-height: 62vh; }
 
 .patterns {
   display: grid;
@@ -307,3 +315,55 @@ input[type="range"]::-moz-range-thumb {
 .module { list-style: none; margin: 0; padding: 0; }
 .module li { display: flex; align-items: baseline; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
 .module .punkt { transform: translateY(-1px); }
+.zahl.schmal input { width: 72px; }
+
+/* ---------- Presets ---------- */
+
+.presets-kopf { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.presets-kopf h2 { font-size: 15px; margin: 0; font-weight: 650; }
+.presets-kopf .leise { font-size: 13px; }
+.presets-kopf .knopf { margin-left: auto; }
+
+.presets-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+}
+.preset {
+  min-height: 56px;
+  border-radius: var(--radius);
+  border: 2px solid var(--linie);
+  background: var(--flaeche);
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  padding: 6px 8px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.preset .nr { font-size: 12px; color: var(--leise); font-variant-numeric: tabular-nums; }
+.preset-titel { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.preset.leer { color: var(--leise); font-weight: 400; border-style: dashed; }
+.preset.aktiv { border-color: var(--akzent); color: var(--akzent); background: #2a2113; }
+.preset:disabled { opacity: 0.4; }
+.halt-preset::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: rgba(240, 160, 48, 0.25);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.halt-preset.haelt::before { transform: scaleX(1); transition: transform var(--dauer) linear; }
+
+.preset.bearbeiten { padding: 0; cursor: default; }
+.preset-name {
+  flex: 1; align-self: stretch; border: none; background: transparent; text-align: left;
+  padding: 6px 8px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer;
+}
+.preset-loeschen {
+  border: none; background: transparent; color: var(--schlecht);
+  font-size: 22px; width: 44px; align-self: stretch; cursor: pointer;
+}

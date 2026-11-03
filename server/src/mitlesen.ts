@@ -34,11 +34,11 @@ export class Mitlesen {
   }
 
   // Stellungen der MA, wenn alle Universen des Patches frisch empfangen wurden, sonst null
-  stellungen(): Stellung[] | null {
+  stellungen(rotateMaxUpm = this.e.rotateMaxUpm): Stellung[] | null {
     const jetzt = Date.now();
     const frisch = new Map<number, Uint8Array>();
     for (const [u, { daten, zeit }] of this.empfangen) if (jetzt - zeit < FRISCH_MS) frisch.set(u, daten);
-    return leseStellungen(frisch, this.e.patch, this.e.rotateMaxUpm);
+    return leseStellungen(frisch, this.e.patch, rotateMaxUpm);
   }
 
   status(): ModulStatus {

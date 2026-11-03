@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { KANAELE_PRO_ELEMENT } from "@parrafraktor/engine";
 import {
-  PROTOKOLL_VERSION, patchWarnung, pruefeEinstellungen,
+  PROTOKOLL_VERSION, patchWarnung, pruefeEinstellungen, pruefePresets,
   type Einstellungen, type ModulStatus, type Netzwerkschnittstelle, type Stand,
 } from "@parrafraktor/protokoll";
 import { erstelleAusgaben, type Ausgabe } from "./ausgabe/index.js";
@@ -35,6 +35,7 @@ const speicher = new Speicher(datenVerzeichnis);
 const steuerung = new Steuerung(
   parameterAus(speicher.lies("parameter.json")),
   pruefeEinstellungen(speicher.lies("einstellungen.json")),
+  pruefePresets(speicher.lies("presets.json")),
 );
 
 // ---------- Ausgaben und Mitlesen: bei jeder Änderung der Einstellungen neu ----------
@@ -101,7 +102,10 @@ function stand(): Stand {
     einstellungen: e,
     module,
     netzwerk: netzwerk(),
-    takt: { umlaufVon: takt.engine.umlaufVon, umlaufBis: takt.engine.umlaufBis },
+    takt: { umlaufVon: takt.engine.umlaufVon, umlauf: Array.from(takt.engine.umlauf) },
+    presets: [...steuerung.presets],
+    letztesPreset: steuerung.letztesPreset,
+    blende: steuerung.blende ? { ...steuerung.blende } : null,
     warnungen,
   };
 }
@@ -109,8 +113,16 @@ function stand(): Stand {
 // ---------- Start ----------
 
 steuerung.on("parameter", (p) => speicher.schreibeSpaeter("parameter.json", p, 2000));
+steuerung.on("presets", (p) => speicher.schreibeSpaeter("presets.json", p));
+// Ausgaben nur neu starten, wenn sich Netz oder Patch ändern. Ein Neustart gibt bei sACN kurz
+// an die MA ab – das darf nicht passieren, nur weil jemand die Überblendung oder die Vorschau verstellt.
+const ausgabeTeil = (e: Einstellungen) => JSON.stringify([e.artnet, e.sacn, e.rs485, e.patch]);
+let letzteAusgabe = ausgabeTeil(steuerung.einstellungen);
 steuerung.on("einstellungen", (e) => {
   speicher.schreibeSpaeter("einstellungen.json", e);
+  const teil = ausgabeTeil(e);
+  if (teil === letzteAusgabe) return;
+  letzteAusgabe = teil;
   starteAusgaben(e);
 });
 

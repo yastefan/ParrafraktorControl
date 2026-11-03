@@ -33,20 +33,24 @@ grandMA3-Fixture „Gobbesso Parrafraktor“, Mode Standard, **37 Kanäle je Ele
 ## Entscheidungen
 
 - **Ausgabe**: Art-Net (Vorgabe, auf Wunsch des Users) und sACN (Priority 150, MA 100, Stream Terminated beim Abgeben) als umschaltbare Module; beide Pakete selbst gebaut (`node:dgram`), keine Bibliothek. Art-Net hat keine Priority – sauberes Zurückfallen auf die MA nur mit sACN.
-- **Übernahme** startet nach jedem Serverneustart aus. Am Stream Deck und im Client nur durch **Halten** (600 ms).
+- **Output** (intern „Übernahme“) startet nach jedem Serverneustart aus. Am Stream Deck und im Client nur durch **Halten** (600 ms). Am Stream Deck nur im Hauptmenü (Wunsch des Users).
+- **Stream Deck**: Hauptmenü mit Untermenüs Pattern und Presets, dort unten links Zurück, unten rechts Seite (`belegung.ts`).
+- **Presets** (`protokoll/presets.ts`): 12 Look-Presets (Parameter ohne `laeuft`), in `daten/presets.json`. Abrufen blendet über `ueberblendungS` von der festgehaltenen aktuellen Stellung in den neuen Look (Takt `appStellungen`, Vorschau `blenden`).
 - **Überblendung** (Einstellung, 0–10 s, Vorgabe 2 s) von/zur Stellung der MA, die mitgelesen wird; ohne Mitlesen wird gesprungen.
 - **TiltRotate**: `rotateMaxUpm` = U/min bei DMX 0/255, Platzhalter 10 (bewusst langsam), Regler im Einstellungsmenü.
+- **Vorschau-Aufbau** (`einstellungen.aufbau`): nebeneinander (Draufsicht) oder hintereinander mit Drehung je Element (Vorderansicht mit Modus Spiegel/Licht, Modus pro Gerät in `localStorage`). Nur Darstellung, Reihenfolge bleibt eigener Parameter.
+- **Ausgaben neu starten** nur bei Änderung von Art-Net/sACN/RS485/Patch (sonst gäbe sACN kurz an die MA ab).
 - **IP-Konfiguration** im Einstellungsmenü (Ziel-IP, Netzwerkkarte je Ausgabe); die IP des Rechners selbst stellt die App nicht ein.
-- **Pattern-Engine** wie Simulation; Fokus entfällt. Rotation läuft über TiltRotate, Tilt bleibt auf Offset.
+- **Pattern-Engine** wie Simulation; Fokus entfällt. Bewusste Abweichung: Umlauf je Spiegel statt zwei Zählern (von/bis). Sind alle Speeds gleich, laufen die Spiegel weich wieder zusammen (`GLEICHLAUF_S`). In der Simulation bleibt nach „Speed bis“ ein fester Versatz zurück (Fehler dort). Rotation läuft über TiltRotate, Tilt bleibt auf Offset.
 - **Client**: PWA, Service Worker (`registerType: "prompt"`, kein Auto-Reload in der Show). Server schickt immer den vollständigen Stand (bei Änderung, sonst jede Sekunde) – kein Nachholen nach Abbruch nötig. Offline-Cache auf dem iPad braucht HTTPS (mkcert, siehe README).
 - Stream Deck: `@elgato-stream-deck/node` + `@napi-rs/canvas` als `optionalDependencies`, dynamisch geladen; fehlen sie, läuft der Server ohne.
 
 ## Quellen
 
-- Projektbeschreibung: `/Users/stefanschmidt/Documents/FreudundLight/WebsiteKlaus/src/projekte/Parrafraktor/index.md`
-- Simulation: `/Users/stefanschmidt/Documents/FreudundLight/WebsiteKlaus/src/js/parrafraktor.js` (`auswahl`, `laufzeit`, `pattern`, `schleife`)
+- Projektbeschreibung: `/Users/stefanschmidt/Projects/WebsiteKlaus/src/projekte/Parrafraktor/index.md`
+- Simulation: `/Users/stefanschmidt/Projects/WebsiteKlaus/src/js/parrafraktor.js` (`auswahl`, `laufzeit`, `pattern`, `schleife`)
 - MA-Fixture: `/Users/stefanschmidt/Downloads/Gobbesso@Parrafraktor@0001.xml`
-- ESP32-Remote (gleiche Engine in C++, sACN, Übernahme): `/Users/stefanschmidt/Documents/Projects/00-FreudundLight/40C3/Parrafraktor-Remote/`
+- ESP32-Remote (gleiche Engine in C++, sACN, Übernahme): `/Users/stefanschmidt/Projects/Parrafraktor-Remote/`
 
 ## Offen
 
