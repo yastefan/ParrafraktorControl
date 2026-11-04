@@ -7,6 +7,9 @@
 //                   hintereinander, jedes in seiner Ebene gedreht. Dazu rechts jedes Element einzeln.
 //                   Modus "spiegel" zeigt die Spiegel, Modus "licht" nur das Licht, das von hinten
 //                   durch alle drei Lagen kommt – das Muster, das das Publikum sieht.
+// Dazu, unabhängig vom Aufbau, die Ansicht "phaser" wie der Phaser-Editor der grandMA3:
+// ein Diagramm mit jedem Spiegel als Punkt (waagrecht seine Lage, senkrecht sein Winkel),
+// dahinter die Spur der letzten Bewegung.
 import {
   ELEMENTE, Engine, SPIEGEL_N, weich, wendeImpulseAn,
   type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
@@ -14,12 +17,14 @@ import {
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
 
 export type VorderModus = "spiegel" | "licht";
+export type Ansicht = "bild" | "phaser";
 
 export interface VorschauDaten {
   parameter: Parameter;
   live: boolean;
   aufbau: Aufbau;
   modus: VorderModus;
+  ansicht: Ansicht;
   blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
   blendeDauer: number;                              // Sekunden
   impuls: ImpulsEinstellung;
@@ -53,6 +58,20 @@ const nachziehen = (lokal: number, server: number): number =>
 
 const grad = (g: number): number => (g * Math.PI) / 180;
 
+// Winkel in −180 … +180
+const umbrechen = (a: number): number => ((((a + 180) % 360) + 360) % 360) - 180;
+
+const SPUR_N = 20;
+// Neonfarben wie in der Oberfläche (RGB-Tripel für Transparenz)
+const PHASER = {
+  punkt: "0,229,255",
+  live: "255,31,79",
+  raster: "rgba(140,136,168,0.12)",
+  null: "rgba(140,136,168,0.4)",
+  rahmen: "rgba(140,136,168,0.18)",
+  text: "rgba(140,136,168,0.9)",
+};
+
 export class Vorschau {
   private engine = new Engine();
   private drehung = new Float64Array(ELEMENTE * SPIEGEL_N);   // Winkel bei Rotation (TiltRotate)
@@ -62,6 +81,10 @@ export class Vorschau {
   // Überblendung zu einem Preset: Ausgangsstellung und eigener, flüssig weiterlaufender Anteil
   private letzteWinkel: number[] = [];
   private blende: { id: number; von: number[]; anteil: number } | null = null;
+  // Phaser: Spur der letzten Winkel (älteste zuerst) und Höhe der Achse, weich nachgezogen
+  private spur: number[][] = [];
+  private spurZeit = 0;
+  private bereich = 60;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -139,8 +162,104 @@ export class Vorschau {
     if (!ctx || !breite || !hoehe) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, breite, hoehe);
-    if (d.aufbau.anordnung === "hintereinander") this.vorderansicht(ctx, breite, hoehe, dpr, d, winkel);
+    if (d.ansicht === "phaser") this.phaser(ctx, breite, hoehe, d, winkel);
+    else if (d.aufbau.anordnung === "hintereinander") this.vorderansicht(ctx, breite, hoehe, dpr, d, winkel);
     else this.draufsicht(ctx, breite, hoehe, d.live, winkel);
+  }
+
+  // ---------- Phaser ----------
+
+  private phaser(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, d: VorschauDaten, winkel: number[]): void {
+    const w = winkel.map(umbrechen);
+    // Spur: etwa alle 30 ms ein Bild, 0,6 s lang
+    const jetzt = performance.now();
+    if (jetzt - this.spurZeit > 30) {
+      this.spurZeit = jetzt;
+      this.spur.push(w);
+      if (this.spur.length > SPUR_N) this.spur.shift();
+    }
+    // Achse: so hoch wie nötig in 30°-Schritten, weich nachgezogen
+    const groesster = Math.max(...this.spur.flat().map(Math.abs), 1);
+    const ziel = Math.min(180, Math.max(30, Math.ceil((groesster + 3) / 30) * 30));
+    this.bereich += (ziel - this.bereich) * 0.08;
+    const r = this.bereich;
+
+    const links = 40, rechts = 8, oben = 44, unten = 20, luecke = 10;   // oben Platz für den Umschalter
+    const pb = (breite - links - rechts - (ELEMENTE - 1) * luecke) / ELEMENTE;
+    const ph = hoehe - oben - unten;
+    const py = (a: number) => oben + ph / 2 - (a / r) * (ph / 2);
+    const px = (k: number, i: number) => links + k * (pb + luecke) + ((i + 0.5) / SPIEGEL_N) * pb;
+    const farbe = d.live ? PHASER.live : PHASER.punkt;
+
+    ctx.fillStyle = FARBE.grund;
+    ctx.fillRect(0, 0, breite, hoehe);
+    // Raster und Beschriftung
+    ctx.font = "600 10px -apple-system, sans-serif";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "middle";
+    const schritt = r > 120 ? 90 : r > 60 ? 45 : 15;
+    for (let a = -Math.floor(r / schritt) * schritt; a <= r + 0.01; a += schritt) {
+      const y = py(a);
+      ctx.strokeStyle = a === 0 ? PHASER.null : PHASER.raster;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(links, y);
+      ctx.lineTo(breite - rechts, y);
+      ctx.stroke();
+      ctx.fillStyle = PHASER.text;
+      ctx.fillText(`${a > 0 ? "+" : ""}${a}°`, links - 6, y);
+    }
+    for (let k = 0; k < ELEMENTE; k++) {
+      const x0 = links + k * (pb + luecke);
+      ctx.strokeStyle = PHASER.rahmen;
+      ctx.strokeRect(x0 + 0.5, oben + 0.5, pb - 1, ph - 1);
+      ctx.fillStyle = PHASER.text;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(`Element ${k + 1}`, x0 + pb / 2, oben + ph + 5);
+    }
+
+    // Spur: ältere Punkte blasser und kleiner
+    const n = this.spur.length;
+    this.spur.forEach((bild, j) => {
+      const alter = (j + 1) / n;
+      ctx.fillStyle = `rgba(${farbe},${0.25 * alter * alter})`;
+      bild.forEach((a, g) => {
+        const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
+        ctx.beginPath();
+        ctx.arc(px(k, i), py(a), 1.5 + 1.5 * alter, 0, 2 * Math.PI);
+        ctx.fill();
+      });
+    });
+
+    // Verlauf je Element, bei einem Umbruch (Rotation über ±180°) unterbrochen
+    ctx.strokeStyle = `rgba(${farbe},0.55)`;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = "round";
+    for (let k = 0; k < ELEMENTE; k++) {
+      ctx.beginPath();
+      for (let i = 0; i < SPIEGEL_N; i++) {
+        const a = w[k * SPIEGEL_N + i]!;
+        const vorher = i > 0 ? w[k * SPIEGEL_N + i - 1]! : a;
+        if (i === 0 || Math.abs(a - vorher) > 180) ctx.moveTo(px(k, i), py(a));
+        else ctx.lineTo(px(k, i), py(a));
+      }
+      ctx.stroke();
+    }
+
+    // Die Spiegel selbst: Punkt mit Schein
+    for (let g = 0; g < w.length; g++) {
+      const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
+      const x = px(k, i), y = py(w[g]!);
+      ctx.fillStyle = `rgba(${farbe},0.25)`;
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.fillStyle = `rgb(${farbe})`;
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
   }
 
   // ---------- Draufsicht ----------

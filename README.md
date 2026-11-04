@@ -203,6 +203,8 @@ Die Vorschau im Client rechnet mit derselben Engine wie der Server. Wie sie auss
 
 Der Aufbau betrifft nur die Vorschau, nicht die Ausgabe an die Spiegel.
 
+Oben rechts schaltet man zwischen **Bild** und **Phaser** um. Der Phaser zeigt wie der Phaser-Editor der grandMA3 jeden Spiegel als Punkt: waagrecht seine Lage (Element 1–3, je 12 Spiegel), senkrecht seinen Winkel. Dahinter zieht eine kurze Spur die letzte Bewegung nach, die Achse wächst mit dem größten Ausschlag. Auch diese Wahl merkt sich jedes Gerät.
+
 ## Presets
 
 12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.

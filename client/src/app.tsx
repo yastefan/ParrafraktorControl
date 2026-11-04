@@ -6,7 +6,7 @@ import { Kopf } from "./teile/kopf.js";
 import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
 import { Regler } from "./teile/regler.js";
-import { Vorschau, type VorderModus } from "./vorschau.js";
+import { Vorschau, type Ansicht, type VorderModus } from "./vorschau.js";
 
 export function App() {
   const l = useLaden();
@@ -21,9 +21,9 @@ export function App() {
       <main class="haupt">
         <section class="links">
           <VorschauFlaeche />
-          {l.stand && <Impulse />}
           {p && <Patterns modus={p.modus} />}
           <Presets />
+          {l.stand && <Impulse />}
         </section>
         <section class="rechts">{p && <Regler parameter={p} />}</section>
       </main>
@@ -40,22 +40,29 @@ function Hinweis() {
   return <div class={`hinweis ${l.verbindung}`}>{text}</div>;
 }
 
-// Spiegel oder Licht in der Vorderansicht: nur für dieses Gerät, deshalb im Browser gemerkt
+// Ansicht und Spiegel/Licht in der Vorderansicht: nur für dieses Gerät, deshalb im Browser gemerkt
 const MODUS_SCHLUESSEL = "parrafraktor.vorderModus";
-function leseModus(): VorderModus {
+const ANSICHT_SCHLUESSEL = "parrafraktor.ansicht";
+function lese(schluessel: string): string | null {
   try {
-    return localStorage.getItem(MODUS_SCHLUESSEL) === "licht" ? "licht" : "spiegel";
+    return localStorage.getItem(schluessel);
   } catch {
-    return "spiegel";
+    return null;
   }
+}
+function merke(schluessel: string, wert: string): void {
+  try { localStorage.setItem(schluessel, wert); } catch { /* ohne Speicher eben nur für jetzt */ }
 }
 
 function VorschauFlaeche() {
   const l = useLaden();
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [modus, setModus] = useState<VorderModus>(leseModus);
+  const [modus, setModus] = useState<VorderModus>(() => (lese(MODUS_SCHLUESSEL) === "licht" ? "licht" : "spiegel"));
+  const [ansicht, setAnsicht] = useState<Ansicht>(() => (lese(ANSICHT_SCHLUESSEL) === "phaser" ? "phaser" : "bild"));
   const modusRef = useRef(modus);
   modusRef.current = modus;
+  const ansichtRef = useRef(ansicht);
+  ansichtRef.current = ansicht;
   useEffect(() => {
     const v = new Vorschau(canvas.current!, () => {
       const parameter = laden.parameter;
@@ -65,6 +72,7 @@ function VorschauFlaeche() {
         live: laden.stand.uebernahme.zustand === "an",
         aufbau: laden.stand.einstellungen.aufbau,
         modus: modusRef.current,
+        ansicht: ansichtRef.current,
         blende: laden.stand.blende,
         blendeDauer: laden.stand.einstellungen.ueberblendungS,
         impuls: laden.stand.impuls,
@@ -77,19 +85,27 @@ function VorschauFlaeche() {
     const ab = laden.abonniere(() => { if (laden.stand) v.gleiche(laden.stand.takt); });
     return () => { ab(); v.stoppe(); };
   }, []);
-  const vorn = l.stand?.einstellungen.aufbau.anordnung === "hintereinander";
-  const waehle = (m: VorderModus) => {
-    setModus(m);
-    try { localStorage.setItem(MODUS_SCHLUESSEL, m); } catch { /* ohne Speicher eben nur für jetzt */ }
-  };
+  const phaser = ansicht === "phaser";
+  const vorn = !phaser && l.stand?.einstellungen.aufbau.anordnung === "hintereinander";
+  const waehle = (m: VorderModus) => { setModus(m); merke(MODUS_SCHLUESSEL, m); };
+  const zeige = (a: Ansicht) => { setAnsicht(a); merke(ANSICHT_SCHLUESSEL, a); };
   return (
-    <div class={`vorschau-rahmen ${vorn ? "vorn" : ""}`}>
+    <div class={`vorschau-rahmen ${vorn ? "vorn" : ""} ${phaser ? "phaser" : ""}`}>
       <canvas
         ref={canvas}
         class="vorschau"
         role="img"
-        aria-label={vorn ? "Vorschau der drei Elemente von vorn" : "Vorschau der 36 Spiegel von oben"}
+        aria-label={phaser
+          ? "Winkel der 36 Spiegel als Diagramm"
+          : vorn ? "Vorschau der drei Elemente von vorn" : "Vorschau der 36 Spiegel von oben"}
       />
+      <div class="umschalter vorschau-ansicht">
+        {(["bild", "phaser"] as const).map((a) => (
+          <button type="button" key={a} class={ansicht === a ? "aktiv" : ""} onClick={() => zeige(a)}>
+            {a === "bild" ? "Bild" : "Phaser"}
+          </button>
+        ))}
+      </div>
       {vorn && (
         <div class="umschalter vorschau-modus">
           {(["spiegel", "licht"] as const).map((m) => (

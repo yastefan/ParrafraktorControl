@@ -157,7 +157,9 @@ button, input, select { font: inherit; color: inherit; }
 
 .vorschau-rahmen { position: relative; }
 .vorschau-modus { position: absolute; left: 10px; bottom: 10px; }
-.vorschau-modus button { min-height: 34px; }
+.vorschau-modus button, .vorschau-ansicht button { min-height: 30px; padding: 0 10px; font-size: 13px; }
+.vorschau-ansicht { position: absolute; right: 8px; top: 8px; opacity: 0.85; }
+.phaser .vorschau { aspect-ratio: 2 / 1; max-height: 50vh; }
 
 .vorschau {
   width: 100%;
@@ -173,31 +175,34 @@ button, input, select { font: inherit; color: inherit; }
 
 .impulse {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 12px;
   background: var(--flaeche);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: 10px 12px;
 }
 @media (max-width: 600px) { .impulse { grid-template-columns: minmax(0, 1fr); } }
-.arten { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.impulse-titel { grid-column: 1 / -1; font-size: 15px; margin: 0; font-weight: 650; color: var(--akzent); }
+.arten { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .art {
-  min-height: 64px;
-  border-radius: var(--radius);
+  min-height: 44px;
+  padding: 0 4px;
+  border-radius: 10px;
   border: 2px solid var(--linie);
   background: var(--flaeche-2);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 13px;
+  white-space: nowrap;
   cursor: pointer;
 }
 .art.laeuft { border-color: var(--akzent); box-shadow: 0 0 12px -3px var(--akzent); }
 .art.aktiv { background: var(--akzent); border-color: var(--akzent); color: #07060c; box-shadow: 0 0 18px -4px var(--akzent); }
 .art:disabled { opacity: 0.4; }
 
-.impulse-spielen { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.impulse-spielen { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .streifen {
   position: relative;
-  height: 72px;
+  height: 56px;
   border-radius: var(--radius);
   border: 2px dashed color-mix(in srgb, var(--akzent) 45%, var(--linie));
   background: var(--grund);
@@ -217,9 +222,11 @@ button, input, select { font: inherit; color: inherit; }
 }
 @keyframes streifen-blitz { from { opacity: 1; transform: scaleX(1); } to { opacity: 0; transform: scaleX(3); } }
 
-.huelle-feld { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.huelle-feld .zeile, .impulse-spielen .zeile { padding: 4px 0; border: none; }
-.huelle-feld .umschalter button { flex: 1; padding: 0 6px; font-size: 14px; }
+.huelle-feld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.impulse .zeile { padding: 0; border: none; font-size: 14px; }
+.impulse input[type="range"] { height: 28px; }
+.huelle-feld .umschalter { flex-wrap: wrap; }
+.huelle-feld .umschalter button { flex: 1 0 auto; padding: 0 8px; font-size: 13px; min-height: 32px; white-space: nowrap; }
 .huelle {
   width: 100%; height: auto; display: block;
   background: var(--grund); border-radius: 10px;
@@ -232,7 +239,7 @@ button, input, select { font: inherit; color: inherit; }
 .huelle-kurve { fill: color-mix(in srgb, var(--akzent) 14%, transparent); stroke: var(--akzent); stroke-width: 2; stroke-linejoin: round; }
 .huelle-griff { fill: var(--text); }
 .huelle-marke { fill: #fff; stroke: var(--akzent); stroke-width: 2; pointer-events: none; transition: opacity 0.2s; }
-.huelle-werte { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--leise); }
+.huelle-werte { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--leise); }
 .huelle-werte b { color: var(--text); font-variant-numeric: tabular-nums; }
 
 .patterns {
