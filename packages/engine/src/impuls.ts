@@ -11,8 +11,8 @@
 // Ausbreitung: Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich).
 // Breite: Beim Tippen wirkt der Impuls nur auf so viele Spiegel um den Startpunkt (0 = alle);
 // Wischen läuft immer durch das ganze Element.
-// Symmetrisch: Der Impuls startet zugleich am gespiegelten Punkt, die rechte Hälfte bewegt sich
-// gespiegelt (wie Gegenlauf).
+// Symmetrisch: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt
+// (wie Gegenlauf): Flash-Ziel und Ausschlag mit umgekehrtem Vorzeichen.
 // Element-Folge: die Elemente nacheinander, mit Element-Versatz.
 // Server (Takt) und Client (Vorschau) rechnen damit gleich.
 import { ELEMENTE, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
@@ -37,7 +37,7 @@ export interface ImpulsEinstellung {
   elementVersatzS: number;   // Zeit zwischen zwei Elementen
   ausbreitungS: number;      // Zeit, bis der Impuls ein Element durchquert hat (0 = alle Spiegel zugleich)
   breite: number;            // Spiegel um den Startpunkt beim Tippen, 0 = alle
-  symmetrisch: boolean;      // zugleich vom gespiegelten Punkt aus, rechte Hälfte gespiegelt
+  symmetrisch: boolean;      // zugleich vom gespiegelten Punkt aus, linke Hälfte gespiegelt
 }
 
 export const IMPULS_VORGABE: Readonly<ImpulsEinstellung> = {
@@ -103,8 +103,8 @@ export function breitenFaktor(e: ImpulsEinstellung, i: Pick<LaufenderImpuls, "ur
   return weich(i.breite / 2 + 0.5 - spiegel);
 }
 
-// Gespiegelte Hälfte bei Symmetrie: rechts bewegen sich Stoß und Glitzern umgekehrt
-const seite = (e: ImpulsEinstellung, s: number): number => (e.symmetrisch && s >= SPIEGEL_N / 2 ? -1 : 1);
+// Gespiegelte Hälfte bei Symmetrie: links wie beim Gegenlauf
+const seite = (e: ImpulsEinstellung, s: number): number => (e.symmetrisch && s < SPIEGEL_N / 2 ? -1 : 1);
 
 // ---------- Stoß ----------
 
@@ -200,7 +200,7 @@ export function wendeImpulseAn(
           const vorbild = seite(e, s) < 0 ? k * SPIEGEL_N + SPIEGEL_N - 1 - s : g;
           st.tilt += winkel.ausschlag * f * seite(e, s) * glitzerWert(i.id, vorbild, t);
         } else {
-          st.tilt += (winkel[i.art] - st.tilt) * f;
+          st.tilt += (seite(e, s) * winkel[i.art] - st.tilt) * f;
           st.upm *= 1 - f;
         }
       }

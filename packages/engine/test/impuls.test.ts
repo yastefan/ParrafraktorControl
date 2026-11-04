@@ -60,7 +60,7 @@ describe("Impulse anwenden", () => {
   it("Symmetrisch: startet auch am gespiegelten Punkt, rechts gespiegelt", () => {
     const ee: ImpulsEinstellung = { ...e, symmetrisch: true, ausbreitungS: 4.4 };
     const t = tilts(ee, { alterS: 1, ursprung: 0 });
-    expect(t[0]).toBe(90);
+    expect(t[0]).toBe(-90);   // links gespiegelt wie beim Gegenlauf
     expect(t[11]).toBe(90);
     expect(t[5]).toBe(10);
     for (const art of ["stoss", "glitzern"] as const) {

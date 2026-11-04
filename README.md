@@ -170,8 +170,8 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 | Regler | Wirkung |
 |---|---|
 | Ordnung | innerhalb jedes Elements: links → rechts, rechts → links, Mitte → außen, außen → Mitte, verschachtelt (erst gerade, dann ungerade), Zufall (feste Mischung) |
-| Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter) |
-| Gegenlauf | linke Hälfte jedes Elements dreht gespiegelt |
+| Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter), Mitte → außen (erst das mittlere, dann beide äußeren; das erste ist das Spiegelbild des dritten – mit Gegenlauf und Ordnung Mitte → außen ist die ganze Installation symmetrisch) |
+| Gegenlauf | linke Hälfte jedes Elements gespiegelt, auch der Offset (Offset 30° = links −30°, rechts +30°) |
 | Ping-Pong | Muster läuft hin und wieder zurück |
 
 Ältere Dateien werden beim Laden umgewandelt: Symmetrie von innen/außen = Ordnung Mitte → außen bzw. außen → Mitte mit Gegenlauf, Richtung zurück = rechts → links, Reihenfolge „je Element“ = Elemente zusammen, „alle 36“ = vorn → hinten. Symmetrie über alle 36 Spiegel gibt es nicht mehr, die Mitte ist jetzt die Mitte jedes Elements. Dreieck und Rechteck sowie die früheren Formen Sägezahn, Puls, Flyout, Blinder und Funkeln werden zum Sinus (ein Flyout spielt man jetzt als Impuls mit Ausbreitung).
@@ -188,7 +188,7 @@ Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben
 - **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn.
 - **Stärke**: wie weit zum Ziel bzw. wie viel vom Ausschlag (auch als Griff in der Hüllkurve).
 - **Breite**: Getippt wirkt der Impuls nur auf so viele Spiegel um den Startpunkt („alle“ = ganzes Element). Gewischt läuft er immer durch das ganze Element.
-- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt; Stoß und Glitzern bewegen die rechte Hälfte gespiegelt (wie Gegenlauf).
+- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt wie beim Gegenlauf (Flash-Winkel und Ausschlag umgekehrt).
 - **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich (der Stoß läuft dann in 0,8 s durch).
 - Mehrere Impulse dürfen sich überlagern; der zuletzt gestartete liegt oben.
 
