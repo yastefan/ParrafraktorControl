@@ -161,8 +161,8 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 | Offset | Grundstellung. Mit dem Schloss 🔒/🔓 je Element einstellbar |
 | Amplitude | Ausschlag |
 | Speed von/bis | Tempo in BPM (Durchläufe pro Minute, 0–10); mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
-| Wellen | Versatz über die Spiegel (Phase der grandMA3): 0 = alle gleich, 1 Welle über alle, bis 2 Wellen |
-| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Wellen = 1 und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich |
+| Phase | Versatz über die Spiegel wie in der grandMA3: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
+| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Phase 360° und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich |
 | Group | Muster wiederholt sich alle n Spiegel |
 | Fächer | Amplitude wächst entlang der Ordnung, bei Mitte/außen zum Rand hin |
 
@@ -208,7 +208,7 @@ Oben rechts schaltet man zwischen **Simple** (die Ansicht nach Aufbau, siehe obe
 
 ## Presets
 
-12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Wellen, Breite, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
+12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Breite, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
 
 ## Ausgabe und Output
 

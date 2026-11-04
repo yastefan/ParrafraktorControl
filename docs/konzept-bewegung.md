@@ -13,7 +13,7 @@ Sägezahn sind eigentlich Ereignisse, die in eine Schleife gepackt wurden.
 
 | Ebene | Inhalt | Regler |
 |---|---|---|
-| **Grundbewegung** | Ruhe, Welle, Pendelwelle, Wind, Drehen | Offset (je Element möglich), Amplitude, Speed, Wellen (Phase), Breite |
+| **Grundbewegung** | Ruhe, Welle, Pendelwelle, Wind, Drehen | Offset (je Element möglich), Amplitude, Speed, Phase, Breite |
 | **Verteilung** | Ordnung, Gegenlauf, Gruppe, Fächer, Element-Folge | gilt für beide anderen Ebenen |
 | **Impulse** | Flash auf, Flash zu, Stoß, Flyout, Glitzern | Hüllkurve A/H/R, Stärke, Element-Versatz |
 

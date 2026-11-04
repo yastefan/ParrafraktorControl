@@ -16,21 +16,14 @@ export interface Bereich {
   schritt: number;     // kleinster Schritt, auch pro Rastung am Drehregler
   einheit: string;
   nullText?: string;   // Anzeige für 0, z. B. "aus"
-  anzeige?: (wert: number) => string;   // eigene Anzeige statt Zahl und Einheit
 }
-
-// Phase: 360° = eine Welle über die Auswahl, deshalb als Anzahl Wellen gezeigt
-const wellen = (grad: number): string => {
-  const n = +(grad / 360).toFixed(2);
-  return `${n} ${n === 1 ? "Welle" : "Wellen"}`;
-};
 
 export const BEREICHE: Record<ZahlParameter, Bereich> = {
   offset: { name: "Offset", kurz: "Offset", min: -180, max: 180, schritt: 1, einheit: "°" },
   amplitude: { name: "Amplitude", kurz: "Ampl.", min: 0, max: 180, schritt: 1, einheit: "°" },
   speedVon: { name: "Speed von", kurz: "Speed von", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "aus" },
   speedBis: { name: "Speed bis", kurz: "Speed bis", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "aus" },
-  phase: { name: "Wellen", kurz: "Wellen", min: 0, max: 720, schritt: 1, einheit: "°", nullText: "alle gleich", anzeige: wellen },
+  phase: { name: "Phase", kurz: "Phase", min: 0, max: 720, schritt: 1, einheit: "°" },
   breite: { name: "Breite", kurz: "Breite", min: 5, max: 100, schritt: 1, einheit: " %" },
   group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "aus" },
   faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
@@ -76,7 +69,6 @@ export function begrenze(name: ZahlParameter, wert: number): number {
 export function zeigeWert(name: ZahlParameter, wert: number): string {
   const b = BEREICHE[name];
   if (wert === 0 && b.nullText) return b.nullText;
-  if (b.anzeige) return b.anzeige(wert);
   const text = b.schritt < 1 ? wert.toFixed(1) : String(Math.round(wert));
   return text + b.einheit;
 }
