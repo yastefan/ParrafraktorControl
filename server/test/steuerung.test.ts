@@ -110,5 +110,7 @@ describe("Stream Deck: Reglerseiten", () => {
     expect(namen("pendelwelle")[0]).toEqual(["Bewegung", ["offset", "amplitude", "speedVon", "schwuenge"]]);
     expect(namen("wind").map(([n]) => n)).toEqual(["Bewegung", "Verteilung", "Fein"]);
     expect(reglerSeiten("sinus").every((s) => s.regler.length <= 4)).toBe(true);
+    // Sinus: die Breite gleich auf der zweiten Bewegungsseite
+    expect(namen("sinus")[1]).toEqual(["Bewegung 2", ["breite", "speedBis"]]);
   });
 });
