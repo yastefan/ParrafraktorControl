@@ -9,7 +9,10 @@
 //                   durch alle drei Lagen kommt – das Muster, das das Publikum sieht.
 // Dazu, unabhängig vom Aufbau, die Ansicht "phaser" wie der Phaser-Editor der grandMA3:
 // ein Diagramm mit jedem Spiegel als Punkt (waagrecht seine Lage, senkrecht sein Winkel),
-// dahinter die Spur der letzten Bewegung.
+// dahinter die Spur der letzten Bewegung; unter jedem Element klein seine Vorderansicht.
+// Und die Ansicht "reflexion" wie die Website-Simulation, nur einfacher: Draufsicht auf den
+// Raum, die Elemente nebeneinander, ein fester Scheinwerfer davor; die Strahlen werden an den
+// Spiegeln reflektiert und treffen auf die Wände.
 import {
   ELEMENTE, Engine, SPIEGEL_N, weich, wendeImpulseAn,
   type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
@@ -17,7 +20,7 @@ import {
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
 
 export type VorderModus = "spiegel" | "licht";
-export type Ansicht = "bild" | "phaser";
+export type Ansicht = "bild" | "phaser" | "reflexion";
 
 export interface VorschauDaten {
   parameter: Parameter;
@@ -62,6 +65,94 @@ const grad = (g: number): number => (g * Math.PI) / 180;
 const umbrechen = (a: number): number => ((((a + 180) % 360) + 360) % 360) - 180;
 
 const SPUR_N = 20;
+
+// ---------- Reflexion: Raum, Scheinwerfer, Strahlen (wie die Website-Simulation, fest) ----------
+
+interface Punkt { x: number; y: number }
+interface RaumSpiegel { a: Punkt; b: Punkt; n: Punkt }   // Enden und Normale der Vorderseite
+
+const RAUM = { b: 10, t: 6 };                  // Meter, die Rückwand oben
+const ELEMENT_Y = 1.8;                         // Abstand der Elemente zur Rückwand
+const LAMPE = { x: RAUM.b / 2, y: 5.3 };       // ein Scheinwerfer mittig vor den Elementen
+const STRAHLEN = 240;
+const MAX_REFLEXIONEN = 3;
+
+// Die 36 Spiegel im Raum: Elemente nebeneinander, Vorderseite zum Scheinwerfer
+export function raumSpiegel(winkel: number[]): RaumSpiegel[] {
+  const gesamt = ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND;
+  const liste: RaumSpiegel[] = [];
+  for (let k = 0; k < ELEMENTE; k++) {
+    const x0 = (RAUM.b - gesamt) / 2 + k * (ELEMENT_B + ABSTAND);
+    for (let i = 0; i < SPIEGEL_N; i++) {
+      const a = grad(winkel[k * SPIEGEL_N + i]!);
+      const p = { x: x0 + (i + 0.5) * RASTER, y: ELEMENT_Y };
+      const u = { x: Math.cos(a), y: Math.sin(a) };
+      liste.push({
+        a: { x: p.x - (u.x * SPIEGEL_B) / 2, y: p.y - (u.y * SPIEGEL_B) / 2 },
+        b: { x: p.x + (u.x * SPIEGEL_B) / 2, y: p.y + (u.y * SPIEGEL_B) / 2 },
+        n: { x: -u.y, y: u.x },
+      });
+    }
+  }
+  return liste;
+}
+
+// Schnitt Strahl (o + t·d) mit Strecke a–b; liefert t oder null
+function schnitt(o: Punkt, d: Punkt, a: Punkt, b: Punkt): number | null {
+  const ex = b.x - a.x, ey = b.y - a.y;
+  const nenner = d.x * ey - d.y * ex;
+  if (Math.abs(nenner) < 1e-9) return null;
+  const t = ((a.x - o.x) * ey - (a.y - o.y) * ex) / nenner;
+  const s = ((a.x - o.x) * d.y - (a.y - o.y) * d.x) / nenner;
+  return t > 1e-6 && s >= 0 && s <= 1 ? t : null;
+}
+
+function bisWand(o: Punkt, d: Punkt): number {
+  let t = Infinity;
+  if (d.x > 0) t = Math.min(t, (RAUM.b - o.x) / d.x);
+  if (d.x < 0) t = Math.min(t, -o.x / d.x);
+  if (d.y > 0) t = Math.min(t, (RAUM.t - o.y) / d.y);
+  if (d.y < 0) t = Math.min(t, -o.y / d.y);
+  return t;
+}
+
+// Lichtkegel des Scheinwerfers über alle drei Elemente; Rückseiten schlucken das Licht
+export function strahlen(spiegel: RaumSpiegel[]): { pfade: Punkt[][]; treffer: Punkt[] } {
+  const gesamt = ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND;
+  const basis = -Math.PI / 2;
+  const kegel = Math.atan2(gesamt / 2 + 0.2, LAMPE.y - ELEMENT_Y);
+  const pfade: Punkt[][] = [], treffer: Punkt[] = [];
+  for (let r = 0; r < STRAHLEN; r++) {
+    const w = basis - kegel + (2 * kegel * r) / (STRAHLEN - 1);
+    let o: Punkt = { ...LAMPE };
+    let d: Punkt = { x: Math.cos(w), y: Math.sin(w) };
+    const pfad = [o];
+    let reflexionen = 0;
+    for (;;) {
+      let bestT = Infinity, best: RaumSpiegel | null = null;
+      for (const sp of spiegel) {
+        const t = schnitt(o, d, sp.a, sp.b);
+        if (t !== null && t < bestT) { bestT = t; best = sp; }
+      }
+      if (!best) {
+        const t = bisWand(o, d);
+        const ende = { x: o.x + d.x * t, y: o.y + d.y * t };
+        pfad.push(ende);
+        if (reflexionen > 0) treffer.push(ende);
+        break;
+      }
+      const p = { x: o.x + d.x * bestT, y: o.y + d.y * bestT };
+      pfad.push(p);
+      const dn = d.x * best.n.x + d.y * best.n.y;
+      if (dn >= 0 || reflexionen >= MAX_REFLEXIONEN) break;
+      d = { x: d.x - 2 * dn * best.n.x, y: d.y - 2 * dn * best.n.y };
+      o = p;
+      reflexionen++;
+    }
+    pfade.push(pfad);
+  }
+  return { pfade, treffer };
+}
 // Neonfarben wie in der Oberfläche (RGB-Tripel für Transparenz)
 const PHASER = {
   punkt: "0,229,255",
@@ -163,6 +254,7 @@ export class Vorschau {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, breite, hoehe);
     if (d.ansicht === "phaser") this.phaser(ctx, breite, hoehe, d, winkel);
+    else if (d.ansicht === "reflexion") this.reflexion(ctx, breite, hoehe, d, winkel);
     else if (d.aufbau.anordnung === "hintereinander") this.vorderansicht(ctx, breite, hoehe, dpr, d, winkel);
     else this.draufsicht(ctx, breite, hoehe, d.live, winkel);
   }
@@ -184,7 +276,7 @@ export class Vorschau {
     this.bereich += (ziel - this.bereich) * 0.08;
     const r = this.bereich;
 
-    const links = 40, rechts = 8, oben = 44, unten = 20, luecke = 10;   // oben Platz für den Umschalter
+    const links = 40, rechts = 8, oben = 44, unten = 40, luecke = 10;   // oben Platz für den Umschalter
     const pb = (breite - links - rechts - (ELEMENTE - 1) * luecke) / ELEMENTE;
     const ph = hoehe - oben - unten;
     const py = (a: number) => oben + ph / 2 - (a / r) * (ph / 2);
@@ -213,10 +305,17 @@ export class Vorschau {
       const x0 = links + k * (pb + luecke);
       ctx.strokeStyle = PHASER.rahmen;
       ctx.strokeRect(x0 + 0.5, oben + 0.5, pb - 1, ph - 1);
+      // klein die Vorderansicht des Elements (mit seiner Drehung), daneben der Name
+      const klein = unten - 6, mitteY = oben + ph + 3 + klein / 2;
+      const text = `Element ${k + 1}`;
+      ctx.font = "600 10px -apple-system, sans-serif";
+      const tb = ctx.measureText(text).width;
+      const start = x0 + pb / 2 - (klein + 6 + tb) / 2;
+      this.element(ctx, start + klein / 2, mitteY, klein / (ELEMENT_B * Math.SQRT2), k, d, winkel, 1);
       ctx.fillStyle = PHASER.text;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillText(`Element ${k + 1}`, x0 + pb / 2, oben + ph + 5);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, start + klein + 6, mitteY);
     }
 
     // Spur: ältere Punkte blasser und kleiner
@@ -260,6 +359,78 @@ export class Vorschau {
       ctx.arc(x, y, 4, 0, 2 * Math.PI);
       ctx.fill();
     }
+  }
+
+  // ---------- Reflexion ----------
+
+  private reflexion(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, d: VorschauDaten, winkel: number[]): void {
+    const m = Math.min(breite / RAUM.b, hoehe / RAUM.t);
+    const ox = (breite - RAUM.b * m) / 2, oy = (hoehe - RAUM.t * m) / 2;
+    const X = (x: number) => ox + x * m, Y = (y: number) => oy + y * m;
+    const farbe = d.live ? FARBE.lichtLive : FARBE.licht;
+
+    ctx.fillStyle = FARBE.grund;
+    ctx.fillRect(0, 0, breite, hoehe);
+    // Raster (1 m) und Wände
+    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= RAUM.b; x++) { ctx.beginPath(); ctx.moveTo(X(x), Y(0)); ctx.lineTo(X(x), Y(RAUM.t)); ctx.stroke(); }
+    for (let y = 0; y <= RAUM.t; y++) { ctx.beginPath(); ctx.moveTo(X(0), Y(y)); ctx.lineTo(X(RAUM.b), Y(y)); ctx.stroke(); }
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.strokeRect(X(0), Y(0), RAUM.b * m, RAUM.t * m);
+
+    const spiegel = raumSpiegel(winkel);
+    const { pfade, treffer } = strahlen(spiegel);
+
+    // Strahlen additiv, reflektierte heller als der Weg zum Spiegel
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineWidth = Math.max(1, m * 0.015);
+    for (const pfad of pfade) {
+      for (let n = 1; n < pfad.length; n++) {
+        ctx.strokeStyle = `rgba(${farbe},${n === 1 ? 0.05 : 0.1})`;
+        ctx.beginPath();
+        ctx.moveTo(X(pfad[n - 1]!.x), Y(pfad[n - 1]!.y));
+        ctx.lineTo(X(pfad[n]!.x), Y(pfad[n]!.y));
+        ctx.stroke();
+      }
+    }
+    const fleck = m * 0.2;
+    for (const t of treffer) {
+      const g = ctx.createRadialGradient(X(t.x), Y(t.y), 0, X(t.x), Y(t.y), fleck);
+      g.addColorStop(0, `rgba(${farbe},0.35)`);
+      g.addColorStop(1, `rgba(${farbe},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(X(t.x) - fleck, Y(t.y) - fleck, 2 * fleck, 2 * fleck);
+    }
+    ctx.globalCompositeOperation = "source-over";
+
+    // Spiegel: helle Vorderseite (zum Scheinwerfer), dunkle Rückseite
+    ctx.lineCap = "round";
+    for (const sp of spiegel) {
+      ctx.strokeStyle = FARBE.rueckseite;
+      ctx.lineWidth = Math.max(2, m * 0.05);
+      ctx.beginPath(); ctx.moveTo(X(sp.a.x), Y(sp.a.y)); ctx.lineTo(X(sp.b.x), Y(sp.b.y)); ctx.stroke();
+      const o = 0.012;
+      ctx.strokeStyle = d.live ? `rgb(${FARBE.lichtLive})` : "#e8ecf4";
+      ctx.lineWidth = Math.max(1, m * 0.022);
+      ctx.beginPath();
+      ctx.moveTo(X(sp.a.x + sp.n.x * o), Y(sp.a.y + sp.n.y * o));
+      ctx.lineTo(X(sp.b.x + sp.n.x * o), Y(sp.b.y + sp.n.y * o));
+      ctx.stroke();
+    }
+    // Scheinwerfer
+    const glanz = ctx.createRadialGradient(X(LAMPE.x), Y(LAMPE.y), 0, X(LAMPE.x), Y(LAMPE.y), m * 0.4);
+    glanz.addColorStop(0, `rgba(${farbe},0.9)`);
+    glanz.addColorStop(1, `rgba(${farbe},0)`);
+    ctx.fillStyle = glanz;
+    ctx.beginPath(); ctx.arc(X(LAMPE.x), Y(LAMPE.y), m * 0.4, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = `rgb(${farbe})`;
+    ctx.beginPath(); ctx.arc(X(LAMPE.x), Y(LAMPE.y), Math.max(3, m * 0.09), 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    ctx.font = "600 10px -apple-system, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillText("Rückwand", X(RAUM.b / 2), Y(0) + 4);
   }
 
   // ---------- Draufsicht ----------
@@ -358,7 +529,7 @@ export class Vorschau {
       }
       ctx.fillRect(x - b / 2, -halb, b, 2 * halb);
     }
-    ctx.strokeStyle = d.live ? `rgba(240,160,48,${0.7 * tiefe})` : `rgba(255,255,255,${0.35 * tiefe})`;
+    ctx.strokeStyle = d.live ? `rgba(255,31,79,${0.7 * tiefe})` : `rgba(255,255,255,${0.35 * tiefe})`;
     ctx.lineWidth = Math.max(1, s * 0.015);
     ctx.strokeRect(-halb, -halb, 2 * halb, 2 * halb);
     ctx.restore();
