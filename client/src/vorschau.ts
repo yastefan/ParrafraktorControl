@@ -73,7 +73,7 @@ interface RaumSpiegel { a: Punkt; b: Punkt; n: Punkt }   // Enden und Normale de
 
 const RAUM = { b: 10, t: 6 };                  // Meter, die Rückwand oben
 const ELEMENT_Y = 1.8;                         // Abstand der Elemente zur Rückwand
-const LAMPE = { x: RAUM.b / 2, y: 5.3 };       // ein Scheinwerfer mittig vor den Elementen
+export const LAMPE_VORGABE: Readonly<Punkt> = { x: RAUM.b / 2, y: 5.3 };   // Scheinwerfer mittig vor den Elementen
 const STRAHLEN = 240;
 const MAX_REFLEXIONEN = 3;
 
@@ -117,14 +117,17 @@ function bisWand(o: Punkt, d: Punkt): number {
 }
 
 // Lichtkegel des Scheinwerfers über alle drei Elemente; Rückseiten schlucken das Licht
-export function strahlen(spiegel: RaumSpiegel[]): { pfade: Punkt[][]; treffer: Punkt[] } {
-  const gesamt = ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND;
-  const basis = -Math.PI / 2;
-  const kegel = Math.atan2(gesamt / 2 + 0.2, LAMPE.y - ELEMENT_Y);
+// Der Kegel zielt auf die Mitte der Elemente und ist so weit, dass er alle drei trifft.
+export function strahlen(spiegel: RaumSpiegel[], lampe: Punkt): { pfade: Punkt[][]; treffer: Punkt[] } {
+  const halb = (ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND) / 2 + 0.2;
+  const richtung = (x: number) => Math.atan2(ELEMENT_Y - lampe.y, x - lampe.x);
+  const basis = richtung(RAUM.b / 2);
+  const abweichung = (w: number) => Math.abs(Math.atan2(Math.sin(w - basis), Math.cos(w - basis)));
+  const kegel = Math.min(grad(80), Math.max(abweichung(richtung(RAUM.b / 2 - halb)), abweichung(richtung(RAUM.b / 2 + halb))));
   const pfade: Punkt[][] = [], treffer: Punkt[] = [];
   for (let r = 0; r < STRAHLEN; r++) {
     const w = basis - kegel + (2 * kegel * r) / (STRAHLEN - 1);
-    let o: Punkt = { ...LAMPE };
+    let o: Punkt = { ...lampe };
     let d: Punkt = { x: Math.cos(w), y: Math.sin(w) };
     const pfad = [o];
     let reflexionen = 0;
@@ -176,6 +179,9 @@ export class Vorschau {
   private spur: number[][] = [];
   private spurZeit = 0;
   private bereich = 60;
+  // Reflexion: Scheinwerfer (verschiebbar) und Maßstab des Raums beim letzten Zeichnen
+  lampe: Punkt = { ...LAMPE_VORGABE };
+  private raumMass = { m: 1, ox: 0, oy: 0 };
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -197,6 +203,21 @@ export class Vorschau {
       this.bild = requestAnimationFrame(schleife);
     };
     this.bild = requestAnimationFrame(schleife);
+  }
+
+  // Punkt auf dem Canvas (CSS-Pixel) → Raum, im Raum gehalten
+  raumPunkt(x: number, y: number): Punkt {
+    const { m, ox, oy } = this.raumMass;
+    return {
+      x: Math.min(RAUM.b - 0.2, Math.max(0.2, (x - ox) / m)),
+      y: Math.min(RAUM.t - 0.2, Math.max(0.2, (y - oy) / m)),
+    };
+  }
+
+  // Liegt der Punkt (CSS-Pixel) auf dem Scheinwerfer?
+  aufLampe(x: number, y: number): boolean {
+    const { m, ox, oy } = this.raumMass;
+    return Math.hypot(x - (ox + this.lampe.x * m), y - (oy + this.lampe.y * m)) < Math.max(32, m * 0.6);   // großzügig für Finger
   }
 
   stoppe(): void {
@@ -276,7 +297,7 @@ export class Vorschau {
     this.bereich += (ziel - this.bereich) * 0.08;
     const r = this.bereich;
 
-    const links = 40, rechts = 8, oben = 44, unten = 40, luecke = 10;   // oben Platz für den Umschalter
+    const links = 40, rechts = 8, oben = 44, unten = 50, luecke = 10;   // oben Platz für den Umschalter
     const pb = (breite - links - rechts - (ELEMENTE - 1) * luecke) / ELEMENTE;
     const ph = hoehe - oben - unten;
     const py = (a: number) => oben + ph / 2 - (a / r) * (ph / 2);
@@ -305,17 +326,26 @@ export class Vorschau {
       const x0 = links + k * (pb + luecke);
       ctx.strokeStyle = PHASER.rahmen;
       ctx.strokeRect(x0 + 0.5, oben + 0.5, pb - 1, ph - 1);
-      // klein die Vorderansicht des Elements (mit seiner Drehung), daneben der Name
-      const klein = unten - 6, mitteY = oben + ph + 3 + klein / 2;
-      const text = `Element ${k + 1}`;
-      ctx.font = "600 10px -apple-system, sans-serif";
-      const tb = ctx.measureText(text).width;
-      const start = x0 + pb / 2 - (klein + 6 + tb) / 2;
-      this.element(ctx, start + klein / 2, mitteY, klein / (ELEMENT_B * Math.SQRT2), k, d, winkel, 1);
+      // darunter das Element von oben wie in "Simple": jeder Spiegel als Strich unter seinem Punkt
+      const sy = oben + ph + 13, laenge = (pb / SPIEGEL_N) * 0.9;
+      ctx.strokeStyle = PHASER.rahmen;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x0 + 0.5, sy - 9, pb - 1, 18);
+      ctx.strokeStyle = d.live ? `rgb(${PHASER.live})` : FARBE.spiegel;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      for (let i = 0; i < SPIEGEL_N; i++) {
+        const a = grad(winkel[k * SPIEGEL_N + i]!);
+        const dx = (Math.cos(a) * laenge) / 2, dy = (Math.sin(a) * laenge) / 2;
+        ctx.beginPath();
+        ctx.moveTo(px(k, i) - dx, sy - dy);
+        ctx.lineTo(px(k, i) + dx, sy + dy);
+        ctx.stroke();
+      }
       ctx.fillStyle = PHASER.text;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, start + klein + 6, mitteY);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText(`Element ${k + 1}`, x0 + pb / 2, sy + 13);
     }
 
     // Spur: ältere Punkte blasser und kleiner
@@ -366,6 +396,7 @@ export class Vorschau {
   private reflexion(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, d: VorschauDaten, winkel: number[]): void {
     const m = Math.min(breite / RAUM.b, hoehe / RAUM.t);
     const ox = (breite - RAUM.b * m) / 2, oy = (hoehe - RAUM.t * m) / 2;
+    this.raumMass = { m, ox, oy };
     const X = (x: number) => ox + x * m, Y = (y: number) => oy + y * m;
     const farbe = d.live ? FARBE.lichtLive : FARBE.licht;
 
@@ -380,7 +411,8 @@ export class Vorschau {
     ctx.strokeRect(X(0), Y(0), RAUM.b * m, RAUM.t * m);
 
     const spiegel = raumSpiegel(winkel);
-    const { pfade, treffer } = strahlen(spiegel);
+    const lampe = this.lampe;
+    const { pfade, treffer } = strahlen(spiegel, lampe);
 
     // Strahlen additiv, reflektierte heller als der Weg zum Spiegel
     ctx.globalCompositeOperation = "lighter";
@@ -419,18 +451,20 @@ export class Vorschau {
       ctx.stroke();
     }
     // Scheinwerfer
-    const glanz = ctx.createRadialGradient(X(LAMPE.x), Y(LAMPE.y), 0, X(LAMPE.x), Y(LAMPE.y), m * 0.4);
+    const glanz = ctx.createRadialGradient(X(lampe.x), Y(lampe.y), 0, X(lampe.x), Y(lampe.y), m * 0.4);
     glanz.addColorStop(0, `rgba(${farbe},0.9)`);
     glanz.addColorStop(1, `rgba(${farbe},0)`);
     ctx.fillStyle = glanz;
-    ctx.beginPath(); ctx.arc(X(LAMPE.x), Y(LAMPE.y), m * 0.4, 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(X(lampe.x), Y(lampe.y), m * 0.4, 0, 2 * Math.PI); ctx.fill();
     ctx.fillStyle = `rgb(${farbe})`;
-    ctx.beginPath(); ctx.arc(X(LAMPE.x), Y(LAMPE.y), Math.max(3, m * 0.09), 0, 2 * Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(X(lampe.x), Y(lampe.y), Math.max(3, m * 0.09), 0, 2 * Math.PI); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.4)";
     ctx.font = "600 10px -apple-system, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillText("Rückwand", X(RAUM.b / 2), Y(0) + 4);
+    ctx.textBaseline = "top";
+    ctx.fillText("Scheinwerfer ziehen", X(lampe.x), Y(lampe.y) + m * 0.3);
   }
 
   // ---------- Draufsicht ----------

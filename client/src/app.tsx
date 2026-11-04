@@ -6,7 +6,7 @@ import { Kopf } from "./teile/kopf.js";
 import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
 import { Regler } from "./teile/regler.js";
-import { Vorschau, type Ansicht, type VorderModus } from "./vorschau.js";
+import { LAMPE_VORGABE, Vorschau, type Ansicht, type VorderModus } from "./vorschau.js";
 
 export function App() {
   const l = useLaden();
@@ -43,7 +43,15 @@ function Hinweis() {
 // Ansicht und Spiegel/Licht in der Vorderansicht: nur für dieses Gerät, deshalb im Browser gemerkt
 const MODUS_SCHLUESSEL = "parrafraktor.vorderModus";
 const ANSICHT_SCHLUESSEL = "parrafraktor.ansicht";
-const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Bild", phaser: "Phaser", reflexion: "Reflexion" };
+const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser", reflexion: "Reflexion" };
+const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
+function leseLampe(): { x: number; y: number } {
+  try {
+    const l = JSON.parse(lese(LAMPE_SCHLUESSEL) ?? "null");
+    if (Number.isFinite(l?.x) && Number.isFinite(l?.y)) return { x: l.x, y: l.y };
+  } catch { /* Vorgabe */ }
+  return { ...LAMPE_VORGABE };
+}
 function lese(schluessel: string): string | null {
   try {
     return localStorage.getItem(schluessel);
@@ -67,6 +75,8 @@ function VorschauFlaeche() {
   modusRef.current = modus;
   const ansichtRef = useRef(ansicht);
   ansichtRef.current = ansicht;
+  const vorschau = useRef<Vorschau>();
+  const zieht = useRef<number | null>(null);
   useEffect(() => {
     const v = new Vorschau(canvas.current!, () => {
       const parameter = laden.parameter;
@@ -85,6 +95,8 @@ function VorschauFlaeche() {
         flash: laden.stand.einstellungen.flash,
       };
     });
+    v.lampe = leseLampe();
+    vorschau.current = v;
     v.starte();
     const ab = laden.abonniere(() => { if (laden.stand) v.gleiche(laden.stand.takt); });
     return () => { ab(); v.stoppe(); };
@@ -97,6 +109,27 @@ function VorschauFlaeche() {
       <canvas
         ref={canvas}
         class="vorschau"
+        // Reflexion: den Scheinwerfer ziehen; die Lage merkt sich das Gerät
+        onPointerDown={(ev) => {
+          const v = vorschau.current;
+          if (ansicht !== "reflexion" || !v) return;
+          const r = ev.currentTarget.getBoundingClientRect();
+          if (!v.aufLampe(ev.clientX - r.left, ev.clientY - r.top)) return;
+          zieht.current = ev.pointerId;
+          ev.currentTarget.setPointerCapture(ev.pointerId);
+        }}
+        onPointerMove={(ev) => {
+          const v = vorschau.current;
+          if (!v || zieht.current !== ev.pointerId) return;
+          const r = ev.currentTarget.getBoundingClientRect();
+          v.lampe = v.raumPunkt(ev.clientX - r.left, ev.clientY - r.top);
+        }}
+        onPointerUp={() => {
+          if (zieht.current === null) return;
+          zieht.current = null;
+          if (vorschau.current) merke(LAMPE_SCHLUESSEL, JSON.stringify(vorschau.current.lampe));
+        }}
+        onPointerCancel={() => { zieht.current = null; }}
         role="img"
         aria-label={ansicht === "phaser"
           ? "Winkel der 36 Spiegel als Diagramm"

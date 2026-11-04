@@ -160,7 +160,7 @@ button, input, select { font: inherit; color: inherit; }
 .vorschau-modus button, .vorschau-ansicht button { min-height: 30px; padding: 0 10px; font-size: 13px; }
 .vorschau-ansicht { position: absolute; right: 8px; top: 8px; opacity: 0.85; }
 .phaser .vorschau { aspect-ratio: 2 / 1; max-height: 50vh; }
-.reflexion .vorschau { aspect-ratio: 5 / 3; max-height: 55vh; }
+.reflexion .vorschau { touch-action: none; aspect-ratio: 5 / 3; max-height: 55vh; }
 
 .vorschau {
   width: 100%;
