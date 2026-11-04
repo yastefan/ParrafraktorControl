@@ -49,7 +49,7 @@ const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   pendelwelle: ["speedBis", "phase", "wellenlaenge", "pingpong"],
   wind: ["speedBis", "phase", "schwuenge", "pingpong"],
   rotation: ["amplitude", "phase", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
-  ruhe: ["amplitude", "speedVon", "speedBis", "phase", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
+  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
 };
 export const benutzt = (modus: Modus, name: Regler): boolean => !UNBENUTZT[modus]?.includes(name);
 
