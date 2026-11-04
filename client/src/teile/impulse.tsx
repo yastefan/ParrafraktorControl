@@ -26,7 +26,8 @@ export function Impulse() {
   const sofort = (neu: ImpulsEinstellung) => { setze(neu); fertig(); };
 
   return (
-    <div class="impulse">
+    <section class="impulse">
+      <h2 class="impulse-titel">Impulse</h2>
       <div class="impulse-spielen">
         <div class="arten">
           {IMPULS_ARTEN.map((a) => {
@@ -74,7 +75,7 @@ export function Impulse() {
         <Schieber name="staerke" e={e} setze={setze} fertig={fertig} />
         <Schieber name="ausbreitungS" e={e} setze={setze} fertig={fertig} />
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -143,7 +144,7 @@ function Streifen({ name }: { name: string }) {
 
 // Zeichenfläche: Attack, Sustain und Release nebeneinander, Zeiten wurzelförmig, damit kurze
 // Zeiten fein einstellbar sind. Griffe: Attack/Stärke, Ende Sustain, Ende Release.
-const B = 320, H = 120, RAND = 12;
+const B = 320, H = 72, RAND = 8;
 const BREITE = B - 2 * RAND;
 const BA = BREITE * 0.28, BS = BREITE * 0.24, BR = BREITE * 0.48;
 const MAX = { attackS: IMPULS_BEREICHE.attackS.max, sustainS: IMPULS_BEREICHE.sustainS.max, releaseS: IMPULS_BEREICHE.releaseS.max };
@@ -270,8 +271,8 @@ function Huelle({ e, setze, fertig }: HuelleProps) {
       <line class="huelle-hold" x1={sx} y1={RAND} x2={sx} y2={y(0)} />
       <text class="huelle-text" x={(ax + sx) / 2} y={H - 2}>Sustain</text>
       <path class="huelle-kurve" d={kurve(e)} />
-      {griffe.map(([name, gx, gy]) => <circle key={name} class="huelle-griff" cx={gx} cy={gy} r={7} />)}
-      <circle ref={marke} class="huelle-marke" r={5} cx={RAND} cy={y(0)} />
+      {griffe.map(([name, gx, gy]) => <circle key={name} class="huelle-griff" cx={gx} cy={gy} r={6} />)}
+      <circle ref={marke} class="huelle-marke" r={4} cx={RAND} cy={y(0)} />
     </svg>
   );
 }
