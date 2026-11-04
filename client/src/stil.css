@@ -1,18 +1,24 @@
-/* Dunkel, weil die App neben der Bühne läuft. Große Ziele für Finger am iPad. */
+/* Dunkel, weil die App neben der Bühne läuft. Große Ziele für Finger am iPad.
+   Neonfarben wie am Stream Deck: jeder Bereich hat seine eigene (--akzent wird je Bereich gesetzt). */
 :root {
-  --grund: #0e0f11;
-  --flaeche: #17191c;
-  --flaeche-2: #212429;
-  --linie: #2c3036;
-  --text: #eceef1;
-  --leise: #8b919a;
-  --akzent: #f0a030;
-  --live: #d3262b;
+  --grund: #07060c;
+  --flaeche: #110f1a;
+  --flaeche-2: #1a1726;
+  --linie: #2a2540;
+  --text: #eef0ff;
+  --leise: #8c88a8;
+  --cyan: #00e5ff;      /* Pattern */
+  --gruen: #39ff88;     /* Presets */
+  --magenta: #ff2bd6;   /* Impulse */
+  --gelb: #ffe14d;      /* Bewegung */
+  --violett: #a46bff;   /* Verteilung */
+  --akzent: var(--cyan);
+  --live: #ff1f4f;
   --ma: #1f7a3a;
-  --blenden: #d9771e;
-  --gut: #3fb950;
-  --warnung: #d29922;
-  --schlecht: #f85149;
+  --blenden: #ff8a1f;
+  --gut: #39ff88;
+  --warnung: #ffe14d;
+  --schlecht: #ff4d6d;
   --radius: 12px;
   color-scheme: dark;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -47,7 +53,15 @@ button, input, select { font: inherit; color: inherit; }
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   border-top: 4px solid transparent;
 }
-.app.live { border-top-color: var(--live); }
+.app.live { border-top-color: var(--live); box-shadow: inset 0 6px 14px -8px var(--live); }
+
+/* Bereiche und ihre Neonfarbe; Gewähltes leuchtet */
+.patterns { --akzent: var(--cyan); }
+.presets { --akzent: var(--gruen); }
+.impulse { --akzent: var(--magenta); }
+.regler { --akzent: var(--gelb); }
+.regler .verteilung { --akzent: var(--violett); }
+
 
 /* ---------- Kopf ---------- */
 
@@ -81,9 +95,9 @@ button, input, select { font: inherit; color: inherit; }
   position: relative;
 }
 .knopf.klein { min-height: 36px; padding: 0 12px; font-size: 14px; }
-.knopf.an { border-color: var(--akzent); color: var(--akzent); }
+.knopf.an { border-color: var(--akzent); color: var(--akzent); box-shadow: 0 0 10px -3px var(--akzent); }
 .knopf:disabled, .pattern:disabled, .halt:disabled { opacity: 0.4; }
-.haupt-knopf { background: var(--akzent); color: #111; border-color: var(--akzent); font-weight: 600; }
+.haupt-knopf { background: var(--akzent); color: #07060c; border-color: var(--akzent); font-weight: 600; box-shadow: 0 0 14px -4px var(--akzent); }
 
 .marke {
   position: absolute; top: -6px; right: -6px;
@@ -115,16 +129,16 @@ button, input, select { font: inherit; color: inherit; }
   transform-origin: left;
 }
 .halt.haelt::before { transform: scaleX(1); transition: transform var(--dauer) linear; }
-.halt.an { background: var(--live); }
+.halt.an { background: var(--live); box-shadow: 0 0 18px -4px var(--live); }
 .halt.blendetEin, .halt.blendetAus { background: var(--blenden); }
 
 .hinweis {
   padding: 8px 16px;
   font-size: 14px;
-  background: #3a2a10;
-  color: #f5d08a;
+  background: #2b2608;
+  color: var(--gelb);
 }
-.hinweis.getrennt { background: #3a1414; color: #f6b0ad; }
+.hinweis.getrennt { background: #3a0716; color: #ff9ab0; }
 
 /* ---------- Hauptbereich ---------- */
 
@@ -176,8 +190,8 @@ button, input, select { font: inherit; color: inherit; }
   font-size: 16px;
   cursor: pointer;
 }
-.art.laeuft { border-color: var(--akzent); }
-.art.aktiv { background: var(--akzent); border-color: var(--akzent); color: #111; }
+.art.laeuft { border-color: var(--akzent); box-shadow: 0 0 12px -3px var(--akzent); }
+.art.aktiv { background: var(--akzent); border-color: var(--akzent); color: #07060c; box-shadow: 0 0 18px -4px var(--akzent); }
 .art:disabled { opacity: 0.4; }
 
 .impulse-spielen { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -185,7 +199,7 @@ button, input, select { font: inherit; color: inherit; }
   position: relative;
   height: 72px;
   border-radius: var(--radius);
-  border: 2px dashed var(--linie);
+  border: 2px dashed color-mix(in srgb, var(--akzent) 45%, var(--linie));
   background: var(--grund);
   overflow: hidden;
   touch-action: none;
@@ -197,7 +211,7 @@ button, input, select { font: inherit; color: inherit; }
 .streifen-text { color: var(--leise); font-size: 13px; pointer-events: none; }
 .streifen-blitz {
   position: absolute; top: 0; bottom: 0; width: 40px; margin-left: -20px;
-  background: radial-gradient(closest-side, rgba(240, 160, 48, 0.8), transparent);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--akzent) 85%, transparent), transparent);
   pointer-events: none;
   animation: streifen-blitz 0.6s ease-out forwards;
 }
@@ -215,7 +229,7 @@ button, input, select { font: inherit; color: inherit; }
 .huelle-achse { stroke: var(--linie); stroke-width: 1; }
 .huelle-hold { stroke: var(--linie); stroke-width: 1; stroke-dasharray: 3 3; }
 .huelle-text { fill: var(--leise); font-size: 10px; text-anchor: middle; }
-.huelle-kurve { fill: rgba(240, 160, 48, 0.12); stroke: var(--akzent); stroke-width: 2; stroke-linejoin: round; }
+.huelle-kurve { fill: color-mix(in srgb, var(--akzent) 14%, transparent); stroke: var(--akzent); stroke-width: 2; stroke-linejoin: round; }
 .huelle-griff { fill: var(--text); }
 .huelle-marke { fill: #fff; stroke: var(--akzent); stroke-width: 2; pointer-events: none; transition: opacity 0.2s; }
 .huelle-werte { display: flex; gap: 12px; flex-wrap: wrap; font-size: 13px; color: var(--leise); }
@@ -234,7 +248,12 @@ button, input, select { font: inherit; color: inherit; }
   font-weight: 600;
   cursor: pointer;
 }
-.pattern.aktiv { border-color: var(--akzent); color: var(--akzent); background: #2a2113; }
+.pattern.aktiv, .preset.aktiv {
+  border-color: var(--akzent); color: var(--akzent);
+  background: color-mix(in srgb, var(--akzent) 12%, var(--flaeche));
+  box-shadow: 0 0 14px -3px var(--akzent);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--akzent) 60%, transparent);
+}
 
 /* ---------- Regler ---------- */
 
@@ -281,15 +300,17 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   background: var(--text);
   border: none;
+  box-shadow: 0 0 10px -1px var(--akzent);
 }
 input[type="range"]::-moz-range-thumb {
   width: 28px; height: 28px;
   border-radius: 50%;
   background: var(--text);
   border: none;
+  box-shadow: 0 0 10px -1px var(--akzent);
 }
 
-.regler-titel { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin: 16px 0 0; font-weight: 600; }
+.regler-titel { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--akzent); margin: 16px 0 0; font-weight: 600; }
 .schalter-zeile { display: flex; gap: 8px; flex-wrap: wrap; }
 .umschalter.umbrechen { flex-wrap: wrap; grid-column: 1 / -1; }
 .umschalter.umbrechen button { flex: 1 0 auto; }
@@ -303,7 +324,10 @@ input[type="range"]::-moz-range-thumb {
   min-height: 40px; padding: 0 14px; border: none; border-radius: 8px;
   background: transparent; color: var(--leise); cursor: pointer;
 }
-.umschalter button.aktiv { background: var(--flaeche-2); color: var(--text); }
+.umschalter button.aktiv {
+  background: color-mix(in srgb, var(--akzent) 16%, var(--flaeche-2)); color: var(--akzent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--akzent) 60%, transparent);
+}
 
 /* ---------- Einstellungen ---------- */
 
@@ -369,7 +393,7 @@ input[type="range"]::-moz-range-thumb {
   width: 26px; height: 26px; border-radius: 50%; background: var(--text);
   transition: transform 0.15s;
 }
-.schalter:checked { background: var(--gut); }
+.schalter:checked { background: var(--akzent); box-shadow: 0 0 10px -2px var(--akzent); }
 .schalter:checked::after { transform: translateX(20px); }
 
 .hilfe { font-size: 13px; color: var(--leise); margin: 6px 0; line-height: 1.4; }
@@ -384,7 +408,7 @@ input[type="range"]::-moz-range-thumb {
 
 .warnungen {
   margin: 8px 0; padding: 10px 16px 10px 32px;
-  background: #33280f; color: #f2d48c; border-radius: var(--radius); font-size: 14px;
+  background: #2b2608; color: var(--gelb); border-radius: var(--radius); font-size: 14px;
 }
 
 .module { list-style: none; margin: 0; padding: 0; }
@@ -422,12 +446,11 @@ input[type="range"]::-moz-range-thumb {
 .preset .nr { font-size: 12px; color: var(--leise); font-variant-numeric: tabular-nums; }
 .preset-titel { overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .preset.leer { color: var(--leise); font-weight: 400; border-style: dashed; }
-.preset.aktiv { border-color: var(--akzent); color: var(--akzent); background: #2a2113; }
 .preset:disabled { opacity: 0.4; }
 .halt-preset::before {
   content: "";
   position: absolute; inset: 0;
-  background: rgba(240, 160, 48, 0.25);
+  background: color-mix(in srgb, var(--akzent) 25%, transparent);
   transform: scaleX(0);
   transform-origin: left;
 }

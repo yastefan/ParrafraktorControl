@@ -89,7 +89,7 @@ printf 'SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", MODE:="666", GROUP="plugdev"\
 
 Das Gerät darf jederzeit ab- und angesteckt werden.
 
-Die Tasten zeigen ein Hauptmenü mit Untermenüs. Jedes Menü hat seine Farbe: **Pattern blau, Presets grün, Impulse violett**, Output rot. Im Untermenü sind alle Tasten in der Menüfarbe getönt, der gewählte Eintrag ist hell. Der Touchstreifen zeigt oben in der Farbe der Reglergruppe, welche Seite gerade auf den Drehreglern liegt: **Bewegung bernstein, Verteilung koralle, Fein grau**, Impulse violett.
+Die Tasten zeigen ein Hauptmenü mit Untermenüs. Jedes Menü hat seine Neonfarbe: **Pattern cyan, Presets grün, Impulse magenta**, Output rot. Im Hauptmenü leuchten Schrift und Rand der Menütasten in dieser Farbe, im Untermenü sind alle Tasten dunkel getönt, der gewählte Eintrag leuchtet. Der Touchstreifen zeigt oben in der Farbe der Reglergruppe, welche Seite gerade auf den Drehreglern liegt: **Bewegung gelb, Verteilung violett, Fein stahlgrau**, Impulse magenta. Die Weboberfläche nutzt dieselben Farben.
 
 ```
 Hauptmenü                                   Untermenü (Pattern, Presets)
