@@ -116,14 +116,13 @@ function bisWand(o: Punkt, d: Punkt): number {
   return t;
 }
 
-// Lichtkegel des Scheinwerfers über alle drei Elemente; Rückseiten schlucken das Licht
-// Der Kegel zielt auf die Mitte der Elemente und ist so weit, dass er alle drei trifft.
-export function strahlen(spiegel: RaumSpiegel[], lampe: Punkt): { pfade: Punkt[][]; treffer: Punkt[] } {
-  const halb = (ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND) / 2 + 0.2;
-  const richtung = (x: number) => Math.atan2(ELEMENT_Y - lampe.y, x - lampe.x);
-  const basis = richtung(RAUM.b / 2);
-  const abweichung = (w: number) => Math.abs(Math.atan2(Math.sin(w - basis), Math.cos(w - basis)));
-  const kegel = Math.min(grad(80), Math.max(abweichung(richtung(RAUM.b / 2 - halb)), abweichung(richtung(RAUM.b / 2 + halb))));
+// Zoom des Scheinwerfers: voller Öffnungswinkel in Grad
+export const ZOOM = { min: 4, max: 120, vorgabe: 70 } as const;
+
+// Lichtkegel des Scheinwerfers, auf die Mitte der Elemente gerichtet; Rückseiten schlucken das Licht
+export function strahlen(spiegel: RaumSpiegel[], lampe: Punkt, zoom: number = ZOOM.vorgabe): { pfade: Punkt[][]; treffer: Punkt[] } {
+  const basis = Math.atan2(ELEMENT_Y - lampe.y, RAUM.b / 2 - lampe.x);
+  const kegel = grad(zoom / 2);
   const pfade: Punkt[][] = [], treffer: Punkt[] = [];
   for (let r = 0; r < STRAHLEN; r++) {
     const w = basis - kegel + (2 * kegel * r) / (STRAHLEN - 1);
@@ -181,6 +180,7 @@ export class Vorschau {
   private bereich = 60;
   // Reflexion: Scheinwerfer (verschiebbar) und Maßstab des Raums beim letzten Zeichnen
   lampe: Punkt = { ...LAMPE_VORGABE };
+  zoom: number = ZOOM.vorgabe;
   private raumMass = { m: 1, ox: 0, oy: 0 };
 
   constructor(
@@ -412,7 +412,7 @@ export class Vorschau {
 
     const spiegel = raumSpiegel(winkel);
     const lampe = this.lampe;
-    const { pfade, treffer } = strahlen(spiegel, lampe);
+    const { pfade, treffer } = strahlen(spiegel, lampe, this.zoom);
 
     // Strahlen additiv, reflektierte heller als der Weg zum Spiegel
     ctx.globalCompositeOperation = "lighter";
