@@ -4,19 +4,21 @@ import type { SKRSContext2D } from "@napi-rs/canvas";
 type Canvas = typeof import("@napi-rs/canvas");
 
 export const FARBE = {
-  grund: "#111214",
-  feld: "#1d1f23",
-  text: "#f2f2f2",
-  leise: "#8a8f98",
-  akzent: "#f0a030",   // Pause, gespeichert
-  live: "#d3262b",     // App fährt
-  liveDunkel: "#501313",
+  grund: "#07060c",
+  feld: "#15131f",
+  spur: "#2a2540",     // leerer Wertebalken
+  text: "#f2f2ff",
+  leise: "#8c88a8",
+  akzent: "#ffe14d",   // Pause, gespeichert
+  live: "#ff1f4f",     // App fährt
+  liveDunkel: "#4a0716",
   ma: "#1f7a3a",       // MA fährt
-  blenden: "#d9771e",
+  blenden: "#ff8a1f",
 } as const;
 
-// Jedes Menü und jede Reglergruppe hat eine Farbe: dunkel als Grund der Tasten, hell für den
-// gewählten Eintrag (Text darauf in "auf") und für Rahmen, Streifen und Wertebalken
+// Jedes Menü und jede Reglergruppe hat eine Neonfarbe ("hell") für den gewählten Eintrag (Text
+// darauf in "auf"), Rahmen, Streifen und Wertebalken; "dunkel" ist der Grund der übrigen Tasten.
+// Die Farbtöne liegen weit auseinander, damit man die Menüs auf einen Blick unterscheidet.
 export interface Farbton {
   dunkel: string;
   hell: string;
@@ -24,12 +26,12 @@ export interface Farbton {
 }
 
 export const TON = {
-  pattern: { dunkel: "#0C447C", hell: "#378ADD", auf: "#042C53" },
-  presets: { dunkel: "#085041", hell: "#1D9E75", auf: "#04342C" },
-  impulse: { dunkel: "#3C3489", hell: "#7F77DD", auf: "#26215C" },
-  bewegung: { dunkel: "#633806", hell: "#EF9F27", auf: "#412402" },
-  verteilung: { dunkel: "#712B13", hell: "#D85A30", auf: "#4A1B0C" },
-  fein: { dunkel: "#444441", hell: "#888780", auf: "#2C2C2A" },
+  pattern: { dunkel: "#003540", hell: "#00e5ff", auf: "#001a20" },      // Cyan
+  presets: { dunkel: "#0a3d24", hell: "#39ff88", auf: "#021a0e" },      // Grün
+  impulse: { dunkel: "#4a0a40", hell: "#ff2bd6", auf: "#22041e" },      // Magenta
+  bewegung: { dunkel: "#3d3404", hell: "#ffe14d", auf: "#1f1a00" },     // Gelb
+  verteilung: { dunkel: "#2c1856", hell: "#a46bff", auf: "#140a2b" },   // Violett
+  fein: { dunkel: "#262a3a", hell: "#9aa4c7", auf: "#12141c" },         // Stahl
 } as const satisfies Record<string, Farbton>;
 
 export type Ton = keyof typeof TON;
@@ -39,6 +41,7 @@ export interface TastenInhalt {
   unter?: string;
   grund?: string;
   rahmen?: string;
+  rahmenBreite?: number;   // Vorgabe 8
   text?: string;     // Schriftfarbe, z. B. dunkel auf hellem Grund
   leise?: boolean;   // gedämpft, z. B. leerer Preset-Platz
 }
@@ -59,8 +62,9 @@ export class Maler {
     ctx.fillRect(0, 0, breite, hoehe);
     if (inhalt.rahmen) {
       ctx.strokeStyle = inhalt.rahmen;
-      ctx.lineWidth = 8;
-      ctx.strokeRect(4, 4, breite - 8, hoehe - 8);
+      const b = inhalt.rahmenBreite ?? 8;
+      ctx.lineWidth = b;
+      ctx.strokeRect(b / 2, b / 2, breite - b, hoehe - b);
     }
     ctx.fillStyle = inhalt.leise ? FARBE.leise : inhalt.text ?? FARBE.text;
     ctx.textAlign = "center";
@@ -106,7 +110,7 @@ export class Maler {
       passendeSchrift(ctx, f.wert, b - 28, 28);
       ctx.fillText(f.wert, x + 14, BAND + 28);
       if (f.anteil !== null) {
-        ctx.fillStyle = "#33363c";
+        ctx.fillStyle = FARBE.spur;
         ctx.fillRect(x + 14, hoehe - 15, b - 28, 5);
         ctx.fillStyle = ton.hell;
         ctx.fillRect(x + 14, hoehe - 15, (b - 28) * Math.min(1, Math.max(0, f.anteil)), 5);

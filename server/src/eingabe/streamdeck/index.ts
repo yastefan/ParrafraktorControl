@@ -374,19 +374,21 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private tastenInhalt(taste: number): TastenInhalt {
+    // Hauptmenü: Menütasten dunkel mit Neonschrift und Neonrand
+    const menueTaste = (ton: Farbton): Partial<TastenInhalt> => ({ grund: ton.dunkel, text: ton.hell, rahmen: ton.hell, rahmenBreite: 3 });
     const { parameter, uebernahme, presets, letztesPreset } = this.steuerung;
     const haelt = this.halten?.taste === taste && !this.halten.ausgeloest ? "halten …" : undefined;
     if (this.menue === "haupt") {
       switch (taste) {
-        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus], grund: TON.pattern.dunkel };
+        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus], ...menueTaste(TON.pattern) };
         case HAUPT.presets: {
           const p = letztesPreset === null ? null : presets[letztesPreset];
-          return { titel: "Presets ›", unter: p?.name ?? "–", grund: TON.presets.dunkel };
+          return { titel: "Presets ›", unter: p?.name ?? "–", ...menueTaste(TON.presets) };
         }
-        case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art], grund: TON.impulse.dunkel };
+        case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art], ...menueTaste(TON.impulse) };
         case HAUPT.seite: {
           const { seite, nr, anzahl } = this.aktuelleSeite();
-          return { titel: "Seite ›", unter: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, grund: TON[seite.ton].dunkel };
+          return { titel: "Seite ›", unter: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, ...menueTaste(TON[seite.ton]) };
         }
         // bei Ruhe wirken Ordnung und Elemente nicht: gedämpft
         case HAUPT.ordnung:

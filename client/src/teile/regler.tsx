@@ -19,19 +19,22 @@ export function Regler({ parameter: p }: { parameter: Parameter }) {
       {ZAHL_PARAMETER.filter((n) => n !== "offset" && benutzt(p.modus, n)).map((name) => (
         <Schieber key={name} name={name} wert={p[name]} />
       ))}
-      {stufen.length > 0 && <h3 class="regler-titel">Verteilung</h3>}
-      {stufen.map((name) => (
-        <Stufen key={name} name={name} wert={p[name]} />
-      ))}
-      <div class="zeile schalter-zeile">
-        {(Object.keys(SCHALTER) as SchalterParameter[]).filter((n) => benutzt(p.modus, n)).map((name) => (
-          <button
-            type="button" key={name} class={`knopf klein ${p[name] ? "an" : ""}`} disabled={!l.bedienbar}
-            onClick={() => l.setze({ [name]: !p[name] })}
-          >
-            {SCHALTER[name]} {p[name] ? "an" : "aus"}
-          </button>
+      {/* Verteilung in eigener Farbe, wie am Stream Deck */}
+      <div class="verteilung">
+        {stufen.length > 0 && <h3 class="regler-titel">Verteilung</h3>}
+        {stufen.map((name) => (
+          <Stufen key={name} name={name} wert={p[name]} />
         ))}
+        <div class="zeile schalter-zeile">
+          {(Object.keys(SCHALTER) as SchalterParameter[]).filter((n) => benutzt(p.modus, n)).map((name) => (
+            <button
+              type="button" key={name} class={`knopf klein ${p[name] ? "an" : ""}`} disabled={!l.bedienbar}
+              onClick={() => l.setze({ [name]: !p[name] })}
+            >
+              {SCHALTER[name]} {p[name] ? "an" : "aus"}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
