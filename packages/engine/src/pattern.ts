@@ -216,7 +216,10 @@ export class Engine {
       const [von, bis] = speeds(p);
       return { tilt: offset, upm: p.laeuft ? von + (bis - von) * auswahl(p, g).anteil : 0 };
     }
-    return { tilt: offset + this.pattern(p, g), upm: 0 };
+    // Gegenlauf spiegelt die linke Hälfte ganz, auch den Offset: aus 30° wird links −30°, sonst wäre
+    // das Bild nur bei Offset 0 symmetrisch. (Der Ausschlag hat seine Seite schon in pattern().)
+    const seite = p.modus === "ruhe" ? 1 : auswahl(p, g).seite;
+    return { tilt: seite * offset + this.pattern(p, g), upm: 0 };
   }
 
   alle(p: Parameter): Stellung[] {
