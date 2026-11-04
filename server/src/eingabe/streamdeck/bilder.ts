@@ -8,17 +8,38 @@ export const FARBE = {
   feld: "#1d1f23",
   text: "#f2f2f2",
   leise: "#8a8f98",
-  akzent: "#f0a030",   // aktives Pattern, Wertebalken
+  akzent: "#f0a030",   // Pause, gespeichert
   live: "#d3262b",     // App fährt
+  liveDunkel: "#501313",
   ma: "#1f7a3a",       // MA fährt
   blenden: "#d9771e",
 } as const;
+
+// Jedes Menü und jede Reglergruppe hat eine Farbe: dunkel als Grund der Tasten, hell für den
+// gewählten Eintrag (Text darauf in "auf") und für Rahmen, Streifen und Wertebalken
+export interface Farbton {
+  dunkel: string;
+  hell: string;
+  auf: string;
+}
+
+export const TON = {
+  pattern: { dunkel: "#0C447C", hell: "#378ADD", auf: "#042C53" },
+  presets: { dunkel: "#085041", hell: "#1D9E75", auf: "#04342C" },
+  impulse: { dunkel: "#3C3489", hell: "#7F77DD", auf: "#26215C" },
+  bewegung: { dunkel: "#633806", hell: "#EF9F27", auf: "#412402" },
+  verteilung: { dunkel: "#712B13", hell: "#D85A30", auf: "#4A1B0C" },
+  fein: { dunkel: "#444441", hell: "#888780", auf: "#2C2C2A" },
+} as const satisfies Record<string, Farbton>;
+
+export type Ton = keyof typeof TON;
 
 export interface TastenInhalt {
   titel: string;
   unter?: string;
   grund?: string;
   rahmen?: string;
+  text?: string;     // Schriftfarbe, z. B. dunkel auf hellem Grund
   leise?: boolean;   // gedämpft, z. B. leerer Preset-Platz
 }
 
@@ -41,7 +62,7 @@ export class Maler {
       ctx.lineWidth = 8;
       ctx.strokeRect(4, 4, breite - 8, hoehe - 8);
     }
-    ctx.fillStyle = inhalt.leise ? FARBE.leise : FARBE.text;
+    ctx.fillStyle = inhalt.leise ? FARBE.leise : inhalt.text ?? FARBE.text;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     // Lange Titel (z. B. Preset-Namen) auf zwei Zeilen statt winzig
@@ -50,43 +71,47 @@ export class Maler {
     const abstand = zeilen.length > 1 ? parseInt(ctx.font.split(" ")[1]!, 10) * 1.1 : 0;
     zeilen.forEach((z, n) => ctx.fillText(z, breite / 2, mitte + (n - (zeilen.length - 1) / 2) * abstand));
     if (inhalt.unter) {
-      ctx.fillStyle = inhalt.grund ? FARBE.text : FARBE.leise;
+      ctx.fillStyle = inhalt.leise ? FARBE.leise : inhalt.text ?? (inhalt.grund ? FARBE.text : FARBE.leise);
       passendeSchrift(ctx, inhalt.unter, breite - 12, 17, 600);
       ctx.fillText(inhalt.unter, breite / 2, hoehe * 0.74);
     }
     return rgba(ctx, breite, hoehe);
   }
 
-  streifen(breite: number, hoehe: number, felder: Feld[], seite: string): Uint8Array {
+  // Oben ein Band in der Farbe der Reglergruppe mit ihrem Namen, darunter die vier Felder
+  streifen(breite: number, hoehe: number, felder: Feld[], seite: string, ton: Farbton): Uint8Array {
     const canvas = this.c.createCanvas(breite, hoehe);
     const ctx = canvas.getContext("2d");
+    const BAND = 20;
     ctx.fillStyle = FARBE.grund;
     ctx.fillRect(0, 0, breite, hoehe);
+    ctx.fillStyle = ton.hell;
+    ctx.fillRect(0, 0, breite, BAND);
+    ctx.fillStyle = ton.auf;
+    ctx.font = "700 14px sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(seite, 12, BAND / 2 + 1);
     const b = breite / felder.length;
     felder.forEach((f, i) => {
       const x = i * b;
       ctx.fillStyle = FARBE.feld;
-      ctx.fillRect(x + 4, 4, b - 8, hoehe - 8);
+      ctx.fillRect(x + 4, BAND + 4, b - 8, hoehe - BAND - 8);
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.fillStyle = FARBE.leise;
-      ctx.font = "600 18px sans-serif";
-      ctx.fillText(f.titel, x + 14, 12);
+      ctx.font = "600 15px sans-serif";
+      ctx.fillText(f.titel, x + 14, BAND + 9);
       ctx.fillStyle = FARBE.text;
-      passendeSchrift(ctx, f.wert, b - 28, 32);
-      ctx.fillText(f.wert, x + 14, 38);
+      passendeSchrift(ctx, f.wert, b - 28, 28);
+      ctx.fillText(f.wert, x + 14, BAND + 28);
       if (f.anteil !== null) {
         ctx.fillStyle = "#33363c";
-        ctx.fillRect(x + 14, hoehe - 18, b - 28, 6);
-        ctx.fillStyle = FARBE.akzent;
-        ctx.fillRect(x + 14, hoehe - 18, (b - 28) * Math.min(1, Math.max(0, f.anteil)), 6);
+        ctx.fillRect(x + 14, hoehe - 15, b - 28, 5);
+        ctx.fillStyle = ton.hell;
+        ctx.fillRect(x + 14, hoehe - 15, (b - 28) * Math.min(1, Math.max(0, f.anteil)), 5);
       }
     });
-    ctx.fillStyle = FARBE.leise;
-    ctx.font = "600 14px sans-serif";
-    ctx.textAlign = "right";
-    ctx.textBaseline = "top";
-    ctx.fillText(seite, breite - 12, 10);
     return rgba(ctx, breite, hoehe);
   }
 }

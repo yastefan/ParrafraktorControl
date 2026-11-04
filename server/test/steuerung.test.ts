@@ -101,3 +101,14 @@ describe("Impulse", () => {
     expect(leseClientNachricht('{"typ":"impulsTippen"}')).toBeNull();
   });
 });
+
+describe("Stream Deck: Reglerseiten", () => {
+  it("zeigen nur Regler, die die Grundbewegung benutzt", async () => {
+    const { reglerSeiten } = await import("../src/eingabe/streamdeck/belegung.js");
+    const namen = (m: Parameters<typeof reglerSeiten>[0]) => reglerSeiten(m).map((s) => [s.name, s.regler.map((r) => r.name)]);
+    expect(namen("ruhe")).toEqual([["Bewegung", ["offset"]]]);
+    expect(namen("pendelwelle")[0]).toEqual(["Bewegung", ["offset", "amplitude", "speedVon", "schwuenge"]]);
+    expect(namen("wind").map(([n]) => n)).toEqual(["Bewegung", "Verteilung", "Fein"]);
+    expect(reglerSeiten("sinus").every((s) => s.regler.length <= 4)).toBe(true);
+  });
+});

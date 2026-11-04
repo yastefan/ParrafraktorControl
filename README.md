@@ -89,14 +89,14 @@ printf 'SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", MODE:="666", GROUP="plugdev"\
 
 Das Gerät darf jederzeit ab- und angesteckt werden.
 
-Die Tasten zeigen ein Hauptmenü mit Untermenüs:
+Die Tasten zeigen ein Hauptmenü mit Untermenüs. Jedes Menü hat seine Farbe: **Pattern blau, Presets grün, Impulse violett**, Output rot. Im Untermenü sind alle Tasten in der Menüfarbe getönt, der gewählte Eintrag ist hell. Der Touchstreifen zeigt oben in der Farbe der Reglergruppe, welche Seite gerade auf den Drehreglern liegt: **Bewegung bernstein, Verteilung koralle, Fein grau**, Impulse violett.
 
 ```
 Hauptmenü                                   Untermenü (Pattern, Presets)
 ┌─────────┬─────────┬─────────┬─────────┐   ┌─────────┬─────────┬─────────┬─────────┐
-│Pattern ›│Presets ›│Regler 1 │Elemente │   │  Platz  │  Platz  │  Platz  │  Platz  │
+│Pattern ›│Presets ›│Impulse ›│ Seite › │   │  Platz  │  Platz  │  Platz  │  Platz  │
 ├─────────┼─────────┼─────────┼─────────┤   ├─────────┼─────────┼─────────┼─────────┤
-│Impulse ›│ Ordnung │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
+│ Ordnung │Elemente │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
 └─────────┴─────────┴─────────┴─────────┘   └─────────┴─────────┴─────────┴─────────┘
 
 Impulse (Live-Seite)
@@ -111,14 +111,12 @@ Impulse (Live-Seite)
 |---|---|
 | Pattern › | Grundbewegung direkt wählen |
 | Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
-| Regler | Reglerseite umschalten |
-| Elemente, Ordnung | nächste Stufe der Verteilung |
-| Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (1: Attack, Sustain, Release, Stärke; 2: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
+| Seite › | nächste Reglerseite, darunter ihr Name |
+| Ordnung, Elemente | nächste Stufe der Verteilung (gedämpft, wenn die Grundbewegung sie nicht nutzt) |
+| Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (Hülle: Attack, Sustain, Release, Stärke; Lauf: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
-| Drehregler, Seite 1 | Offset, Amplitude, Speed, Phase |
-| Drehregler, Seite 2 | Speed bis, Group, Fächer, Ordnung |
-| Drehregler, Seite 3 | Wiederkehr, Wellenlänge, Gegenlauf, Ping-Pong (Schalter: rechts drehen = an, drücken = umschalten) |
+| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Phase bzw. Wiederkehr bzw. Wellenlänge), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf), **Fein** (Speed bis, Group, Ping-Pong). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 

@@ -8,17 +8,17 @@ import {
   ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
 import {
-  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
+  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
 } from "@parrafraktor/protokoll";
 import { fehlerText, log } from "../../log.js";
 import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
-  HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, REGLER_SEITEN, TASTE_ELEMENT_FOLGE,
+  HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, TASTE_ELEMENT_FOLGE,
   TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_SYMMETRISCH, TASTE_ZURUECK,
-  eintragAuf, seitenAnzahl, type Menue, type Regler,
+  eintragAuf, reglerSeiten, seitenAnzahl, type Menue, type Regler, type ReglerSeite,
 } from "./belegung.js";
-import { FARBE, Maler, type Feld, type TastenInhalt } from "./bilder.js";
+import { FARBE, Maler, TON, type Farbton, type Feld, type TastenInhalt } from "./bilder.js";
 
 type Bibliothek = typeof import("@elgato-stream-deck/node");
 
@@ -201,7 +201,7 @@ export class StreamDeckModul implements Eingabemodul {
           const i = s.letztesPreset ?? 0;
           return { tippen: () => this.oeffne("presets", Math.floor(i / PLAETZE.length)) };
         }
-        case HAUPT.regler: return { tippen: () => { this.reglerSeite = (this.reglerSeite + 1) % REGLER_SEITEN.length; } };
+        case HAUPT.seite: return { tippen: () => this.blaettere(1) };
         case HAUPT.elemente: return { tippen: () => s.schalteStufe("elementFolge") };
         case HAUPT.impulse: return { tippen: () => this.oeffne("impulse") };
         case HAUPT.ordnung: return { tippen: () => s.schalteStufe("ordnung") };
@@ -243,8 +243,28 @@ export class StreamDeckModul implements Eingabemodul {
     };
   }
 
+  // Reglerseiten der aktuellen Grundbewegung; die Nummer bleibt beim Formwechsel, passt sich aber an
+  private seiten(): ReglerSeite[] {
+    return reglerSeiten(this.steuerung.parameter.modus);
+  }
+
+  private aktuelleSeite(): { seite: ReglerSeite; nr: number; anzahl: number } {
+    const seiten = this.seiten();
+    const nr = this.reglerSeite % seiten.length;
+    return { seite: seiten[nr]!, nr, anzahl: seiten.length };
+  }
+
+  private blaettere(richtung: number): void {
+    const n = this.seiten().length;
+    this.reglerSeite = (((this.aktuelleSeite().nr + richtung) % n) + n) % n;
+  }
+
   private regler(index: number): Regler | undefined {
-    return REGLER_SEITEN[this.reglerSeite]?.[index];
+    return this.aktuelleSeite().seite.regler[index];
+  }
+
+  private impulsRegler(index: number) {
+    return IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.regler[index];
   }
 
   private drehe(index: number, schritte: number): void {
@@ -252,7 +272,7 @@ export class StreamDeckModul implements Eingabemodul {
     const schnell = jetzt - (this.letzteDrehung[index] ?? 0) < SCHNELL_MS;
     this.letzteDrehung[index] = jetzt;
     if (this.menue === "impulse") {
-      const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
+      const name = this.impulsRegler(index);
       if (name) this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
       return;
     }
@@ -272,7 +292,7 @@ export class StreamDeckModul implements Eingabemodul {
 
   private reglerDruck(index: number): void {
     if (this.menue === "impulse") {
-      const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.[index];
+      const name = this.impulsRegler(index);
       if (name) this.steuerung.vorgabeImpuls(name);
       return;
     }
@@ -301,8 +321,7 @@ export class StreamDeckModul implements Eingabemodul {
       return;
     }
     if (Math.abs(dx) < 0.05) return;
-    const n = REGLER_SEITEN.length;
-    this.reglerSeite = (((this.reglerSeite + (dx < 0 ? 1 : -1)) % n) + n) % n;
+    this.blaettere(dx < 0 ? 1 : -1);
     this.zeichneBald();
   }
 
@@ -330,9 +349,9 @@ export class StreamDeckModul implements Eingabemodul {
           }
         } else if (c.type === "lcd-segment") {
           const felder = this.felder();
-          const seite = this.menue === "impulse" ? `Streifen: ${IMPULS_NAME[this.steuerung.impuls.art]}` : `${this.reglerSeite + 1}/${REGLER_SEITEN.length}`;
-          if (this.neu("streifen", { felder, seite })) {
-            await deck.fillLcd(c.id, maler.streifen(c.pixelSize.width, c.pixelSize.height, felder, seite), { format: "rgba" });
+          const { name, ton } = this.streifenKopf();
+          if (this.neu("streifen", { felder, name, ton })) {
+            await deck.fillLcd(c.id, maler.streifen(c.pixelSize.width, c.pixelSize.height, felder, name, ton), { format: "rgba" });
           }
         }
       }
@@ -359,15 +378,21 @@ export class StreamDeckModul implements Eingabemodul {
     const haelt = this.halten?.taste === taste && !this.halten.ausgeloest ? "halten …" : undefined;
     if (this.menue === "haupt") {
       switch (taste) {
-        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus] };
+        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus], grund: TON.pattern.dunkel };
         case HAUPT.presets: {
           const p = letztesPreset === null ? null : presets[letztesPreset];
-          return { titel: "Presets ›", unter: p?.name };
+          return { titel: "Presets ›", unter: p?.name ?? "–", grund: TON.presets.dunkel };
         }
-        case HAUPT.regler: return { titel: `Regler ${this.reglerSeite + 1}/${REGLER_SEITEN.length}`, unter: "umschalten" };
-        case HAUPT.elemente: return { titel: "Elemente", unter: STUFEN.elementFolge.text[parameter.elementFolge] };
-        case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art] };
-        case HAUPT.ordnung: return { titel: "Ordnung", unter: STUFEN.ordnung.text[parameter.ordnung] };
+        case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art], grund: TON.impulse.dunkel };
+        case HAUPT.seite: {
+          const { seite, nr, anzahl } = this.aktuelleSeite();
+          return { titel: "Seite ›", unter: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, grund: TON[seite.ton].dunkel };
+        }
+        // bei Ruhe wirken Ordnung und Elemente nicht: gedämpft
+        case HAUPT.ordnung:
+          return { titel: "Ordnung", unter: STUFEN.ordnung.text[parameter.ordnung], leise: !benutzt(parameter.modus, "ordnung") };
+        case HAUPT.elemente:
+          return { titel: "Elemente", unter: STUFEN.elementFolge.text[parameter.elementFolge], leise: !benutzt(parameter.modus, "elementFolge") };
         case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
         case HAUPT.output:
           switch (uebernahme.zustand) {
@@ -375,65 +400,71 @@ export class StreamDeckModul implements Eingabemodul {
             case "blendetEin":
             case "blendetAus":
               return { titel: `${Math.round(uebernahme.anteil * 100)} %`, unter: "Output blendet", grund: FARBE.blenden };
-            default: return { titel: "Output", unter: haelt ?? "aus · halten", grund: FARBE.feld };
+            default: return { titel: "Output", unter: haelt ?? "aus · halten", grund: FARBE.liveDunkel, rahmen: FARBE.live };
           }
         default: return { titel: "" };
       }
     }
-    if (taste === TASTE_ZURUECK) return { titel: "‹ Zurück" };
+    // Untermenüs: alles in der Farbe des Menüs, der gewählte Eintrag hell
+    const ton: Farbton = TON[this.menue];
+    const eintrag = (titel: string, gewaehlt: boolean, extra: Partial<TastenInhalt> = {}): TastenInhalt =>
+      gewaehlt ? { titel, grund: ton.hell, text: ton.auf, ...extra } : { titel, grund: ton.dunkel, ...extra };
+    if (taste === TASTE_ZURUECK) return { titel: "‹ Zurück", rahmen: ton.hell };
     if (this.menue === "impulse") {
+      const e = this.steuerung.impuls;
       const art = IMPULS_ARTEN_TASTEN[taste];
       if (art) {
-        // gewählte Art hell, laufende mit Rahmen
-        const gewaehlt = this.steuerung.impuls.art === art;
+        // gewählte Art hell, laufende mit hellem Rahmen
         const laeuft = this.steuerung.impulse().some((i) => i.art === art);
-        return {
-          titel: IMPULS_NAME[art],
-          grund: gewaehlt ? FARBE.akzent : undefined,
-          rahmen: !gewaehlt && laeuft ? FARBE.akzent : undefined,
-        };
+        return eintrag(IMPULS_NAME[art], e.art === art, laeuft && e.art !== art ? { rahmen: ton.hell } : {});
       }
-      if (taste === TASTE_ELEMENT_FOLGE) return { titel: "Elemente", unter: ELEMENT_FOLGE_NAME[this.steuerung.impuls.elementFolge] };
-      if (taste === TASTE_SYMMETRISCH) {
-        const an = this.steuerung.impuls.symmetrisch;
-        return { titel: "Symmetrisch", unter: an ? "an" : "aus", rahmen: an ? FARBE.akzent : undefined };
+      if (taste === TASTE_ELEMENT_FOLGE) return eintrag("Elemente", false, { unter: ELEMENT_FOLGE_NAME[e.elementFolge] });
+      if (taste === TASTE_SYMMETRISCH) return eintrag("Symmetrisch", e.symmetrisch, { unter: e.symmetrisch ? "an" : "aus" });
+      if (taste === TASTE_IMPULS_REGLER) {
+        return eintrag("Regler ›", false, { unter: IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.name });
       }
-      if (taste === TASTE_IMPULS_REGLER) return { titel: `Regler ${this.impulsReglerSeite + 1}/${IMPULS_REGLER_SEITEN.length}`, unter: "umschalten" };
       return { titel: "" };
     }
     const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
     if (taste === TASTE_SEITE) {
-      return { titel: "Seite ›", unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` };
+      return seitenAnzahl(anzahl) > 1
+        ? eintrag("Seite ›", false, { unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` })
+        : { titel: "" };
     }
     const i = eintragAuf(this.seite, taste, anzahl);
     if (i === undefined) return { titel: "" };
-    if (this.menue === "pattern") {
-      return { titel: MODUS_NAME[MODI[i]!], rahmen: parameter.modus === MODI[i] ? FARBE.akzent : undefined };
-    }
+    if (this.menue === "pattern") return eintrag(MODUS_NAME[MODI[i]!], parameter.modus === MODI[i]);
     const p = presets[i];
     const gespeichert = this.gespeichert?.nr === i && Date.now() < this.gespeichert.bis;
-    if (!p) return { titel: String(i + 1), unter: gespeichert ? "gespeichert" : haelt ?? "leer · halten", leise: true };
-    return {
-      titel: p.name,
-      unter: gespeichert ? "gespeichert" : haelt ?? String(i + 1),
-      rahmen: letztesPreset === i ? FARBE.akzent : undefined,
-    };
+    if (!p) return { titel: String(i + 1), unter: gespeichert ? "gespeichert" : haelt ?? "leer · halten", leise: true, grund: FARBE.feld };
+    return eintrag(p.name, letztesPreset === i, { unter: gespeichert ? "gespeichert" : haelt ?? String(i + 1) });
+  }
+
+  // Kopf des Touchstreifens: Name der Reglerseite und ihre Farbe
+  private streifenKopf(): { name: string; ton: Farbton } {
+    if (this.menue === "impulse") {
+      const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite];
+      return { name: `${seite?.name ?? ""} · Streifen: ${IMPULS_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
+    }
+    const { seite, nr, anzahl } = this.aktuelleSeite();
+    return { name: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, ton: TON[seite.ton] };
   }
 
   private felder(): Feld[] {
     if (this.menue === "impulse") {
       const e = this.steuerung.impuls;
-      const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite] ?? [];
       // immer vier Felder, damit jedes über seinem Drehregler steht
       return [0, 1, 2, 3].map((i): Feld => {
-        const name = seite[i];
+        const name = this.impulsRegler(i);
         if (!name) return { titel: "", wert: "", anteil: null };
         const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
         return { titel: b.kurz, wert: zeigeImpuls(name, w), anteil: (w - b.min) / (b.max - b.min) };
       });
     }
     const p = this.steuerung.parameter;
-    return (REGLER_SEITEN[this.reglerSeite] ?? []).map((r): Feld => {
+    return [0, 1, 2, 3].map((i): Feld => {
+      const r = this.regler(i);
+      if (!r) return { titel: "", wert: "", anteil: null };
       if (r.art === "zahl") {
         const b = BEREICHE[r.name];
         return { titel: b.kurz, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };

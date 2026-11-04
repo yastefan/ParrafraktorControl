@@ -1,10 +1,12 @@
 // Belegung des Stream Deck+: Menüs auf den Tasten, Drehregler und Touchstreifen.
+// Jedes Menü hat eine Farbe (bilder.ts, TON): Pattern blau, Presets grün, Impulse violett;
+// die Reglergruppen Bewegung bernstein, Verteilung koralle, Fein grau.
 //
 // Hauptmenü:
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Pattern › │Presets › │ Regler   │ Elemente │   Regler: Reglerseite umschalten
+//   │Pattern › │Presets › │Impulse › │ Seite ›  │   Seite: nächste Reglerseite (Name darunter)
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │Impulse › │ Ordnung  │  Pause   │  Output  │   Elemente/Ordnung: Stufe weiterschalten
+//   │ Ordnung  │ Elemente │  Pause   │  Output  │   Ordnung/Elemente: Stufe weiterschalten
 //   └──────────┴──────────┴──────────┴──────────┘   Output: gedrückt halten (Schutz vor Versehen)
 // Untermenü (Pattern, Presets): sechs Plätze, unten links Zurück, unten rechts nächste Seite.
 //   ┌──────────┬──────────┬──────────┬──────────┐
@@ -18,17 +20,18 @@
 //   ┌──────────┬──────────┬──────────┬──────────┐
 //   │Flash auf │Flash zu  │  Stoß    │ Glitzern │   obere Reihe: Art wählen (löst nichts aus)
 //   ├──────────┼──────────┼──────────┼──────────┤
-//   │‹ Zurück  │ Elemente │ Regler   │Symmetr.  │   Regler: Seite 1 Attack/Sustain/Release/Stärke,
-//   └──────────┴──────────┴──────────┴──────────┘           Seite 2 Ausbreitung/Breite/Versatz
+//   │‹ Zurück  │ Elemente │ Regler   │Symmetr.  │   Regler: Seite Hülle (Attack/Sustain/Release/Stärke)
+//   └──────────┴──────────┴──────────┴──────────┘           oder Lauf (Ausbreitung/Breite/Versatz)
 // Touchstreifen im Impulse-Menü: Tippen = gewählte Art von dort aus, Wischen = sie läuft in
 // Wischrichtung durch. Wie schnell, sagt die Ausbreitung.
 //
-// Drehregler: Seite 1 Offset/Amplitude/Speed/Phase, Seite 2 Speed bis/Group/Fächer/Ordnung,
-// Seite 3 Wiederkehr/Wellenlänge/Gegenlauf/Ping-Pong (Schalter: Drehen schaltet).
+// Drehregler: Die Seiten richten sich nach der Grundbewegung – nur Regler, die sie benutzt,
+// leere Seiten fallen weg (bei Ruhe bleibt nur Offset). Schalter: Drehen schaltet.
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite
 // (außer im Impulse-Menü).
-import type { ImpulsArt } from "@parrafraktor/engine";
-import type { ImpulsRegler, SchalterParameter, StufenParameter, ZahlParameter } from "@parrafraktor/protokoll";
+import type { ImpulsArt, Modus } from "@parrafraktor/engine";
+import { benutzt, type ImpulsRegler, type SchalterParameter, type StufenParameter, type ZahlParameter } from "@parrafraktor/protokoll";
+import type { Ton } from "./bilder.js";
 
 export type Menue = "haupt" | "pattern" | "presets" | "impulse";
 
@@ -37,35 +40,44 @@ export type Regler =
   | { art: "stufe"; name: StufenParameter }
   | { art: "schalter"; name: SchalterParameter };
 
-export const REGLER_SEITEN: Regler[][] = [
-  [
-    { art: "zahl", name: "offset" },
-    { art: "zahl", name: "amplitude" },
-    { art: "zahl", name: "speedVon" },
-    { art: "zahl", name: "phase" },
-  ],
-  [
-    { art: "zahl", name: "speedBis" },
-    { art: "zahl", name: "group" },
-    { art: "zahl", name: "faecher" },
-    { art: "stufe", name: "ordnung" },
-  ],
-  [
-    { art: "zahl", name: "schwuenge" },
-    { art: "zahl", name: "wellenlaenge" },
-    { art: "schalter", name: "gegenlauf" },
-    { art: "schalter", name: "pingpong" },
-  ],
+export interface ReglerSeite {
+  name: string;
+  ton: Ton;
+  regler: Regler[];
+}
+
+const zahl = (name: ZahlParameter): Regler => ({ art: "zahl", name });
+const stufe = (name: StufenParameter): Regler => ({ art: "stufe", name });
+const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name });
+
+// Alle Regler nach Gruppe; je Grundbewegung bleiben die benutzten übrig. Bei der Bewegung kommt
+// als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge).
+const GRUPPEN: ReglerSeite[] = [
+  { name: "Bewegung", ton: "bewegung", regler: [zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("phase"), zahl("schwuenge"), zahl("wellenlaenge")] },
+  { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf")] },
+  { name: "Fein", ton: "fein", regler: [zahl("speedBis"), zahl("group"), schalter("pingpong")] },
 ];
+
+// Reglerseiten für eine Grundbewegung: höchstens vier Regler je Seite, leere fallen weg
+export function reglerSeiten(modus: Modus): ReglerSeite[] {
+  const seiten: ReglerSeite[] = [];
+  for (const g of GRUPPEN) {
+    const regler = g.regler.filter((r) => benutzt(modus, r.name));
+    for (let n = 0; n < regler.length; n += 4) {
+      seiten.push({ ...g, name: n ? `${g.name} 2` : g.name, regler: regler.slice(n, n + 4) });
+    }
+  }
+  return seiten;
+}
 
 // Hauptmenü
 export const HAUPT = {
   pattern: 0,
   presets: 1,
-  regler: 2,
-  elemente: 3,
-  impulse: 4,
-  ordnung: 5,
+  impulse: 2,
+  seite: 3,
+  ordnung: 4,
+  elemente: 5,
   pause: 6,
   output: 7,
 } as const;
@@ -75,9 +87,9 @@ export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf
 export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
 export const TASTE_SYMMETRISCH = 7;
-export const IMPULS_REGLER_SEITEN: ImpulsRegler[][] = [
-  ["attackS", "sustainS", "releaseS", "staerke"],
-  ["ausbreitungS", "breite", "elementVersatzS"],
+export const IMPULS_REGLER_SEITEN: { name: string; regler: ImpulsRegler[] }[] = [
+  { name: "Hülle", regler: ["attackS", "sustainS", "releaseS", "staerke"] },
+  { name: "Lauf", regler: ["ausbreitungS", "breite", "elementVersatzS"] },
 ];
 
 // Untermenüs

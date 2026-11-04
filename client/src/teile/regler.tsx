@@ -12,14 +12,15 @@ import { useLaden } from "../laden.js";
 
 export function Regler({ parameter: p }: { parameter: Parameter }) {
   const l = useLaden();
+  const stufen = (Object.keys(STUFEN) as StufenParameter[]).filter((n) => benutzt(p.modus, n));
   return (
     <div class="regler">
       <Offset p={p} />
       {ZAHL_PARAMETER.filter((n) => n !== "offset" && benutzt(p.modus, n)).map((name) => (
         <Schieber key={name} name={name} wert={p[name]} />
       ))}
-      <h3 class="regler-titel">Verteilung</h3>
-      {(Object.keys(STUFEN) as StufenParameter[]).map((name) => (
+      {stufen.length > 0 && <h3 class="regler-titel">Verteilung</h3>}
+      {stufen.map((name) => (
         <Stufen key={name} name={name} wert={p[name]} />
       ))}
       <div class="zeile schalter-zeile">
