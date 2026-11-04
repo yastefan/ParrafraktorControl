@@ -6,7 +6,7 @@ import { Kopf } from "./teile/kopf.js";
 import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
 import { Regler } from "./teile/regler.js";
-import { LAMPE_VORGABE, Vorschau, type Ansicht, type VorderModus } from "./vorschau.js";
+import { LAMPE_VORGABE, Vorschau, ZOOM, type Ansicht, type VorderModus } from "./vorschau.js";
 
 export function App() {
   const l = useLaden();
@@ -45,6 +45,11 @@ const MODUS_SCHLUESSEL = "parrafraktor.vorderModus";
 const ANSICHT_SCHLUESSEL = "parrafraktor.ansicht";
 const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser", reflexion: "Reflexion" };
 const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
+const ZOOM_SCHLUESSEL = "parrafraktor.zoom";
+function leseZoom(): number {
+  const z = Number(lese(ZOOM_SCHLUESSEL));
+  return lese(ZOOM_SCHLUESSEL) !== null && Number.isFinite(z) ? Math.min(ZOOM.max, Math.max(ZOOM.min, z)) : ZOOM.vorgabe;
+}
 function leseLampe(): { x: number; y: number } {
   try {
     const l = JSON.parse(lese(LAMPE_SCHLUESSEL) ?? "null");
@@ -76,6 +81,7 @@ function VorschauFlaeche() {
   const ansichtRef = useRef(ansicht);
   ansichtRef.current = ansicht;
   const vorschau = useRef<Vorschau>();
+  const [zoom, setZoom] = useState(leseZoom);
   const zieht = useRef<number | null>(null);
   useEffect(() => {
     const v = new Vorschau(canvas.current!, () => {
@@ -96,6 +102,7 @@ function VorschauFlaeche() {
       };
     });
     v.lampe = leseLampe();
+    v.zoom = leseZoom();
     vorschau.current = v;
     v.starte();
     const ab = laden.abonniere(() => { if (laden.stand) v.gleiche(laden.stand.takt); });
@@ -143,6 +150,22 @@ function VorschauFlaeche() {
           </button>
         ))}
       </div>
+      {ansicht === "reflexion" && (
+        <label class="vorschau-zoom">
+          <span>Zoom</span>
+          <input
+            type="range" min={ZOOM.min} max={ZOOM.max} step={1} value={zoom}
+            style={{ "--fuellung": `${((zoom - ZOOM.min) / (ZOOM.max - ZOOM.min)) * 100}%` }}
+            onInput={(ev) => {
+              const z = Number(ev.currentTarget.value);
+              setZoom(z);
+              if (vorschau.current) vorschau.current.zoom = z;
+            }}
+            onChange={(ev) => merke(ZOOM_SCHLUESSEL, ev.currentTarget.value)}
+          />
+          <output>{zoom}°</output>
+        </label>
+      )}
       {vorn && (
         <div class="umschalter vorschau-modus">
           {(["spiegel", "licht"] as const).map((m) => (
