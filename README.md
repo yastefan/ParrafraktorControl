@@ -116,7 +116,7 @@ Impulse (Live-Seite)
 | Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (Hülle: Attack, Sustain, Release, Stärke; Lauf: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
-| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Phase bzw. Wiederkehr bzw. Wellenlänge), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf), **Fein** (Speed bis, Group, Ping-Pong). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
+| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf), **Fein** (Group, Ping-Pong). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 
@@ -160,8 +160,9 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 |---|---|
 | Offset | Grundstellung. Mit dem Schloss 🔒/🔓 je Element einstellbar |
 | Amplitude | Ausschlag |
-| Speed von/bis | Tempo in BPM; mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
-| Phase | Versatz über die Spiegel: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
+| Speed von/bis | Tempo in BPM (Durchläufe pro Minute, 0–10); mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
+| Phase | Versatz über die Spiegel wie in der grandMA3: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
+| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Phase 360° und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich |
 | Group | Muster wiederholt sich alle n Spiegel |
 | Fächer | Amplitude wächst entlang der Ordnung, bei Mitte/außen zum Rand hin |
 
@@ -207,7 +208,7 @@ Oben rechts schaltet man zwischen **Simple** (die Ansicht nach Aufbau, siehe obe
 
 ## Presets
 
-12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
+12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Breite, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
 
 ## Ausgabe und Output
 

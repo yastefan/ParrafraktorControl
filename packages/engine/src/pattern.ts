@@ -48,7 +48,10 @@ export interface Parameter {
   // 0 = aus: dann gilt nur der andere Wert, alle Spiegel laufen gleich schnell.
   speedVon: number;
   speedBis: number;
-  phase: number;       // Grad, Versatz über die Auswahl wie MAtricks-Phase
+  phase: number;       // Grad, Versatz über die Auswahl wie MAtricks-Phase (360° = eine Welle über die Auswahl)
+  // Sinus: Anteil des Durchlaufs, in dem sich ein Spiegel bewegt, wie Width im Phaser der grandMA3.
+  // 100 = immer, darunter steht er den Rest der Zeit auf Offset: eine schmale Welle zieht durch.
+  breite: number;      // %
   group: number;       // Gruppengröße wie MAtricks-Groups, 0 = aus
   faecher: number;     // %, Amplitude wächst entlang der Ordnung (bei Mitte/außen: zum Rand hin)
   schwuenge: number;   // Pendelwelle: nach so vielen Schwüngen des ersten Spiegels laufen alle wieder gleich
@@ -69,6 +72,7 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   speedVon: 3,
   speedBis: 0,
   phase: 360,
+  breite: 100,
   group: 0,
   faecher: 0,
   schwuenge: 24,
@@ -247,10 +251,20 @@ export class Engine {
     // Sinus. Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den
     // letzten Spiegel, damit es am Wendepunkt nicht auf den ersten überspringt
     const lauf = p.pingpong ? (1 - Math.abs(2 * (((u % 1) + 1) % 1) - 1)) * (1 - 1 / anzahl) : u;
-    // bisherige Laufzeit im Bogenmaß, verschoben um die Phase
-    const t = 2 * Math.PI * (lauf - versatz);
-    return seite * A * Math.sin(t);
+    // bisherige Laufzeit, verschoben um die Phase, zusammengedrängt auf die Breite
+    return seite * A * Math.sin(2 * Math.PI * schmal(lauf - versatz, p.breite / 100));
   }
+}
+
+// Breite (Width): Der Durchlauf t eines Spiegels wird auf den Anteil b gedrängt, danach steht er bis
+// zum nächsten Durchlauf (Sinus 0 = Offset). Damit er dabei nicht ruckt, läuft das Stück weich an und
+// aus; zwischen 100 % und 90 % wird dorthin übergeblendet, damit Verstellen nicht springt.
+export function schmal(t: number, b: number): number {
+  if (b >= 1) return t;
+  const x = t - Math.floor(t);
+  if (x >= b) return 0;
+  const y = x / b;
+  return y + (weich(y) - y) * Math.min(1, (1 - b) / 0.1);
 }
 
 // Zwei Stellungen überblenden: anteil 0 = a, 1 = b

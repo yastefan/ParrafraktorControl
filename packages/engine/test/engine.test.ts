@@ -22,7 +22,8 @@ describe("Pattern-Engine", () => {
       const engine = new Engine();
       engine.umlaufVon = f.umlaufVon;
       engine.umlauf.set(f.umlauf);
-      const tilt = engine.alle(f.parameter).map((s) => s.tilt);
+      // die Simulation kennt die Breite nicht: immer 100 %
+      const tilt = engine.alle({ ...f.parameter, breite: 100 }).map((s) => s.tilt);
       tilt.forEach((w, g) => expect(w, `${f.parameter.modus} ${f.parameter.ordnung} Spiegel ${g}`).toBeCloseTo(f.tilt[g]!, 5));
     }
   });
@@ -172,6 +173,16 @@ describe("Regler", () => {
     };
     const langsam = bild(5, 400), schnell = bild(10, 200);
     langsam.forEach((w, g) => expect(schnell[g]).toBeCloseTo(w, 6));
+  });
+
+  it("Breite: schmale Welle, die übrigen Spiegel stehen auf Offset", () => {
+    // 10 %: bei Phase 360° über 36 Spiegel bewegen sich höchstens etwa 4 zugleich
+    for (const u of [0.1, 0.37, 0.8]) {
+      const w = winkel({ breite: 10, offset: 20 }, u);
+      expect(w.filter((x) => Math.abs(x - 20) > 1e-9).length).toBeLessThanOrEqual(4);
+    }
+    // 100 % ist der gewohnte Sinus
+    expect(winkel({ breite: 100 })).toEqual(winkel({}));
   });
 
   it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {
