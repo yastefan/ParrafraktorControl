@@ -5,7 +5,7 @@
 // Group wie die MAtricks der grandMA3, dazu die Verteilung aus Ordnung (innerhalb eines Elements),
 // Element-Folge, Gegenlauf und Fächer.
 // Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren.
-import { ELEMENTE, SPIEGEL_GESAMT, SPIEGEL_N, elementRang, type ElementFolge } from "./aufbau.js";
+import { SPIEGEL_GESAMT, SPIEGEL_N, elementGespiegelt, elementRaenge, elementRang, type ElementFolge } from "./aufbau.js";
 
 export const MODI = ["sinus", "pendelwelle", "wind", "rotation", "ruhe"] as const;
 export type Modus = (typeof MODI)[number];
@@ -143,19 +143,23 @@ export function ordnungsPlatz(ordnung: Ordnung, i: number): { platz: number; anz
 // Platz des Spiegels g in der Auswahl, wie in der grandMA3: daraus ergibt sich sein Phasenversatz
 // (Bruchteil eines Durchlaufs, 0 … 1). Erst die Ordnung innerhalb des Elements, dann die Element-Folge
 // (laufen die Elemente nacheinander, zählen die Plätze über alle drei weiter), zuletzt die Groups.
+// Bei Element-Folge Mitte → außen ist das erste Element das Spiegelbild des dritten.
 export function auswahl(p: Parameter, g: number): Auswahl {
-  const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N, h = SPIEGEL_N / 2;
+  const k = Math.floor(g / SPIEGEL_N), h = SPIEGEL_N / 2;
+  const gespiegelt = elementGespiegelt(p.elementFolge, k);
+  const i = gespiegelt ? SPIEGEL_N - 1 - (g % SPIEGEL_N) : g % SPIEGEL_N;
   const vonInnen = i < h ? h - 1 - i : i - h;
   let { platz, anzahl } = ordnungsPlatz(p.ordnung, i);
   const rang = elementRang(p.elementFolge, k);
-  if (rang !== null) { platz += rang * anzahl; anzahl *= ELEMENTE; }
+  if (rang !== null) { platz += rang * anzahl; anzahl *= elementRaenge(p.elementFolge); }
   const mitte = p.ordnung === "mitteAussen" || p.ordnung === "aussenMitte";
   const lage = mitte ? (vonInnen + 0.5) / h : (platz + 0.5) / anzahl;
   // Groups: das Muster wiederholt sich alle "group" Spiegel
   if (p.group > 0) { platz %= p.group; anzahl = Math.min(anzahl, p.group); }
   // anteil: Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis
   const anteil = anzahl > 1 ? Math.min(1, platz / (anzahl - 1)) : 0;
-  const seite = p.gegenlauf && i < h ? -1 : 1;
+  // Gegenlauf: linke Hälfte gespiegelt; im gespiegelten Element der ganze Winkel noch einmal
+  const seite = p.gegenlauf ? (i < h ? -1 : 1) * (gespiegelt ? -1 : 1) : 1;
   return { platz, anzahl, anteil, lage, seite, versatz: (p.phase / 360) * (platz / anzahl) };
 }
 

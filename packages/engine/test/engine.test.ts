@@ -93,6 +93,17 @@ describe("Regler", () => {
     return e.alle(par).map((s) => s.tilt);
   };
 
+  it("Elemente Mitte → außen mit Gegenlauf: die ganze Installation spiegelbildlich", () => {
+    for (const ordnung of ["mitteAussen", "links", "zufall"] as const) {
+      const w = winkel({ ordnung, elementFolge: "mitteAussen", gegenlauf: true, offset: 25, phase: 270 });
+      // erstes und drittes Element sind Spiegelbilder
+      for (let i = 0; i < 12; i++) expect(w[i]).toBeCloseTo(-w[24 + 11 - i]!, 9);
+    }
+    // Mitte → außen innen: dann ist auch das mittlere symmetrisch, also alles
+    const w = winkel({ ordnung: "mitteAussen", elementFolge: "mitteAussen", gegenlauf: true, offset: 25 });
+    for (let g = 0; g < 36; g++) expect(w[g]).toBeCloseTo(-w[35 - g]!, 9);
+  });
+
   it("Gegenlauf spiegelt auch den Offset (auch je Element)", () => {
     for (const p of [
       { ordnung: "mitteAussen", gegenlauf: true, offset: 30 },

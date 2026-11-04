@@ -25,6 +25,8 @@ const varianten = [
   { group: 4, ordnung: "rechts", elementFolge: "zusammen", gegenlauf: false, pingpong: true, faecher: 100, phase: 120 },
   { group: 0, ordnung: "verschachtelt", elementFolge: "hintenVorne", gegenlauf: false, pingpong: true, faecher: 0, phase: 720 },
   { group: 3, ordnung: "zufall", elementFolge: "vorneHinten", gegenlauf: true, pingpong: false, faecher: 30, phase: 0 },
+  { group: 0, ordnung: "mitteAussen", elementFolge: "mitteAussen", gegenlauf: true, pingpong: false, faecher: 40, phase: 360 },
+  { group: 0, ordnung: "rechts", elementFolge: "mitteAussen", gegenlauf: false, pingpong: false, faecher: 0, phase: 360 },
 ];
 
 const faelle = [];
