@@ -50,7 +50,7 @@ const FARBE = {
   grund: "#0b0a0f",
   rahmen: "#2a2d33",
   spiegel: "#c9ccd1",
-  live: "#f0a030",
+  live: "#ff1f4f",
   licht: "255,214,160",        // warmes Gegenlicht wie in der Simulation
   lichtLive: "240,160,48",
   rueckseite: "#2a2630",
@@ -301,7 +301,7 @@ export class Vorschau {
     this.bereich += (ziel - this.bereich) * 0.08;
     const r = this.bereich;
 
-    const links = 40, rechts = 8, oben = 44, unten = 50, luecke = 10;   // oben Platz für den Umschalter
+    const links = 40, rechts = 8, oben = 10, unten = 50, luecke = 10;
     const pb = (breite - links - rechts - (ELEMENTE - 1) * luecke) / ELEMENTE;
     const ph = hoehe - oben - unten;
     const py = (a: number) => oben + ph / 2 - (a / r) * (ph / 2);

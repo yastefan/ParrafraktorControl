@@ -10,16 +10,17 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
   const warnungen = l.stand?.warnungen.length ?? 0;
 
   // Output: ob die App die Spiegel fährt (intern "Übernahme"). Aus = die MA fährt.
-  let uebernahmeText = "Output aus · halten zum Aktivieren";
-  if (u?.zustand === "an") uebernahmeText = "OUTPUT AKTIV · halten zum Beenden";
+  let uebernahmeText = "Output aus // halten";
+  if (u?.zustand === "an") uebernahmeText = "Output aktiv // halten";
   else if (u?.zustand === "blendetEin" || u?.zustand === "blendetAus") {
     uebernahmeText = `Output blendet ${Math.round(u.anteil * 100)} %`;
   }
+  const VERBINDUNG: Record<string, string> = { verbunden: "Link OK", verbinde: "Verbinde …", getrennt: "Getrennt" };
 
   return (
     <header class="kopf">
-      <span class={`punkt ${l.verbindung}`} title={l.verbindung} />
       <h1>Parrafraktor</h1>
+      <span class="status"><span class={`punkt ${l.verbindung}`} />{VERBINDUNG[l.verbindung] ?? l.verbindung}</span>
       {l.updateBereit && (
         <button type="button" class="knopf klein" onClick={l.updateBereit}>Neue Version</button>
       )}
@@ -41,7 +42,7 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
           {uebernahmeText}
         </HaltKnopf>
         <button type="button" class="knopf" onClick={beiEinstellungen} aria-label="Einstellungen">
-          Einstellungen{warnungen ? <span class="marke">{warnungen}</span> : null}
+          Setup{warnungen ? <span class="marke">{warnungen}</span> : null}
         </button>
       </div>
     </header>

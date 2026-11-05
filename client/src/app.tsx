@@ -5,7 +5,8 @@ import { Impulse } from "./teile/impulse.js";
 import { Kopf } from "./teile/kopf.js";
 import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
-import { Regler } from "./teile/regler.js";
+import { Bewegung, Verteilung, hatVerteilung } from "./teile/regler.js";
+import { Modul } from "./teile/modul.js";
 import { LAMPE_VORGABE, Vorschau, ZOOM, type Ansicht, type VorderModus } from "./vorschau.js";
 
 export function App() {
@@ -18,14 +19,19 @@ export function App() {
     <div class={`app ${live ? "live" : ""}`}>
       <Kopf beiEinstellungen={() => setEinstellungen(true)} />
       {!l.bedienbar && <Hinweis />}
-      <main class="haupt">
-        <section class="links">
+      <main class={`pult ${p && !hatVerteilung(p) ? "ohne-verteilung" : ""} ${p?.modus === "oeffnung" ? "bahn" : ""}`}>
+        <div class="pult-oben">
           <VorschauFlaeche />
-          {p && <Patterns modus={p.modus} />}
-          <Presets />
-          {l.stand && <Impulse />}
-        </section>
-        <section class="rechts">{p && <Regler parameter={p} />}</section>
+          <div class="pult-rechts">
+            {p && <Patterns modus={p.modus} />}
+            <Presets />
+          </div>
+        </div>
+        <div class="pult-mitte">
+          {p && <Bewegung parameter={p} />}
+          {p && hatVerteilung(p) && <Verteilung parameter={p} />}
+        </div>
+        {l.stand && <Impulse />}
       </main>
       {einstellungen && l.stand && <Einstellungen stand={l.stand} schliessen={() => setEinstellungen(false)} />}
     </div>
@@ -44,6 +50,7 @@ function Hinweis() {
 const MODUS_SCHLUESSEL = "parrafraktor.vorderModus";
 const ANSICHT_SCHLUESSEL = "parrafraktor.ansicht";
 const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser", reflexion: "Reflexion" };
+
 const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
 const ZOOM_SCHLUESSEL = "parrafraktor.zoom";
 function leseZoom(): number {
@@ -112,7 +119,14 @@ function VorschauFlaeche() {
   const vorn = ansicht === "bild" && l.stand?.einstellungen.aufbau.anordnung === "hintereinander";
   const waehle = (m: VorderModus) => { setModus(m); merke(MODUS_SCHLUESSEL, m); };
   const zeige = (a: Ansicht) => { setAnsicht(a); merke(ANSICHT_SCHLUESSEL, a); };
+  const umschalter = (["bild", "phaser", "reflexion"] as const).map((a) => (
+    <button type="button" key={a} class={`aktion ${ansicht === a ? "aktiv" : ""}`} aria-pressed={ansicht === a} onClick={() => zeige(a)}>
+      {ANSICHT_NAME[a]}
+    </button>
+  ));
+  const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? "Reflexion" : vorn && modus === "licht" ? "Licht" : "Simple";
   return (
+    <Modul titel={`Live // ${titel}`} klasse="m-vorschau" aktionen={umschalter}>
     <div class={`vorschau-rahmen ${vorn ? "vorn" : ""} ${ansicht}`}>
       <canvas
         ref={canvas}
@@ -144,13 +158,6 @@ function VorschauFlaeche() {
           : ansicht === "reflexion" ? "Draufsicht mit Scheinwerfer und reflektierten Strahlen"
           : vorn ? "Vorschau der drei Elemente von vorn" : "Vorschau der 36 Spiegel von oben"}
       />
-      <div class="umschalter vorschau-ansicht">
-        {(["bild", "phaser", "reflexion"] as const).map((a) => (
-          <button type="button" key={a} class={ansicht === a ? "aktiv" : ""} onClick={() => zeige(a)}>
-            {ANSICHT_NAME[a]}
-          </button>
-        ))}
-      </div>
       {ansicht === "reflexion" && (
         <label class="vorschau-zoom">
           <span>Zoom</span>
@@ -176,6 +183,8 @@ function VorschauFlaeche() {
           ))}
         </div>
       )}
+      <div class="scan" />
     </div>
+    </Modul>
   );
 }
