@@ -353,7 +353,9 @@ export class Vorschau {
       ctx.fillText(`Element ${k + 1}`, x0 + pb / 2, sy + 13);
     }
 
-    // Auf Wunsch hinter dem Diagramm jedes Element von vorn, in seiner Drehung
+    // Auf Wunsch hinter dem Diagramm jedes Element von vorn, in seiner Drehung. Maßstab so, dass jeder
+    // Spiegel die Nulllinie unter seinem Punkt kreuzt: Ein gedrehter Spiegel kreuzt sie um 1/cos weiter
+    // außen. Liegen die Spiegel fast waagrecht, geht das nicht mehr, dann volle Breite.
     if (d.phaserElemente) {
       for (let k = 0; k < ELEMENTE; k++) {
         const x0 = links + k * (pb + luecke);
@@ -361,8 +363,9 @@ export class Vorschau {
         ctx.beginPath();
         ctx.rect(x0, oben, pb, ph);
         ctx.clip();
-        ctx.globalAlpha = 0.45;
-        this.element(ctx, x0 + pb / 2, oben + ph / 2, Math.min(pb, ph) / (ELEMENT_B * Math.SQRT2), k, d, winkel, 1);
+        ctx.globalAlpha = 0.65;
+        const cos = Math.abs(Math.cos(grad(d.aufbau.drehung[k] ?? 0)));
+        this.element(ctx, x0 + pb / 2, oben + ph / 2, (pb / ELEMENT_B) * (cos > 0.3 ? cos : 1), k, d, winkel, 1);
         ctx.restore();
       }
     }
