@@ -15,14 +15,16 @@ export function Regler({ parameter: p }: { parameter: Parameter }) {
   const stufen = (Object.keys(STUFEN) as StufenParameter[]).filter((n) => benutzt(p.modus, n));
   return (
     <div class="regler">
-      <Offset p={p} />
+      {/* Öffnung: die Bahn zuerst, sie bestimmt, was die übrigen Regler bedeuten */}
+      {p.modus === "oeffnung" && <Stufen name="bahn" wert={p.bahn} />}
+      {benutzt(p.modus, "offset") && <Offset p={p} />}
       {ZAHL_PARAMETER.filter((n) => n !== "offset" && benutzt(p.modus, n)).map((name) => (
         <Schieber key={name} name={name} wert={p[name]} />
       ))}
       {/* Verteilung in eigener Farbe, wie am Stream Deck */}
       <div class="verteilung">
-        {stufen.length > 0 && <h3 class="regler-titel">Verteilung</h3>}
-        {stufen.map((name) => (
+        {stufen.length > 0 && p.modus !== "oeffnung" && <h3 class="regler-titel">Verteilung</h3>}
+        {p.modus !== "oeffnung" && stufen.map((name) => (
           <Stufen key={name} name={name} wert={p[name]} />
         ))}
         <div class="zeile schalter-zeile">

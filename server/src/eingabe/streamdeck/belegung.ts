@@ -53,7 +53,7 @@ const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name }
 // Alle Regler nach Gruppe; je Grundbewegung bleiben die benutzten übrig. Bei der Bewegung kommt
 // als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge).
 const GRUPPEN: ReglerSeite[] = [
-  { name: "Bewegung", ton: "bewegung", regler: [zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge")] },
+  { name: "Bewegung", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("kante"), zahl("wabern"), zahl("nachlauf")] },
   { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf")] },
   { name: "Fein", ton: "fein", regler: [zahl("group"), schalter("pingpong")] },
 ];

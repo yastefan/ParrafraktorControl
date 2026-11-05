@@ -194,6 +194,7 @@ export class Vorschau {
       this.letzte = jetzt;
       const d = this.daten();
       if (d) {
+        this.engine.drehung = d.aufbau.drehung;
         this.engine.weiter(d.parameter, dt);
         const look = this.blenden(d, this.winkel(this.engine.alle(d.parameter), dt), dt);
         this.letzteWinkel = look;
