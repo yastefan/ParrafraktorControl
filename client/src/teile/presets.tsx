@@ -3,6 +3,7 @@
 import { useRef, useState } from "preact/hooks";
 import { PRESET_NAME_MAX, type Preset } from "@parrafraktor/protokoll";
 import { useLaden } from "../laden.js";
+import { Modul } from "./modul.js";
 
 const SPEICHERN_HALTEN_MS = 800;
 
@@ -12,14 +13,18 @@ export function Presets() {
   const stand = l.stand;
   if (!stand) return null;
   return (
-    <section class="presets">
-      <header class="presets-kopf">
-        <h2>Presets</h2>
-        <span class="leise">{bearbeiten ? "Tippen: umbenennen" : "Tippen: abrufen · Halten: speichern"}</span>
-        <button type="button" class={`knopf klein ${bearbeiten ? "an" : ""}`} onClick={() => setBearbeiten(!bearbeiten)}>
-          {bearbeiten ? "Fertig" : "Bearbeiten"}
-        </button>
-      </header>
+    <Modul
+      titel="02 Presets"
+      klasse="m-presets"
+      aktionen={(
+        <>
+          <span class="modul-hinweis">{bearbeiten ? "Tippen: umbenennen" : "Tippen: abrufen · Halten: speichern"}</span>
+          <button type="button" class={`aktion ${bearbeiten ? "aktiv" : ""}`} onClick={() => setBearbeiten(!bearbeiten)}>
+            {bearbeiten ? "Fertig" : "Bearbeiten"}
+          </button>
+        </>
+      )}
+    >
       <div class="presets-raster">
         {stand.presets.map((p, nr) => (
           <PresetPlatz
@@ -28,7 +33,7 @@ export function Presets() {
           />
         ))}
       </div>
-    </section>
+    </Modul>
   );
 }
 
@@ -56,8 +61,8 @@ function PresetPlatz({ nr, preset, aktiv, bearbeiten, bedienbar }: Props) {
             if (name?.trim()) l.sende({ typ: "preset", aktion: "umbenennen", nr, name: name.trim().slice(0, PRESET_NAME_MAX) });
           }}
         >
-          <span class="nr">{nr + 1}</span>
-          {preset?.name ?? "leer"}
+          <span class="nr">P{String(nr + 1).padStart(2, "0")}</span>
+          {preset?.name ?? "–"}
         </button>
         {preset && (
           <button
@@ -96,8 +101,8 @@ function PresetPlatz({ nr, preset, aktiv, bearbeiten, bedienbar }: Props) {
       onPointerCancel={() => los(false)}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <span class="nr">{nr + 1}</span>
-      <span class="preset-titel">{preset?.name ?? "leer"}</span>
+      <span class="nr">P{String(nr + 1).padStart(2, "0")}</span>
+      <span class="preset-titel">{preset?.name ?? "–"}</span>
     </button>
   );
 }

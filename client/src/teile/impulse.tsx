@@ -9,6 +9,7 @@ import {
 import { IMPULS_BEREICHE, begrenzeImpuls, impulsWert, mitImpulsWert, zeigeImpuls, type ImpulsRegler } from "@parrafraktor/protokoll";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { laden, useLaden } from "../laden.js";
+import { Modul } from "./modul.js";
 
 export function Impulse() {
   const l = useLaden();
@@ -24,58 +25,78 @@ export function Impulse() {
   };
   const fertig = () => window.setTimeout(() => setEntwurf(null), 800);
   const sofort = (neu: ImpulsEinstellung) => { setze(neu); fertig(); };
+  const [mehr, setMehr] = useState(false);
 
   return (
-    <section class="impulse">
-      <h2 class="impulse-titel">Impulse</h2>
-      <div class="impulse-spielen">
-        <div class="arten">
-          {IMPULS_ARTEN.map((a) => {
-            const laeuft = l.stand?.impulse.some((i) => i.art === a) ?? false;
-            return (
-              <button
-                type="button" key={a} disabled={!l.bedienbar}
-                class={`art ${e.art === a ? "aktiv" : laeuft ? "laeuft" : ""}`}
-                onClick={() => sofort({ ...e, art: a })}
-              >
-                {IMPULS_NAME[a]}
-              </button>
-            );
-          })}
-        </div>
-        <Streifen name={IMPULS_NAME[e.art]} />
-        <button
-          type="button" class={`knopf klein ${e.symmetrisch ? "an" : ""}`} disabled={!l.bedienbar}
-          title="Startet zugleich am gespiegelten Punkt, die rechte Hälfte bewegt sich gespiegelt"
-          onClick={() => sofort({ ...e, symmetrisch: !e.symmetrisch })}
-        >
-          Symmetrisch {e.symmetrisch ? "an" : "aus"}
-        </button>
-        <Schieber name={istOeffnungArt(e.art) ? "groesse" : "breite"} e={e} setze={setze} fertig={fertig} />
-      </div>
-      <div class="huelle-feld">
-        <Huelle e={e} setze={setze} fertig={fertig} />
-        <div class="huelle-werte">
-          <span>Attack <b>{zeigeImpuls("attackS", e.huelle.attackS)}</b></span>
-          <span>Sustain <b>{zeigeImpuls("sustainS", e.huelle.sustainS)}</b></span>
-          <span>Release <b>{zeigeImpuls("releaseS", e.huelle.releaseS)}</b></span>
-          <span>Stärke <b>{zeigeImpuls("staerke", e.huelle.staerke)}</b></span>
-        </div>
-        <div class="umschalter">
-          {ELEMENT_FOLGEN.map((f) => (
+    <>
+      <Modul
+        titel="05 Impulse"
+        klasse="m-impulse"
+        aktionen={(
+          <>
             <button
-              type="button" key={f} class={e.elementFolge === f ? "aktiv" : ""} disabled={!l.bedienbar}
-              onClick={() => sofort({ ...e, elementFolge: f })}
+              type="button" class={`aktion ${e.symmetrisch ? "aktiv" : ""}`} disabled={!l.bedienbar}
+              aria-pressed={e.symmetrisch}
+              title="Startet zugleich am gespiegelten Punkt, die linke Hälfte bewegt sich gespiegelt"
+              onClick={() => sofort({ ...e, symmetrisch: !e.symmetrisch })}
             >
-              {ELEMENT_FOLGE_NAME[f]}
+              Symmetrisch
             </button>
+            <button type="button" class={`aktion ${mehr ? "aktiv" : ""}`} aria-expanded={mehr} onClick={() => setMehr(!mehr)}>
+              Mehr
+            </button>
+          </>
+        )}
+      >
+        <div class="impulse">
+          <div class="arten">
+            {IMPULS_ARTEN.map((a) => {
+              const laeuft = l.stand?.impulse.some((i) => i.art === a) ?? false;
+              return (
+                <button
+                  type="button" key={a} disabled={!l.bedienbar}
+                  class={`art ${e.art === a ? "aktiv" : laeuft ? "laeuft" : ""}`}
+                  onClick={() => sofort({ ...e, art: a })}
+                >
+                  {IMPULS_NAME[a]}
+                </button>
+              );
+            })}
+          </div>
+          <Streifen name={IMPULS_NAME[e.art]} />
+          <div class="huelle-feld"><Huelle e={e} setze={setze} fertig={fertig} /></div>
+          <div class="impuls-regler">
+            <Schieber name={istOeffnungArt(e.art) ? "groesse" : "breite"} e={e} setze={setze} fertig={fertig} />
+            <Schieber name="staerke" e={e} setze={setze} fertig={fertig} />
+            <Schieber name="ausbreitungS" e={e} setze={setze} fertig={fertig} />
+          </div>
+        </div>
+      </Modul>
+      {mehr && (
+        <div class="impuls-mehr" role="dialog" aria-label="Weitere Impuls-Regler">
+          <div class="impuls-mehr-kopf">
+            <h3>Impulse // Mehr</h3>
+            <button type="button" class="aktion" onClick={() => setMehr(false)}>Schließen</button>
+          </div>
+          <span class="stufen-name">Elemente</span>
+          <div class="stufen-raster folge">
+            {ELEMENT_FOLGEN.map((f) => (
+              <button
+                type="button" key={f} class={`stufe ${e.elementFolge === f ? "aktiv" : ""}`} disabled={!l.bedienbar}
+                aria-pressed={e.elementFolge === f}
+                onClick={() => sofort({ ...e, elementFolge: f })}
+              >
+                {ELEMENT_FOLGE_NAME[f]}
+              </button>
+            ))}
+          </div>
+          {e.elementFolge !== "zusammen" && <Schieber name="elementVersatzS" e={e} setze={setze} fertig={fertig} />}
+          {(["attackS", "sustainS", "releaseS"] as const).map((name) => (
+            <Schieber key={name} name={name} e={e} setze={setze} fertig={fertig} />
           ))}
         </div>
-        {e.elementFolge !== "zusammen" && <Schieber name="elementVersatzS" e={e} setze={setze} fertig={fertig} />}
-        <Schieber name="staerke" e={e} setze={setze} fertig={fertig} />
-        <Schieber name="ausbreitungS" e={e} setze={setze} fertig={fertig} />
-      </div>
-    </section>
+      )}
+    </>
   );
 }
 
@@ -83,15 +104,15 @@ function Schieber({ name, e, setze, fertig }: { name: ImpulsRegler } & HuellePro
   const l = useLaden();
   const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
   return (
-    <label class="zeile">
-      <span class="name">{b.name}</span>
-      <output>{zeigeImpuls(name, w)}</output>
+    <label class="band-regler">
+      <span class="name">{b.kurz}</span>
       <input
         type="range" min={b.min} max={b.max} step={b.schritt} value={w} disabled={!l.bedienbar}
         style={{ "--fuellung": `${((w - b.min) / (b.max - b.min)) * 100}%` }}
         onInput={(ev) => setze(mitImpulsWert(e, name, Number((ev.currentTarget as HTMLInputElement).value)))}
         onChange={fertig}
       />
+      <output>{zeigeImpuls(name, w)}</output>
     </label>
   );
 }
@@ -132,7 +153,7 @@ function Streifen({ name }: { name: string }) {
       }}
       onPointerCancel={() => { start.current = null; }}
     >
-      <span class="streifen-text">{name} · tippen oder wischen</span>
+      <span class="streifen-text">[ {name} // tippen oder wischen ]</span>
       {blitz && <span key={blitz.n} class="streifen-blitz" style={{ left: `${blitz.x * 100}%` }} />}
     </div>
   );
