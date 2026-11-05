@@ -29,6 +29,7 @@ export interface VorschauDaten {
   rotateMaxUpm: number;
   modus: VorderModus;
   ansicht: Ansicht;
+  phaserElemente: boolean;   // Phaser: Vorderansicht jedes Elements im Hintergrund
   blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
   blendeDauer: number;                              // Sekunden
   impuls: ImpulsEinstellung;
@@ -350,6 +351,20 @@ export class Vorschau {
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       ctx.fillText(`Element ${k + 1}`, x0 + pb / 2, sy + 13);
+    }
+
+    // Auf Wunsch hinter dem Diagramm jedes Element von vorn, in seiner Drehung
+    if (d.phaserElemente) {
+      for (let k = 0; k < ELEMENTE; k++) {
+        const x0 = links + k * (pb + luecke);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x0, oben, pb, ph);
+        ctx.clip();
+        ctx.globalAlpha = 0.45;
+        this.element(ctx, x0 + pb / 2, oben + ph / 2, Math.min(pb, ph) / (ELEMENT_B * Math.SQRT2), k, d, winkel, 1);
+        ctx.restore();
+      }
     }
 
     // Spur: ältere Punkte blasser und kleiner
