@@ -39,7 +39,6 @@ export interface Einstellungen {
   rotateMaxUpm: number;    // Umdrehungen pro Minute bei TiltRotate 0 bzw. 255
   ueberblendungS: number;  // Überblendung beim Übernehmen und Abgeben, 0 = springen
   // Impulse: Tilt in Grad für Flash auf (Licht von hinten) und Flash zu (Licht von außen),
-  // Ausschlag in Grad für Stoß und Glitzern
   flash: ImpulsWinkel;
   artnet: ArtnetEinstellungen;
   sacn: SacnEinstellungen;
@@ -54,7 +53,7 @@ export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
   rotateMaxUpm: 10,
   ueberblendungS: 2,
   // Platzhalter, bis die Winkel am echten Aufbau bestimmt sind
-  flash: { auf: 90, zu: 0, ausschlag: 30 },
+  flash: { auf: 90, zu: 0 },
   artnet: { an: true, ziel: "2.255.255.255", quelle: "", versatz: -1 },
   sacn: { an: false, priority: 150, multicast: true, ziel: "", quelle: "" },
   rs485: { an: false, geraet: "/dev/serial0" },
@@ -69,7 +68,6 @@ export const GRENZEN = {
   versatz: { min: -1, max: 0 },
   drehung: { min: -180, max: 180 },
   tilt: { min: -180, max: 180 },
-  ausschlag: { min: 0, max: 90 },
 } as const;
 
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
@@ -112,7 +110,6 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
     flash: {
       auf: zahl(f.auf, basis.flash.auf, GRENZEN.tilt),
       zu: zahl(f.zu, basis.flash.zu, GRENZEN.tilt),
-      ausschlag: zahl(f.ausschlag, basis.flash.ausschlag, GRENZEN.ausschlag),
     },
     artnet: {
       an: wahr(a.an, basis.artnet.an),

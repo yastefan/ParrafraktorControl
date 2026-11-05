@@ -19,6 +19,7 @@ interface Impuls {
   start: number;          // Sekunden (Uhr der Steuerung)
   ursprung: number;
   breite: number;
+  wischt: boolean;
 }
 
 interface Ereignisse {
@@ -77,7 +78,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   impulse(): LaufenderImpuls[] {
     const jetzt = this.uhr();
     return this._impulse.map((i) => ({
-      id: i.id, art: i.art, alterS: jetzt - i.start, ursprung: i.ursprung, breite: i.breite,
+      id: i.id, art: i.art, alterS: jetzt - i.start, ursprung: i.ursprung, breite: i.breite, wischt: i.wischt,
     }));
   }
 
@@ -140,7 +141,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     const start = this.uhr();
     const u = Math.min(1, Math.max(0, ursprung));
     const breite = wischen ? 0 : this._impuls.breite;
-    this._impulse.push({ id: ++this.impulsNr, art: this._impuls.art, start, ursprung: u, breite });
+    this._impulse.push({ id: ++this.impulsNr, art: this._impuls.art, start, ursprung: u, breite, wischt: wischen });
     this.geaendert();
   }
 

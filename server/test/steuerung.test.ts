@@ -73,9 +73,9 @@ describe("Impulse", () => {
 
   it("Streifen startet die gewählte Art vom Ursprung aus und räumt nach dem Release auf", () => {
     const { s, vor } = mitUhr();
-    s.setzeImpuls({ art: "stoss" });
+    s.setzeImpuls({ art: "loch" });
     s.tippeImpuls(1.7);
-    expect(s.impulse()).toEqual([{ id: 1, art: "stoss", alterS: 0, ursprung: 1, breite: 0 }]);
+    expect(s.impulse()).toEqual([{ id: 1, art: "loch", alterS: 0, ursprung: 1, breite: 0, wischt: false }]);
     s.setzeImpuls({ breite: 4 });
     s.tippeImpuls(0.5);
     s.tippeImpuls(0, true);   // gewischt: durch das ganze Element
