@@ -233,6 +233,25 @@ export function auswahl(p: Parameter, g: number): Auswahl {
   return { platz, anzahl, anteil, lage, seite, versatz: (p.phase / 360) * (platz / anzahl) };
 }
 
+// ---------- Rotation ----------
+// TiltRotate kennt nur eine Drehzahl, keine Stellung. Phase, Breite und Gegenlauf gehen trotzdem: Jeder
+// Spiegel hat einen Soll-Winkel aus seinem Umlauf, die Engine zählt mit, wie weit er gedreht haben
+// müsste, und gibt die Drehzahl vor, die ihn dorthin bringt – höchstens TiltRotate max.
+const DREH_SPITZE = 1.875;   // Spitze von weich(): so viel schneller als im Schnitt dreht ein Spiegel in der Breite
+
+// Soll-Winkel (Grad). Breite: Eine ganze Umdrehung passiert im Anteil b des Durchlaufs, dann steht er.
+function drehSoll(p: Parameter, u: number, g: number, b: number): number {
+  const { versatz, seite } = auswahl(p, g);
+  const x = u - versatz;
+  if (b >= 1) return seite * 360 * x;
+  const ganz = Math.floor(x), y = (x - ganz) / b;
+  const teil = y >= 1 ? 1 : y + (weich(y) - y) * Math.min(1, (1 - b) / 0.1);
+  return seite * 360 * (ganz + teil);
+}
+
+// Kürzester Weg auf dem Kreis, −180 … 180
+const kurzerWeg = (d: number): number => d - 360 * Math.round(d / 360);
+
 // Zeitkonstante, mit der die Spiegel wieder zusammenlaufen, wenn alle gleich schnell sind
 const GLEICHLAUF_S = 0.4;
 
@@ -245,6 +264,11 @@ export class Engine {
   private letzterModus: Modus | null = null;
   // Drehung der Elemente in ihrer Ebene (Grad), nur die Öffnung braucht sie. Aus den Einstellungen.
   drehung: readonly number[] = [0, 45, 90];
+  // TiltRotate max. (U/min) aus den Einstellungen: mehr kann die Rotation nicht vorgeben
+  rotateMaxUpm = 10;
+  // Rotation: mitgezählter Winkel (Grad) und vorgegebene Drehzahl je Spiegel
+  private readonly gedreht = new Float64Array(SPIEGEL_GESAMT);
+  private readonly drehzahl = new Float64Array(SPIEGEL_GESAMT);
 
   // Zeit weiterlaufen lassen (dt in Sekunden)
   weiter(p: Parameter, dt: number): void {
@@ -263,7 +287,7 @@ export class Engine {
         // folgende einen Schwung mehr als sein Vorgänger – dann stehen wieder alle gleich.
         // Speed ist das Tempo des ersten Spiegels und beschleunigt damit das ganze Bild.
         this.umlauf[g] += ((dt * von) / 60) * (1 + auswahl(p, g).platz / p.schwuenge);
-      } else if (von === bis) {
+      } else if (von === bis && !(p.modus === "rotation" && p.faecher > 0)) {
         // Alle gleich schnell (Speed bis aus): Abstand zum Bezug abbauen, damit bei Phase 0 wieder
         // alle Spiegel gleich laufen. Ganze Durchläufe sind unsichtbar und fallen sofort weg,
         // der Rest (höchstens ½ Durchlauf) läuft weich auf dem kürzesten Weg zu.
@@ -272,8 +296,31 @@ export class Engine {
         const ganz = Math.round(d);
         this.umlauf[g] += ganz + (d - ganz) * zug;
       } else {
-        this.umlauf[g] += (dt * (von + (bis - von) * auswahl(p, g).anteil)) / 60;
+        const { anteil, lage } = auswahl(p, g);
+        // Rotation: Fächer staffelt die Drehzahl entlang der Ordnung
+        const faecher = p.modus === "rotation" ? p.faecher / 100 : 0;
+        this.umlauf[g] += ((dt * (von + (bis - von) * anteil)) / 60) * (1 - faecher + faecher * lage);
       }
+    }
+    if (p.modus === "rotation") this.dreheWeiter(p, Math.max(von, bis), dt);
+    else {
+      // Ohne Rotation steht TiltRotate; beim nächsten Mal fängt die Zählung bei der Tilt-Stellung an
+      this.gedreht.fill(0);
+      this.drehzahl.fill(0);
+    }
+  }
+
+  // Rotation: Drehzahl je Spiegel, die ihn zum Soll-Winkel bringt. Die Breite kann nicht schmaler
+  // werden, als TiltRotate max. erlaubt, sonst käme der Spiegel nie hinterher.
+  private dreheWeiter(p: Parameter, speed: number, dt: number): void {
+    if (dt <= 0) return;
+    const max = this.rotateMaxUpm;
+    const b = Math.max(p.breite / 100, (DREH_SPITZE * speed) / max);
+    for (let g = 0; g < SPIEGEL_GESAMT; g++) {
+      const d = kurzerWeg(drehSoll(p, this.umlauf[g]!, g, b) - this.gedreht[g]!);
+      const upm = Math.min(max, Math.max(-max, d / (6 * dt)));
+      this.drehzahl[g] = upm;
+      this.gedreht[g] = (this.gedreht[g]! + upm * 6 * dt) % 360;
     }
   }
 
@@ -292,9 +339,8 @@ export class Engine {
     }
     const offset = p.offsetGetrennt ? (p.offsetElemente[k] ?? p.offset) : p.offset;
     if (p.modus === "rotation") {
-      // Endlos drehen geht nur über TiltRotate: Drehzahl wie Speed von/bis, Tilt bleibt auf Offset
-      const [von, bis] = speeds(p);
-      return { tilt: offset, upm: p.laeuft ? von + (bis - von) * auswahl(p, g).anteil : 0 };
+      // Endlos drehen geht nur über TiltRotate, Tilt bleibt auf Offset (mit Gegenlauf gespiegelt)
+      return { tilt: auswahl(p, g).seite * offset, upm: p.laeuft ? this.drehzahl[g]! : 0 };
     }
     // Gegenlauf spiegelt die linke Hälfte ganz, auch den Offset: aus 30° wird links −30°, sonst wäre
     // das Bild nur bei Offset 0 symmetrisch. (Der Ausschlag hat seine Seite schon in pattern().)

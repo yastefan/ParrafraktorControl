@@ -106,6 +106,7 @@ export class Takt {
   private schritt(dt: number): void {
     const { parameter, einstellungen, uebernahme } = this.steuerung;
     this.engine.drehung = einstellungen.aufbau.drehung;
+    this.engine.rotateMaxUpm = einstellungen.rotateMaxUpm;
     this.engine.weiter(parameter, dt);
     this.steuerung.raeumeImpulse();
 
