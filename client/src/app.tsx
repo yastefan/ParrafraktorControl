@@ -49,6 +49,7 @@ function Hinweis() {
 // Ansicht und Spiegel/Licht in der Vorderansicht: nur für dieses Gerät, deshalb im Browser gemerkt
 const MODUS_SCHLUESSEL = "parrafraktor.vorderModus";
 const ANSICHT_SCHLUESSEL = "parrafraktor.ansicht";
+const PHASER_ELEMENTE_SCHLUESSEL = "parrafraktor.phaserElemente";
 const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser", reflexion: "Reflexion" };
 
 const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
@@ -83,6 +84,9 @@ function VorschauFlaeche() {
     const a = lese(ANSICHT_SCHLUESSEL);
     return a === "phaser" || a === "reflexion" ? a : "bild";
   });
+  const [phaserElemente, setPhaserElemente] = useState(() => lese(PHASER_ELEMENTE_SCHLUESSEL) === "ja");
+  const phaserElementeRef = useRef(phaserElemente);
+  phaserElementeRef.current = phaserElemente;
   const modusRef = useRef(modus);
   modusRef.current = modus;
   const ansichtRef = useRef(ansicht);
@@ -101,6 +105,7 @@ function VorschauFlaeche() {
         rotateMaxUpm: laden.stand.einstellungen.rotateMaxUpm,
         modus: modusRef.current,
         ansicht: ansichtRef.current,
+        phaserElemente: phaserElementeRef.current,
         blende: laden.stand.blende,
         blendeDauer: laden.stand.einstellungen.ueberblendungS,
         impuls: laden.stand.impuls,
@@ -119,11 +124,24 @@ function VorschauFlaeche() {
   const vorn = ansicht === "bild" && l.stand?.einstellungen.aufbau.anordnung === "hintereinander";
   const waehle = (m: VorderModus) => { setModus(m); merke(MODUS_SCHLUESSEL, m); };
   const zeige = (a: Ansicht) => { setAnsicht(a); merke(ANSICHT_SCHLUESSEL, a); };
-  const umschalter = (["bild", "phaser", "reflexion"] as const).map((a) => (
-    <button type="button" key={a} class={`aktion ${ansicht === a ? "aktiv" : ""}`} aria-pressed={ansicht === a} onClick={() => zeige(a)}>
-      {ANSICHT_NAME[a]}
-    </button>
-  ));
+  const umschalter = (
+    <>
+      {ansicht === "phaser" && (
+        <button
+          type="button" class={`aktion haken ${phaserElemente ? "aktiv" : ""}`} aria-pressed={phaserElemente}
+          title="Vorderansicht der Elemente im Hintergrund"
+          onClick={() => { setPhaserElemente(!phaserElemente); merke(PHASER_ELEMENTE_SCHLUESSEL, phaserElemente ? "nein" : "ja"); }}
+        >
+          Elemente
+        </button>
+      )}
+      {(["bild", "phaser", "reflexion"] as const).map((a) => (
+        <button type="button" key={a} class={`aktion ${ansicht === a ? "aktiv" : ""}`} aria-pressed={ansicht === a} onClick={() => zeige(a)}>
+          {ANSICHT_NAME[a]}
+        </button>
+      ))}
+    </>
+  );
   const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? "Reflexion" : vorn && modus === "licht" ? "Licht" : "Simple";
   return (
     <Modul titel={`Live // ${titel}`} klasse="m-vorschau" aktionen={umschalter}>
