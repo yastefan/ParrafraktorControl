@@ -254,7 +254,8 @@ export class Engine {
       if (p.modus === "pendelwelle") this.umlauf.fill(this.umlaufVon);
       this.letzterModus = p.modus;
     }
-    const [von, bis] = speeds(p);
+    const tempo = 1 / wiederholung(p);
+    const [von, bis] = speeds(p).map((s) => s * tempo) as [number, number];
     this.umlaufVon += (dt * von) / 60;
     const zug = 1 - Math.exp(-dt / GLEICHLAUF_S);
     for (let g = 0; g < SPIEGEL_GESAMT; g++) {
@@ -324,8 +325,10 @@ export class Engine {
     // Sinus. Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den
     // letzten Spiegel, damit es am Wendepunkt nicht auf den ersten überspringt
     const lauf = p.pingpong ? (1 - Math.abs(2 * (((u % 1) + 1) % 1) - 1)) * (1 - 1 / anzahl) : u;
-    // bisherige Laufzeit, verschoben um die Phase, zusammengedrängt auf die Breite
-    return seite * A * Math.sin(2 * Math.PI * schmal(lauf - versatz, p.breite / 100));
+    // bisherige Laufzeit, verschoben um die Phase, zusammengedrängt auf die Breite;
+    // Phase und Breite gemessen an der Wiederholung
+    const w = wiederholung(p);
+    return seite * A * Math.sin(2 * Math.PI * schmal(lauf - versatz / w, p.breite / 100 / w));
   }
 }
 
@@ -338,6 +341,16 @@ export function schmal(t: number, b: number): number {
   if (x >= b) return 0;
   const y = x / b;
   return y + (weich(y) - y) * Math.min(1, (1 - b) / 0.1);
+}
+
+// Sinus mit Breite: Die Welle wiederholt sich, sobald sie durchgelaufen ist (Phase + Breite), damit
+// nicht alle Spiegel lange stehen. Anteil eines Durchlaufs, 1 = wie gewohnt. Bei kleiner Phase bleibt
+// zwischen zwei Schwüngen eine Pause so lang wie der Schwung, sonst wäre es nur ein schnellerer Sinus.
+// Ein Schwung dauert dabei immer gleich lang: Der Umlauf läuft um den Kehrwert schneller.
+function wiederholung(p: Parameter): number {
+  if (p.modus !== "sinus" || p.pingpong || p.breite >= 100) return 1;
+  const b = p.breite / 100;
+  return Math.min(1, Math.max(p.phase / 360 + b, 2 * b));
 }
 
 // Zwei Stellungen überblenden: anteil 0 = a, 1 = b

@@ -240,6 +240,43 @@ describe("Regler", () => {
     });
   });
 
+  it("Breite: kurze Phase wiederholt sich zügig, nie stehen alle lange, ein Schwung dauert gleich", () => {
+    const p: Parameter = { ...PARAMETER_VORGABE, phase: 90, breite: 10, speedVon: 6, elementFolge: "vorneHinten" };
+    const e = new Engine();
+    let stehen = 0, laengstes = 0, meiste = 0;
+    const bewegt = new Set<number>();
+    // 6 BPM = 10 s je Durchlauf, ein Schwung 1 s; die Welle braucht 3,5 s statt 10 s
+    for (let n = 0; n < 40 * 30; n++) {
+      e.weiter(p, 0.025);
+      const w = e.alle(p).map((s) => s.tilt);
+      const jetzt = w.filter((x) => Math.abs(x) > 1e-9).length;
+      w.forEach((x, g) => { if (Math.abs(x) > 1e-9) bewegt.add(g); });
+      meiste = Math.max(meiste, jetzt);
+      stehen = jetzt === 0 ? stehen + 1 : 0;
+      laengstes = Math.max(laengstes, stehen);
+    }
+    expect(bewegt.size).toBe(36);
+    expect(laengstes * 0.025).toBeLessThan(0.6);   // keine lange Pause
+    expect(meiste).toBeLessThanOrEqual(18);        // 1 s von 3,5 s Lauf: nur ein Teil bewegt sich zugleich
+    // Ein Spiegel: Schwung 1 s
+    const f = new Engine();
+    let aktiv = 0;
+    for (let n = 0; n < 40 * 3.5; n++) {
+      f.weiter(p, 0.025);
+      if (Math.abs(f.spiegel(p, 0).tilt) > 1e-9) aktiv++;
+    }
+    expect(aktiv * 0.025).toBeCloseTo(1, 0);
+    // Phase 0: Schwung und Pause wechseln sich ab, bleibt ein Puls
+    const q = { ...p, phase: 0 };
+    const h = new Engine();
+    let ruhig = 0;
+    for (let n = 0; n < 40 * 4; n++) {
+      h.weiter(q, 0.025);
+      if (h.alle(q).every((s) => Math.abs(s.tilt) < 1e-9)) ruhig++;
+    }
+    expect(ruhig / 160).toBeCloseTo(0.5, 1);
+  });
+
   it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {
     const e = new Engine();
     const p: Parameter = { ...PARAMETER_VORGABE, modus: "wind", wellenlaenge: 12, phase: 0 };

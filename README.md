@@ -163,7 +163,7 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 | Amplitude | Ausschlag |
 | Speed von/bis | Tempo in BPM (Durchläufe pro Minute, 0–10); mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
 | Phase | Versatz über die Spiegel wie in der grandMA3: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
-| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Phase 360° und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich |
+| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Phase 360° und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich. Die Welle wiederholt sich, sobald sie durch ist (Phase + Breite), bei kleiner Phase also zügiger; ein Schwung dauert immer Breite × Durchlauf. Bei Phase 0° wechseln Schwung und Pause |
 | Group | Muster wiederholt sich alle n Spiegel |
 | Fächer | Amplitude wächst entlang der Ordnung, bei Mitte/außen zum Rand hin |
 
