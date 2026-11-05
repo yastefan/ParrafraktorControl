@@ -1,13 +1,14 @@
 // Pattern-Engine (Grundbewegung): dieselbe Rechnung wie die Simulation auf der Website (parrafraktor.js).
-// Ein Pattern ist eine Grundbewegung (Sinus, Pendelwelle, Wind, Rotation, Ruhe), die dauerhaft läuft;
+// Ein Pattern ist eine Grundbewegung (Sinus, Pendelwelle, Wind, Rotation, Öffnung, Ruhe), die dauerhaft läuft;
 // Ereignisse wie Flash oder Flyout sind Impulse (impuls.ts). Alle Bewegungen sind weich, ohne Ruck.
 // Wie sie über die Spiegel läuft, bestimmen die Regler: Offset, Amplitude, Speed von/bis, Phase und
 // Group wie die MAtricks der grandMA3, dazu die Verteilung aus Ordnung (innerhalb eines Elements),
 // Element-Folge, Gegenlauf und Fächer.
-// Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren.
+// Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren. Nur die Öffnung
+// gibt es in der Simulation nicht.
 import { SPIEGEL_GESAMT, SPIEGEL_N, elementGespiegelt, elementRaenge, elementRang, type ElementFolge } from "./aufbau.js";
 
-export const MODI = ["sinus", "pendelwelle", "wind", "rotation", "ruhe"] as const;
+export const MODI = ["sinus", "pendelwelle", "wind", "rotation", "oeffnung", "ruhe"] as const;
 export type Modus = (typeof MODI)[number];
 
 export const MODUS_NAME: Record<Modus, string> = {
@@ -15,6 +16,7 @@ export const MODUS_NAME: Record<Modus, string> = {
   pendelwelle: "Pendelwelle",
   wind: "Wind",
   rotation: "Rotation",
+  oeffnung: "Öffnung",
   ruhe: "Ruhe",
 };
 
@@ -32,6 +34,12 @@ export const ORDNUNG_NAME: Record<Ordnung, string> = {
   zufall: "Zufall",
 };
 export const istOrdnung = (x: unknown): x is Ordnung => (ORDNUNGEN as readonly unknown[]).includes(x);
+
+// Öffnung: wie das Loch sich bewegt
+export const BAHNEN = ["kreis", "linie", "iris", "drift"] as const;
+export type Bahn = (typeof BAHNEN)[number];
+export const BAHN_NAME: Record<Bahn, string> = { kreis: "Kreis", linie: "Linie", iris: "Iris", drift: "Drift" };
+export const istBahn = (x: unknown): x is Bahn => (BAHNEN as readonly unknown[]).includes(x);
 
 // Feste Mischung für die Ordnung "Zufall": Platz des Spiegels i
 const ZUFALL_FOLGE = [7, 2, 10, 4, 0, 9, 5, 11, 1, 8, 3, 6];
@@ -56,6 +64,13 @@ export interface Parameter {
   faecher: number;     // %, Amplitude wächst entlang der Ordnung (bei Mitte/außen: zum Rand hin)
   schwuenge: number;   // Pendelwelle: nach so vielen Schwüngen des ersten Spiegels laufen alle wieder gleich
   wellenlaenge: number; // Wind: so viele Spiegel bewegen sich ähnlich
+  // Öffnung: ein Loch durch alle hintereinanderstehenden Elemente (siehe unten)
+  bahn: Bahn;
+  groesse: number;     // cm, Radius des Lochs
+  weite: number;       // cm, wie weit es von der Mitte wandert (Iris: um so viel geht es auf)
+  kante: number;       // %, von hart bis weich
+  wabern: number;      // %, Atmen, Abdriften und Verformen
+  nachlauf: number;    // %, die Elemente laufen einander nach; 100 = je Element ¼ Durchlauf
   ordnung: Ordnung;
   elementFolge: ElementFolge;
   gegenlauf: boolean;  // linke Hälfte jedes Elements gespiegelt
@@ -77,6 +92,12 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   faecher: 0,
   schwuenge: 24,
   wellenlaenge: 8,
+  bahn: "kreis",
+  groesse: 30,
+  weite: 35,
+  kante: 30,
+  wabern: 30,
+  nachlauf: 10,
   ordnung: "links",
   elementFolge: "vorneHinten",
   gegenlauf: false,
@@ -117,6 +138,47 @@ function rauschen(x: number, t: number): number {
 // dabei langsam. Eine Lage Rauschen, weich auf −1 … 1 begrenzt.
 export const wind = (x: number, t: number): number =>
   Math.tanh(1.3 * rauschen(x - t, 0.4 * t + 3.7)) / Math.tanh(1.3);
+
+// ---------- Öffnung ----------
+// Licht kommt nur durch, wo alle drei hintereinanderstehenden Elemente offen sind (Spiegel hochkant).
+// Für ein Loch an (x, y) öffnet deshalb jedes Element nur einen Schlitz: die Spiegel an der
+// Projektion des Lochs auf seine Achse, je nach seiner Drehung. Die Schlitze kreuzen sich im Loch.
+// Halb offene Spiegel am Rand lassen es weich zwischen den Spiegelreihen gleiten.
+const RASTER_M = 1.8 / SPIEGEL_N;
+
+interface Loch { x: number; y: number; r: number }   // Meter, Bildmitte = 0, y nach unten
+
+// Lage des Lochs nach u Durchläufen
+function lochBei(p: Parameter, u: number): Loch {
+  const w = p.weite / 100, t = 2 * Math.PI * u;
+  let loch: Loch = { x: 0, y: 0, r: p.groesse / 100 };
+  switch (p.bahn) {
+    case "kreis": loch = { ...loch, x: w * Math.cos(t), y: w * Math.sin(t) }; break;
+    case "linie": loch = { ...loch, x: w * Math.sin(t) }; break;
+    case "iris": loch = { ...loch, r: loch.r + w * (0.5 - 0.5 * Math.cos(t)) }; break;
+    case "drift": loch = { ...loch, x: w * 1.4 * rauschen(u, 3.1), y: w * 1.4 * rauschen(u, 8.7) }; break;
+  }
+  // Wabern: langsames Rauschen, schneller als die Bahn, damit es auch bei ruhiger Bahn lebt
+  const stark = p.wabern / 100, z = 3 * u;
+  return {
+    x: loch.x + 0.2 * stark * rauschen(z, 21.3),
+    y: loch.y + 0.2 * stark * rauschen(z, 34.9),
+    r: Math.max(0, loch.r * (1 + 0.7 * stark * rauschen(z, 47.1))),
+  };
+}
+
+// Wie weit Spiegel i von Element k offen ist (0 … 1)
+function schlitz(p: Parameter, u: number, drehung: number, k: number, i: number): number {
+  const eigen = u - (p.nachlauf / 100) * 0.25 * k;
+  const loch = lochBei(p, eigen);
+  const a = (drehung * Math.PI) / 180;
+  // Eigene kleine Abweichung je Element: Die Schlitze treffen sich nicht ganz, das Loch verformt sich
+  const zittern = 0.08 * (p.wabern / 100) * rauschen(3 * eigen, 60 + 13 * k);
+  const mitte = loch.x * Math.cos(a) + loch.y * Math.sin(a) + zittern;
+  const lage = (i + 0.5) * RASTER_M - 0.9;
+  const kante = 0.03 + 0.4 * (p.kante / 100);
+  return weich((loch.r + kante - Math.abs(lage - mitte)) / (2 * kante));
+}
 
 // Steht ein Regler auf aus (0), übernimmt er den Wert des anderen
 const speeds = (p: Parameter): [number, number] => [p.speedVon || p.speedBis, p.speedBis || p.speedVon];
@@ -177,6 +239,8 @@ export class Engine {
   // von Speed nichts springt – das Muster läuft nur schneller oder langsamer.
   readonly umlauf = new Float64Array(SPIEGEL_GESAMT);
   private letzterModus: Modus | null = null;
+  // Drehung der Elemente in ihrer Ebene (Grad), nur die Öffnung braucht sie. Aus den Einstellungen.
+  drehung: readonly number[] = [0, 45, 90];
 
   // Zeit weiterlaufen lassen (dt in Sekunden)
   weiter(p: Parameter, dt: number): void {
@@ -218,6 +282,10 @@ export class Engine {
   // Stellung des Spiegels g (0 … 35, Element k = g / 12)
   spiegel(p: Parameter, g: number): Stellung {
     const k = Math.floor(g / SPIEGEL_N);
+    // Öffnung: zu = 0°, offen = hochkant; Offset und Amplitude gelten hier nicht
+    if (p.modus === "oeffnung") {
+      return { tilt: 90 * schlitz(p, this.umlaufVon, this.drehung[k] ?? 0, k, g % SPIEGEL_N), upm: 0 };
+    }
     const offset = p.offsetGetrennt ? (p.offsetElemente[k] ?? p.offset) : p.offset;
     if (p.modus === "rotation") {
       // Endlos drehen geht nur über TiltRotate: Drehzahl wie Speed von/bis, Tilt bleibt auf Offset
@@ -246,6 +314,7 @@ export class Engine {
       // Wind: weiches Rauschen über die Spiegel und die Zeit, wiederholt sich nie
       case "wind": return seite * A * wind(platz / p.wellenlaenge, this.umlaufVon);
       case "rotation": return 0;   // läuft über TiltRotate, siehe spiegel()
+      case "oeffnung": return 0;   // eigene Rechnung, siehe spiegel()
       case "ruhe": return 0;       // alle auf Offset, nur Impulse bewegen
     }
     // Sinus. Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den

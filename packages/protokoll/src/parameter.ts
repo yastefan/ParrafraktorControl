@@ -1,12 +1,13 @@
 // Wertebereiche der Pattern-Parameter. Eine Quelle für alle Bedienungen:
 // Regler im Client, Drehregler am Stream Deck, später MIDI und OSC.
 import {
-  ELEMENTE, ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, ORDNUNGEN, ORDNUNG_NAME, PARAMETER_VORGABE,
-  istElementFolge, istModus, istOrdnung, type Modus, type Parameter,
+  BAHNEN, BAHN_NAME, ELEMENTE, ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, ORDNUNGEN, ORDNUNG_NAME, PARAMETER_VORGABE,
+  istBahn, istElementFolge, istModus, istOrdnung, type Modus, type Parameter,
 } from "@parrafraktor/engine";
 
 export type ZahlParameter =
-  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge";
+  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge"
+  | "groesse" | "weite" | "kante" | "wabern" | "nachlauf";
 
 export interface Bereich {
   name: string;
@@ -29,12 +30,18 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
   faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
   schwuenge: { name: "Wiederkehr", kurz: "Wiederk.", min: 4, max: 100, schritt: 1, einheit: " Schw." },
   wellenlaenge: { name: "Wellenlänge", kurz: "Wellenl.", min: 1, max: 36, schritt: 1, einheit: " Sp." },
+  groesse: { name: "Größe", kurz: "Größe", min: 5, max: 90, schritt: 1, einheit: " cm" },
+  weite: { name: "Weite", kurz: "Weite", min: 0, max: 90, schritt: 1, einheit: " cm" },
+  kante: { name: "Kante", kurz: "Kante", min: 0, max: 100, schritt: 1, einheit: " %" },
+  wabern: { name: "Wabern", kurz: "Wabern", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  nachlauf: { name: "Nachlauf", kurz: "Nachlauf", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
 };
 
 // Regler mit festen Stufen (Umschalter im Client, Durchschalten am Stream Deck)
-export type StufenParameter = "ordnung" | "elementFolge";
+export type StufenParameter = "bahn" | "ordnung" | "elementFolge";
 
 export const STUFEN = {
+  bahn: { name: "Bahn", werte: BAHNEN, text: BAHN_NAME },
   ordnung: { name: "Ordnung", werte: ORDNUNGEN, text: ORDNUNG_NAME },
   elementFolge: { name: "Elemente", werte: ELEMENT_FOLGEN, text: ELEMENT_FOLGE_NAME },
 } as const;
@@ -52,7 +59,12 @@ const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   rotation: ["amplitude", "phase", "breite", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
   ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
 };
-export const benutzt = (modus: Modus, name: Regler): boolean => !UNBENUTZT[modus]?.includes(name);
+// Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
+const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "nachlauf"];
+export const benutzt = (modus: Modus, name: Regler): boolean => {
+  if (modus === "oeffnung") return NUR_OEFFNUNG.includes(name) || name === "speedVon";
+  return !NUR_OEFFNUNG.includes(name) && !UNBENUTZT[modus]?.includes(name);
+};
 
 export const ZAHL_PARAMETER = Object.keys(BEREICHE) as ZahlParameter[];
 
@@ -83,6 +95,7 @@ export function pruefeParameter(roh: unknown): Partial<Parameter> {
     const w = r[name];
     if (typeof w === "number" && Number.isFinite(w)) teil[name] = begrenze(name, w);
   }
+  if (istBahn(r.bahn)) teil.bahn = r.bahn;
   if (istOrdnung(r.ordnung)) teil.ordnung = r.ordnung;
   if (istElementFolge(r.elementFolge)) teil.elementFolge = r.elementFolge;
   for (const name of ["gegenlauf", "pingpong", "offsetGetrennt", "laeuft"] as const) {

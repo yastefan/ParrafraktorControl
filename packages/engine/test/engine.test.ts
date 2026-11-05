@@ -185,6 +185,61 @@ describe("Regler", () => {
     expect(winkel({ breite: 100 })).toEqual(winkel({}));
   });
 
+  describe("Öffnung", () => {
+    // Licht an einem Punkt: alle drei Elemente offen. Mirror k, Lage aus der Projektion (wie die Vorschau)
+    const offen = (w: number[], x: number, y: number, drehung = [0, 45, 90]) =>
+      Math.min(...drehung.map((d, k) => {
+        const a = (d * Math.PI) / 180;
+        const u = x * Math.cos(a) + y * Math.sin(a);
+        const i = Math.min(11, Math.max(0, Math.floor((u + 0.9) / 0.15)));
+        return w[k * 12 + i]!;
+      }));
+    const basis: Partial<Parameter> = { modus: "oeffnung", wabern: 0, nachlauf: 0, kante: 0, groesse: 15, weite: 40 };
+
+    it("Kreis: das Loch liegt auf der Bahn, gegenüber ist es zu", () => {
+      for (const u of [0, 0.125, 0.3, 0.77]) {
+        const w = winkel({ ...basis, bahn: "kreis" }, u);
+        const t = 2 * Math.PI * u, x = 0.4 * Math.cos(t), y = 0.4 * Math.sin(t);
+        expect(offen(w, x, y)).toBeGreaterThan(60);
+        expect(offen(w, -x, -y)).toBeLessThan(1);
+      }
+    });
+
+    it("Iris: geht auf und bleibt um die Mitte", () => {
+      const zu = winkel({ ...basis, bahn: "iris", groesse: 5 }, 0);
+      const auf = winkel({ ...basis, bahn: "iris", groesse: 5 }, 0.5);
+      const zahl = (w: number[]) => w.filter((x) => x > 45).length;
+      expect(zahl(auf)).toBeGreaterThan(zahl(zu));
+      expect(offen(auf, 0, 0)).toBeGreaterThan(60);
+    });
+
+    it("folgt der Drehung der Elemente", () => {
+      const e = new Engine();
+      e.drehung = [0, 90, 45];
+      const p = { ...PARAMETER_VORGABE, ...basis, bahn: "kreis" as const };
+      e.setzeUmlauf(p, 0.1, 0.1);
+      const t = 2 * Math.PI * 0.1;
+      expect(offen(e.alle(p).map((s) => s.tilt), 0.4 * Math.cos(t), 0.4 * Math.sin(t), [0, 90, 45])).toBeGreaterThan(60);
+    });
+
+    it("bleibt zwischen zu und hochkant und ruckt nicht", () => {
+      const e = new Engine();
+      const p: Parameter = { ...PARAMETER_VORGABE, modus: "oeffnung", speedVon: 10, wabern: 100, nachlauf: 100, kante: 30 };
+      let vorher = e.alle(p).map((s) => s.tilt), maxSchritt = 0;
+      for (let n = 0; n < 40 * 60; n++) {
+        e.weiter(p, 0.025);
+        const jetzt = e.alle(p).map((s) => s.tilt);
+        jetzt.forEach((w, g) => {
+          expect(w).toBeGreaterThanOrEqual(0);
+          expect(w).toBeLessThanOrEqual(90);
+          maxSchritt = Math.max(maxSchritt, Math.abs(w - vorher[g]!));
+        });
+        vorher = jetzt;
+      }
+      expect(maxSchritt).toBeLessThan(15);   // je Takt (25 ms) bei höchstem Speed
+    });
+  });
+
   it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {
     const e = new Engine();
     const p: Parameter = { ...PARAMETER_VORGABE, modus: "wind", wellenlaenge: 12, phase: 0 };
@@ -203,7 +258,7 @@ describe("weiche Formen", () => {
   // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
   // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
   it("springen nirgends", () => {
-    for (const modus of MODI.filter((m) => m !== "rotation")) {
+    for (const modus of MODI.filter((m) => m !== "rotation" && m !== "oeffnung")) {
       const p: Parameter = { ...PARAMETER_VORGABE, modus, amplitude: 1, speedVon: 60, phase: 360 };
       const e = new Engine();
       let vorher = e.alle(p);
