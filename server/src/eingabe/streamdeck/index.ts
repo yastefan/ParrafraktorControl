@@ -5,7 +5,7 @@
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, MODUS_NAME, PARAMETER_VORGABE,
+  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, istOeffnungArt, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
 import {
   BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
@@ -264,7 +264,9 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private impulsRegler(index: number) {
-    return IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.regler[index];
+    const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.regler[index];
+    // Loch und Iris haben statt der Breite eine Größe
+    return name === "breite" && istOeffnungArt(this.steuerung.impuls.art) ? "groesse" : name;
   }
 
   private drehe(index: number, schritte: number): void {

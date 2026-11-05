@@ -101,7 +101,7 @@ Hauptmenü                                   Untermenü (Pattern, Presets)
 
 Impulse (Live-Seite)
 ┌─────────┬─────────┬─────────┬─────────┐
-│Flash auf│Flash zu │  Stoß   │Glitzern │
+│Flash auf│Flash zu │  Loch   │  Iris   │
 ├─────────┼─────────┼─────────┼─────────┤
 │‹ Zurück │Elemente │ Regler  │Symmetr. │
 └─────────┴─────────┴─────────┴─────────┘
@@ -183,15 +183,15 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben wählt man die **Art**, ausgelöst wird auf dem **Streifen** (Touchstreifen am Stream Deck, Streifen im Client): **Tippen** startet den Impuls an dieser Stelle, **Wischen** lässt ihn vom Rand in Wischrichtung durchlaufen. Danach läuft die Hüllkurve von selbst ab.
 
 - **Flash auf / Flash zu**: Spiegel auf einen festen Tilt. „Auf“ für Licht von hinten, „Zu“ für Licht von außen.
-- **Stoß**: Ein Ruck läuft vom Startpunkt als Welle durch die Reihe, wird an den Enden zurückgeworfen und schwingt aus. Ein kurzer Attack macht den Ruck schneller.
-- **Glitzern**: Einzelne Spiegel zucken nach Zufall, solange die Hüllkurve offen ist.
-- Winkel unter Einstellungen → Impulse: Flash auf/zu (Platzhalter 90° und 0°) und Ausschlag von Stoß und Glitzern (30°).
+- **Loch**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Öffnung: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Licht zu sehen.
+- **Iris**: wie Loch, wächst aber mit der Hüllkurve aus einem Punkt und schrumpft wieder.
+- Winkel unter Einstellungen → Impulse: Flash auf/zu (Platzhalter 90° und 0°).
 - **Hüllkurve**: Attack (hin), Sustain (bleiben), Release (zurück), Stärke. Im Client die Punkte ziehen: oben links = Attack und Stärke, oben rechts = Ende des Sustain, unten = Ende des Release. Während eines Impulses läuft ein Punkt auf der Kurve mit.
 - **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn.
-- **Stärke**: wie weit zum Ziel bzw. wie viel vom Ausschlag (auch als Griff in der Hüllkurve).
+- **Stärke**: wie weit zum Ziel (auch als Griff in der Hüllkurve).
 - **Breite**: Getippt wirkt der Impuls nur auf so viele Spiegel um den Startpunkt („alle“ = ganzes Element). Gewischt läuft er immer durch das ganze Element.
 - **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt wie beim Gegenlauf (Flash-Winkel und Ausschlag umgekehrt).
-- **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich (der Stoß läuft dann in 0,8 s durch).
+- **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich. Bei Loch und Iris: Zeit, die das gewischte Loch quer durchs Bild braucht (aus = die ganze Hüllkurve lang).
 - Mehrere Impulse dürfen sich überlagern; der zuletzt gestartete liegt oben.
 
 Art, Hüllkurve, Element-Folge, Ausbreitung, Breite und Symmetrie werden in `daten/impuls.json` gespeichert. Ideen stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).

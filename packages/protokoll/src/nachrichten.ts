@@ -10,7 +10,7 @@ import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
 import { istPresetNr, presetName, type Presets } from "./presets.js";
 
-export const PROTOKOLL_VERSION = 10;
+export const PROTOKOLL_VERSION = 11;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 

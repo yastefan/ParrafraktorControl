@@ -1,9 +1,9 @@
-// Impulse: Art wählen (Flash auf, Flash zu, Stoß, Glitzern) und auf dem Streifen auslösen –
+// Impulse: Art wählen (Flash auf, Flash zu, Loch, Iris) und auf dem Streifen auslösen –
 // wie der Touchstreifen des Stream Decks: Tippen = von dort aus, Wischen = läuft in Wischrichtung
 // durch (Tempo: Ausbreitung). Die Hüllkurve (Attack, Sustain, Release, Stärke) läuft danach von
 // selbst ab.
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_ARTEN, IMPULS_NAME, huellenWert, weich,
+  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_ARTEN, IMPULS_NAME, huellenWert, istOeffnungArt, weich,
   type ImpulsEinstellung,
 } from "@parrafraktor/engine";
 import { IMPULS_BEREICHE, begrenzeImpuls, impulsWert, mitImpulsWert, zeigeImpuls, type ImpulsRegler } from "@parrafraktor/protokoll";
@@ -51,7 +51,7 @@ export function Impulse() {
         >
           Symmetrisch {e.symmetrisch ? "an" : "aus"}
         </button>
-        <Schieber name="breite" e={e} setze={setze} fertig={fertig} />
+        <Schieber name={istOeffnungArt(e.art) ? "groesse" : "breite"} e={e} setze={setze} fertig={fertig} />
       </div>
       <div class="huelle-feld">
         <Huelle e={e} setze={setze} fertig={fertig} />

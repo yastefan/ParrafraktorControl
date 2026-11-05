@@ -6,7 +6,7 @@ import {
 import type { Bereich } from "./parameter.js";
 
 export type ImpulsRegler =
-  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS" | "breite";
+  | "attackS" | "sustainS" | "releaseS" | "staerke" | "elementVersatzS" | "ausbreitungS" | "breite" | "groesse";
 
 export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   attackS: { name: "Attack", kurz: "Attack", min: 0, max: 5, schritt: 0.05, einheit: " s" },
@@ -16,6 +16,7 @@ export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   elementVersatzS: { name: "Element-Versatz", kurz: "Versatz", min: 0, max: 2, schritt: 0.05, einheit: " s" },
   ausbreitungS: { name: "Ausbreitung", kurz: "Ausbr.", min: 0, max: 3, schritt: 0.05, einheit: " s", nullText: "aus" },
   breite: { name: "Breite", kurz: "Breite", min: 0, max: 12, schritt: 1, einheit: " Sp.", nullText: "alle" },
+  groesse: { name: "Größe", kurz: "Größe", min: 5, max: 90, schritt: 1, einheit: " cm" },
 };
 
 export const IMPULS_REGLER = Object.keys(IMPULS_BEREICHE) as ImpulsRegler[];

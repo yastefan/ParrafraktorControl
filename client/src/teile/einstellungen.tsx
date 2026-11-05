@@ -101,11 +101,6 @@ export function Einstellungen({ stand, schliessen }: Props) {
             wert={entwurf.flash.zu} setze={(v) => sofort({ flash: { ...entwurf.flash, zu: v } })}
             hilfe="Tilt, auf den die Flashs die Spiegel fahren. „Auf“ für Licht von hinten, „Zu“ für Licht von außen. Platzhalter, bis die Winkel am Aufbau bestimmt sind."
           />
-          <Schieber
-            name="Ausschlag Stoß/Glitzern" einheit="°" schritt={1} grenzen={GRENZEN.ausschlag}
-            wert={entwurf.flash.ausschlag} setze={(v) => sofort({ flash: { ...entwurf.flash, ausschlag: v } })}
-            hilfe="So weit drehen Stoß und Glitzern die Spiegel bei Stärke 100 % aus ihrer Stellung."
-          />
         </Gruppe>
 
         <Gruppe titel="Patch (Fixture Gobbesso Parrafraktor, 37 Kanäle)">

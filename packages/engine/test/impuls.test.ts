@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
-  IMPULS_VORGABE, SPIEGEL_GESAMT, SPIEGEL_N, huellenWert, impulsFertig, stossWert, wendeImpulseAn,
+  IMPULS_VORGABE, SPIEGEL_GESAMT, SPIEGEL_N, huellenWert, impulsFertig, wendeImpulseAn,
   type ImpulsEinstellung, type LaufenderImpuls,
 } from "../src/index.js";
 
 const h = { attackS: 1, sustainS: 2, releaseS: 2, staerke: 100 };
 const e: ImpulsEinstellung = { ...IMPULS_VORGABE, huelle: h };
 const basis = Array.from({ length: SPIEGEL_GESAMT }, () => ({ tilt: 10, upm: 4 }));
-const winkel = { auf: 90, zu: -90, ausschlag: 30 };
-const impuls = (teil: Partial<LaufenderImpuls>): LaufenderImpuls => ({ id: 1, art: "auf", alterS: 0, ursprung: 0.5, breite: 0, ...teil });
+const winkel = { auf: 90, zu: -90 };
+const impuls = (teil: Partial<LaufenderImpuls>): LaufenderImpuls => ({ id: 1, art: "auf", alterS: 0, ursprung: 0.5, breite: 0, wischt: false, ...teil });
 const tilts = (ee: ImpulsEinstellung, ...i: Partial<LaufenderImpuls>[]) =>
   wendeImpulseAn(basis, i.map(impuls), ee, winkel).map((s) => s.tilt);
 
@@ -63,43 +63,51 @@ describe("Impulse anwenden", () => {
     expect(t[0]).toBe(-90);   // links gespiegelt wie beim Gegenlauf
     expect(t[11]).toBe(90);
     expect(t[5]).toBe(10);
-    for (const art of ["stoss", "glitzern"] as const) {
-      for (const a of [0.3, 0.8, 1.6]) {
-        const w = tilts(ee, { art, alterS: a, ursprung: 0.2 });
-        for (let s = 0; s < 6; s++) expect(w[11 - s]! - 10).toBeCloseTo(-(w[s]! - 10), 9);
-      }
-    }
   });
 
   it("der zuletzt gestartete Impuls liegt oben", () => {
     expect(tilts(e, { alterS: 2 }, { id: 2, art: "zu", alterS: 2 })[0]).toBe(-90);
   });
 
-  it("Stoß: läuft vom Ursprung los, kommt an den Enden zurück und schwingt aus", () => {
-    const ee: ImpulsEinstellung = { ...e, huelle: { ...h, attackS: 0.1 }, ausbreitungS: 1 };
-    // kurz nach dem Stoß bewegt sich nur die Nähe des Ursprungs
-    expect(Math.abs(stossWert(ee, 0, [0], 0.1))).toBeGreaterThan(0.3);
-    expect(stossWert(ee, 1, [0], 0.1)).toBe(0);
-    // nach 1 s ist er am anderen Ende angekommen
-    expect(Math.abs(stossWert(ee, 1, [0], 1.1))).toBeGreaterThan(0.1);
-    // nach Sustain + Release ist alles still
-    expect(stossWert(ee, 0.5, [0], 4.1)).toBe(0);
-    const t = tilts(ee, { art: "stoss", alterS: 0.1, ursprung: 0 });
-    expect(Math.abs(t[0]! - 10)).toBeLessThanOrEqual(30 * 1.09);
-    expect(t[11]).toBe(10);
-  });
+  describe("Loch und Iris", () => {
+    // Offen in allen drei Elementen an einem Punkt (x, y), Drehung 0°/45°/90°
+    const offen = (w: number[], x: number, y: number) =>
+      Math.min(...[0, 45, 90].map((d, k) => {
+        const a = (d * Math.PI) / 180, u = x * Math.cos(a) + y * Math.sin(a);
+        return Math.abs(w[k * 12 + Math.min(11, Math.max(0, Math.floor((u + 0.9) / 0.15)))]!);
+      }));
+    const loch: ImpulsEinstellung = { ...e, groesse: 20 };
 
-  it("Glitzern: einzelne Spiegel zucken, nicht alle, und nur im Ausschlag", () => {
-    const zuckt = new Set<number>();
-    for (let a = 0.5; a < 3; a += 0.05) {
-      tilts(e, { art: "glitzern", alterS: a }).forEach((x, g) => {
-        expect(Math.abs(x - 10)).toBeLessThanOrEqual(30 + 1e-9);
-        if (Math.abs(x - 10) > 1) zuckt.add(g);
-      });
-      const jetzt = tilts(e, { art: "glitzern", alterS: a }).filter((x) => Math.abs(x - 10) > 1).length;
-      expect(jetzt).toBeLessThan(SPIEGEL_GESAMT * 0.7);
-    }
-    expect(zuckt.size).toBeGreaterThan(SPIEGEL_GESAMT / 2);
+    it("Loch: am Ursprung offen, sonst zu, nach der Hülle wieder wie vorher", () => {
+      const w = tilts(loch, { art: "loch", alterS: 2, ursprung: 0.25 });
+      expect(offen(w, -0.3, 0)).toBeGreaterThan(80);
+      expect(offen(w, 0.3, 0)).toBeLessThan(1);
+      expect(tilts(loch, { art: "loch", alterS: 5, ursprung: 0.25 })[0]).toBe(10);
+    });
+
+    it("Iris: wächst mit der Hülle aus einem Punkt", () => {
+      const anzahl = (a: number) => tilts(loch, { art: "iris", alterS: a }).filter((x) => x > 45).length;
+      expect(anzahl(0.5)).toBeLessThan(anzahl(2));
+    });
+
+    it("gewischt fährt das Loch quer durchs Bild", () => {
+      const ee: ImpulsEinstellung = { ...loch, ausbreitungS: 2 };
+      const anfang = tilts(ee, { art: "loch", alterS: 1, ursprung: 0, wischt: true });   // Mitte der Fahrt
+      expect(offen(anfang, 0, 0)).toBeGreaterThan(80);
+      const ende = tilts(ee, { art: "loch", alterS: 2.5, ursprung: 0, wischt: true });
+      expect(offen(ende, 0.6, 0)).toBeGreaterThan(80);
+      expect(offen(ende, -0.6, 0)).toBeLessThan(1);
+    });
+
+    it("symmetrisch: zwei gespiegelte Löcher", () => {
+      const w = tilts({ ...loch, symmetrisch: true }, { art: "loch", alterS: 2, ursprung: 0.1 });
+      expect(offen(w, -0.48, 0)).toBeGreaterThan(80);
+      expect(offen(w, 0.48, 0)).toBeGreaterThan(80);
+      expect(offen(w, 0, 0)).toBeLessThan(1);
+    });
+
+    it("die Fahrt gehört zur Hülle: Ausbreitung verlängert sie nicht", () => {
+      expect(impulsFertig({ ...loch, ausbreitungS: 3 }, { alterS: 5, art: "loch" })).toBe(true);
+    });
   });
 });
-

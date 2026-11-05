@@ -115,7 +115,7 @@ export interface Stellung {
 export const weich = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
 
 // Ganzzahliges Gitter → 0 … 1, immer gleich (für das Rauschen)
-export const gitter = (x: number, y: number): number => {
+const gitter = (x: number, y: number): number => {
   let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
@@ -175,9 +175,13 @@ function schlitz(p: Parameter, u: number, drehung: number, k: number, i: number)
   // Eigene kleine Abweichung je Element: Die Schlitze treffen sich nicht ganz, das Loch verformt sich
   const zittern = 0.08 * (p.wabern / 100) * rauschen(3 * eigen, 60 + 13 * k);
   const mitte = loch.x * Math.cos(a) + loch.y * Math.sin(a) + zittern;
+  return schlitzOffen(i, mitte, loch.r, 0.03 + 0.4 * (p.kante / 100));
+}
+
+// Wie weit Spiegel i offen ist (0 … 1) für einen Schlitz um "mitte" (Meter auf der Achse des Elements)
+export function schlitzOffen(i: number, mitte: number, r: number, kante: number): number {
   const lage = (i + 0.5) * RASTER_M - 0.9;
-  const kante = 0.03 + 0.4 * (p.kante / 100);
-  return weich((loch.r + kante - Math.abs(lage - mitte)) / (2 * kante));
+  return weich((r + kante - Math.abs(lage - mitte)) / (2 * kante));
 }
 
 // Steht ein Regler auf aus (0), übernimmt er den Wert des anderen

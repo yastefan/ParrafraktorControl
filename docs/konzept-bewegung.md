@@ -15,7 +15,7 @@ Sägezahn sind eigentlich Ereignisse, die in eine Schleife gepackt wurden.
 |---|---|---|
 | **Grundbewegung** | Ruhe, Welle, Pendelwelle, Wind, Drehen | Offset (je Element möglich), Amplitude, Speed, Phase, Breite |
 | **Verteilung** | Ordnung, Gegenlauf, Gruppe, Fächer, Element-Folge | gilt für beide anderen Ebenen |
-| **Impulse** | Flash auf, Flash zu, Stoß, Flyout, Glitzern | Hüllkurve A/H/R, Stärke, Element-Versatz |
+| **Impulse** | Flash auf, Flash zu, Loch, Iris | Hüllkurve A/H/R, Stärke, Element-Versatz |
 
 Vor der Show wird die Grundbewegung eingestellt, live werden Impulse gedrückt.
 
@@ -54,9 +54,9 @@ Grundbewegung). Mehrere Impulse dürfen sich überlagern, der zuletzt gestartete
 
 - **Flash auf / Flash zu** – alle Spiegel zu einer Ziel-Stellung. „Auf“ (Licht von hinten, häufigster
   Fall) und „Zu“ (Licht von außen) sind Winkel im Einstellungsmenü, weil sie vom Aufbau abhängen.
-- **Stoß** – Ruck, der als gekoppelte Welle durch die Reihe läuft, an den Enden zurückkommt und ausschwingt.
+- **Loch** – alles schließt sich bis auf ein Loch aus den Schlitzen der drei Elemente; gewischt fährt es quer durchs Bild.
 - **Flyout** – Spiegel kippen nacheinander weg und zurück, einmalig.
-- **Glitzern** – solange gehalten, zucken einzelne Spiegel nach Zufall.
+- **Iris** – wie Loch, wächst mit der Hüllkurve aus einem Punkt.
 
 **Hüllkurve:** Attack, Hold (solange gedrückt; optional feste Zeit = „Go“), Release, Stärke.
 Im Client als kleine Kurve mit ziehbaren Punkten und einem Punkt, der während eines Impulses mitläuft.
@@ -80,7 +80,7 @@ Folge wieder zurück.
 3. Grundbewegungen Pendelwelle, Wind und Ruhe ✅; Formen Sägezahn/Puls/Flyout/Blinder/Funkeln entfernt ✅.
 4. Touch-Strip als Ursprung ✅ (Tippen = von dort, Wischen = Richtung; Tempo über **Ausbreitung**, weil der
    Streifen keine Wischgeschwindigkeit meldet; ohne Halten). Flyout ist damit ein Flash mit Ausbreitung.
-5. Stoß, Glitzern, Sustain ✅. Quantisierung auf den Takt (Tap-Tempo, Raster) entfällt. Die Pads lösen nicht mehr aus, sondern wählen nur
+5. Stoß und Glitzern waren gebaut, wurden durch Loch und Iris ersetzt; Sustain ✅. Quantisierung auf den Takt (Tap-Tempo, Raster) entfällt. Die Pads lösen nicht mehr aus, sondern wählen nur
    die Art; ausgelöst wird immer über den Streifen (kein Halten mehr, dafür Sustain).
 
 ## Offen

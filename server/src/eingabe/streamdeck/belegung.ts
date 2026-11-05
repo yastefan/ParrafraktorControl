@@ -18,7 +18,7 @@
 //
 // Impulse (Live-Seite):
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Flash auf │Flash zu  │  Stoß    │ Glitzern │   obere Reihe: Art wählen (löst nichts aus)
+//   │Flash auf │Flash zu  │  Loch    │  Iris    │   obere Reihe: Art wählen (löst nichts aus)
 //   ├──────────┼──────────┼──────────┼──────────┤
 //   │‹ Zurück  │ Elemente │ Regler   │Symmetr.  │   Regler: Seite Hülle (Attack/Sustain/Release/Stärke)
 //   └──────────┴──────────┴──────────┴──────────┘           oder Lauf (Ausbreitung/Breite/Versatz)
@@ -83,7 +83,7 @@ export const HAUPT = {
 } as const;
 
 // Impulse
-export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf", 1: "zu", 2: "stoss", 3: "glitzern" };
+export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf", 1: "zu", 2: "loch", 3: "iris" };
 export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
 export const TASTE_SYMMETRISCH = 7;
