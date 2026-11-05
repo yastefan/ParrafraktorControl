@@ -26,6 +26,7 @@ export interface VorschauDaten {
   parameter: Parameter;
   live: boolean;
   aufbau: Aufbau;
+  rotateMaxUpm: number;
   modus: VorderModus;
   ansicht: Ansicht;
   blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
@@ -195,8 +196,9 @@ export class Vorschau {
       const d = this.daten();
       if (d) {
         this.engine.drehung = d.aufbau.drehung;
+        this.engine.rotateMaxUpm = d.rotateMaxUpm;
         this.engine.weiter(d.parameter, dt);
-        const look = this.blenden(d, this.winkel(this.engine.alle(d.parameter), dt), dt);
+        const look = this.blenden(d, this.winkel(d, this.engine.alle(d.parameter), dt), dt);
         this.letzteWinkel = look;
         const winkel = this.mitImpulsen(d, look);
         this.zeichne(d, winkel);
@@ -256,9 +258,10 @@ export class Vorschau {
   }
 
   // Sichtbarer Winkel je Spiegel in Grad: Tilt plus die Drehung über TiltRotate
-  private winkel(stellungen: Stellung[], dt: number): number[] {
+  private winkel(d: VorschauDaten, stellungen: Stellung[], dt: number): number[] {
     return stellungen.map((s, g) => {
-      this.drehung[g] = s.upm ? (this.drehung[g]! + s.upm * 6 * dt) % 360 : 0;
+      // Bei Rotation darf ein Spiegel stehen und behält seinen Winkel (Breite, Pause)
+      this.drehung[g] = d.parameter.modus === "rotation" ? (this.drehung[g]! + s.upm * 6 * dt) % 360 : 0;
       return s.tilt + this.drehung[g]!;
     });
   }

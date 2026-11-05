@@ -30,10 +30,74 @@ describe("Pattern-Engine", () => {
 
   it("dreht bei Rotation über TiltRotate und lässt Tilt auf Offset", () => {
     const p: Parameter = { ...PARAMETER_VORGABE, modus: "rotation", offset: 20, speedVon: 2, speedBis: 6 };
-    const s = new Engine().alle(p);
-    expect(s[0]).toEqual({ tilt: 20, upm: 2 });
-    expect(s[35]).toEqual({ tilt: 20, upm: 6 });
-    expect(new Engine().spiegel({ ...p, laeuft: false }, 0).upm).toBe(0);
+    const q = { ...p, phase: 0 };
+    const e = new Engine();
+    for (let n = 0; n < 40; n++) e.weiter(q, 0.025);
+    const s = e.alle(q);
+    expect(s[0]!.tilt).toBe(20);
+    expect(s[0]!.upm).toBeCloseTo(2, 6);
+    expect(s[35]!.upm).toBeCloseTo(6, 6);
+    expect(e.spiegel({ ...q, laeuft: false }, 0).upm).toBe(0);
+  });
+
+  describe("Rotation", () => {
+    const basis: Parameter = { ...PARAMETER_VORGABE, modus: "rotation", phase: 0, speedVon: 2 };
+    // Lässt die Engine laufen und zählt wie die Vorschau die Winkel aus den Drehzahlen mit
+    const lauf = (p: Parameter, sekunden: number, je?: (e: Engine, winkel: number[]) => void) => {
+      const e = new Engine();
+      const winkel = new Array<number>(36).fill(0);
+      for (let n = 0; n < sekunden * 40; n++) {
+        e.weiter(p, 0.025);
+        e.alle(p).forEach((s, g) => { winkel[g]! += s.upm * 6 * 0.025; });
+        je?.(e, winkel);
+      }
+      return { e, winkel };
+    };
+    const abstand = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+
+    it("Phase: die Spiegel stehen versetzt und drehen gleich schnell", () => {
+      const { e, winkel } = lauf({ ...basis, phase: 360, elementFolge: "zusammen" }, 10);
+      expect(abstand(winkel[0]!, winkel[3]!)).toBeCloseTo(90, 0);   // 3 von 12 Plätzen
+      expect(e.spiegel({ ...basis, phase: 360, elementFolge: "zusammen" }, 7).upm).toBeCloseTo(2, 3);
+    });
+
+    it("Breite: dreht in Schüben, im Schnitt so schnell wie Speed", () => {
+      const p = { ...basis, speedVon: 1, breite: 40 };
+      let steht = 0, gesamt = 0;
+      const { winkel } = lauf(p, 60, (e) => { gesamt++; if (Math.abs(e.spiegel(p, 0).upm) < 1e-6) steht++; });
+      expect(steht / gesamt).toBeCloseTo(0.6, 1);
+      expect(winkel[0]).toBeCloseTo(360, 0);   // 1 U/min × 1 Minute
+    });
+
+    it("Breite bleibt so groß, wie TiltRotate max. es zulässt, und dreht nie zurück", () => {
+      const p = { ...basis, speedVon: 8, breite: 5 };
+      lauf(p, 30, (e) => {
+        const upm = e.spiegel(p, 0).upm;
+        expect(upm).toBeLessThanOrEqual(10);
+        expect(upm).toBeGreaterThanOrEqual(0);
+      });
+    });
+
+    it("Gegenlauf: linke Hälfte dreht andersherum, auch der Offset", () => {
+      const p = { ...basis, gegenlauf: true, offset: 20 };
+      const { e } = lauf(p, 2);
+      expect(e.spiegel(p, 0)).toMatchObject({ tilt: -20 });
+      expect(e.spiegel(p, 0).upm).toBeCloseTo(-2, 3);
+      expect(e.spiegel(p, 11)).toMatchObject({ tilt: 20 });
+      expect(e.spiegel(p, 11).upm).toBeCloseTo(2, 3);
+    });
+
+    it("Fächer: entlang der Ordnung immer schneller", () => {
+      const p = { ...basis, faecher: 100, elementFolge: "zusammen" as const };
+      const { e } = lauf(p, 2);
+      expect(e.spiegel(p, 0).upm).toBeLessThan(e.spiegel(p, 11).upm);
+    });
+
+    it("Group: gleicher Platz in der Gruppe, gleicher Winkel", () => {
+      const { winkel } = lauf({ ...basis, phase: 360, group: 3, elementFolge: "zusammen" }, 10);
+      expect(abstand(winkel[0]!, winkel[3]!)).toBeCloseTo(0, 3);
+      expect(abstand(winkel[0]!, winkel[1]!)).toBeGreaterThan(30);
+    });
   });
 
   it("läuft nach Speed bis wieder gleich, sodass bei Phase 0 alle Spiegel gleich stehen", () => {

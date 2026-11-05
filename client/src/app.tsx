@@ -91,6 +91,7 @@ function VorschauFlaeche() {
         parameter,
         live: laden.stand.uebernahme.zustand === "an",
         aufbau: laden.stand.einstellungen.aufbau,
+        rotateMaxUpm: laden.stand.einstellungen.rotateMaxUpm,
         modus: modusRef.current,
         ansicht: ansichtRef.current,
         blende: laden.stand.blende,

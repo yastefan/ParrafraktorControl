@@ -56,7 +56,7 @@ const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   sinus: ["schwuenge", "wellenlaenge"],
   pendelwelle: ["speedBis", "phase", "breite", "wellenlaenge", "pingpong"],
   wind: ["speedBis", "phase", "breite", "schwuenge", "pingpong"],
-  rotation: ["amplitude", "phase", "breite", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
+  rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong"],
   ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
