@@ -8,9 +8,9 @@ import {
 } from "@parrafraktor/engine";
 import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
-import { istPresetNr, presetName, type Presets } from "./presets.js";
+import { istPresetNr, presetName, type AutoEinstellung, type Presets } from "./presets.js";
 
-export const PROTOKOLL_VERSION = 11;
+export const PROTOKOLL_VERSION = 12;
 export const WS_PFAD = "/ws";
 export const STAND_INTERVALL_MS = 1000;   // spätestens so oft kommt ein Stand, auch ohne Änderung
 
@@ -60,6 +60,9 @@ export interface Stand {
   // läuft gerade eine Überblendung zu einem Preset: Nummer der Überblendung (zählt hoch) und wie weit (0 … 1).
   // Überblendet wird von der Stellung im Moment des Abrufens zum neuen Look.
   blende: { id: number; anteil: number } | null;
+  blendeDauerS: number;           // Dauer der laufenden Überblendung: bei Auto die eigene Zeit
+  // Auto: Einstellung, ob es läuft, und wie lange der aktuelle Look noch dran ist
+  auto: AutoEinstellung & { an: boolean; restS: number };
   // Einstellung der Impulse, dazu die gerade laufenden (Zeiten beim Senden)
   impuls: ImpulsEinstellung;
   impulse: LaufenderImpuls[];
@@ -84,6 +87,8 @@ export type ClientNachricht =
   // Impuls-Pad gedrückt bzw. losgelassen. Bricht die Verbindung ab, lässt der Server los.
   // Streifen: die gewählte Impuls-Art vom Ursprung (0 = links … 1 = rechts) aus starten.
   // wischen: läuft durch das ganze Element (Breite gilt nur beim Tippen)
+  | { typ: "auto"; an: boolean }
+  | { typ: "autoEinstellung"; einstellung: unknown }   // prüft der Server mit pruefeAuto
   | { typ: "impulsTippen"; ursprung: number; wischen: boolean }
   | { typ: "impulsEinstellung"; einstellung: unknown }   // prüft der Server mit pruefeImpuls
   | { typ: "ping"; t: number };
@@ -115,6 +120,8 @@ export function leseClientNachricht(text: string): ClientNachricht | null {
       }
       return null;
     }
+    case "auto": return typeof r.an === "boolean" ? { typ: "auto", an: r.an } : null;
+    case "autoEinstellung": return { typ: "autoEinstellung", einstellung: r.einstellung };
     case "impulsTippen":
       return typeof r.ursprung === "number" && Number.isFinite(r.ursprung)
         ? { typ: "impulsTippen", ursprung: Math.min(1, Math.max(0, r.ursprung)), wischen: r.wischen === true }

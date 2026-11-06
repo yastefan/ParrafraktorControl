@@ -89,7 +89,7 @@ export class Takt {
       this.app = ziel;
       return ziel;
     }
-    const dauer = this.steuerung.einstellungen.ueberblendungS;
+    const dauer = this.steuerung.blendeDauerS;
     const anteil = dauer > 0 ? Math.min(1, blende.anteil + dt / dauer) : 1;
     this.app = anteil >= 1 ? ziel : mische(this.blendeVon, ziel, weich(anteil));
     this.steuerung.meldeBlende(anteil >= 1 ? null : anteil);
@@ -109,6 +109,7 @@ export class Takt {
     this.engine.rotateMaxUpm = einstellungen.rotateMaxUpm;
     this.engine.weiter(parameter, dt);
     this.steuerung.raeumeImpulse();
+    this.steuerung.autoWeiter(dt);
 
     const ma = this.quellen.mitlesen()?.stellungen(einstellungen.rotateMaxUpm) ?? null;
     const vorher = uebernahme.zustand;

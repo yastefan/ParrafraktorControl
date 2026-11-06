@@ -201,7 +201,7 @@ export class StreamDeckModul implements Eingabemodul {
           const i = s.letztesPreset ?? 0;
           return { tippen: () => this.oeffne("presets", Math.floor(i / PLAETZE.length)) };
         }
-        case HAUPT.seite: return { tippen: () => this.blaettere(1) };
+        case HAUPT.auto: return { tippen: () => s.setzeAuto(!s.autoAn) };
         case HAUPT.elemente: return { tippen: () => s.schalteStufe("elementFolge") };
         case HAUPT.impulse: return { tippen: () => this.oeffne("impulse") };
         case HAUPT.ordnung: return { tippen: () => s.schalteStufe("ordnung") };
@@ -388,9 +388,16 @@ export class StreamDeckModul implements Eingabemodul {
           return { titel: "Presets ›", unter: p?.name ?? "–", ...menueTaste(TON.presets) };
         }
         case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art], ...menueTaste(TON.impulse) };
-        case HAUPT.seite: {
-          const { seite, nr, anzahl } = this.aktuelleSeite();
-          return { titel: "Seite ›", unter: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, ...menueTaste(TON[seite.ton]) };
+        // Auto läuft: voll leuchtend wie der Rahmen im Client, darunter der aktuelle Look
+        case HAUPT.auto: {
+          const s = this.steuerung;
+          if (s.autoAn) {
+            const p = letztesPreset === null ? null : presets[letztesPreset];
+            return { titel: "AUTO", unter: p?.name ?? "–", grund: TON.presets.hell, text: TON.presets.auf };
+          }
+          return s.autoStartbar
+            ? { titel: "Auto", unter: "aus", ...menueTaste(TON.presets) }
+            : { titel: "Auto", unter: "zu wenig Presets", leise: true };
         }
         // bei Ruhe wirken Ordnung und Elemente nicht: gedämpft
         case HAUPT.ordnung:

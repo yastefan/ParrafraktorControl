@@ -12,7 +12,7 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { KANAELE_PRO_ELEMENT } from "@parrafraktor/engine";
 import {
-  PROTOKOLL_VERSION, patchWarnung, pruefeEinstellungen, pruefeImpuls, pruefePresets,
+  PROTOKOLL_VERSION, patchWarnung, pruefeEinstellungen, pruefeAuto, pruefeImpuls, pruefePresets,
   type Einstellungen, type ModulStatus, type Netzwerkschnittstelle, type Stand,
 } from "@parrafraktor/protokoll";
 import { erstelleAusgaben, type Ausgabe } from "./ausgabe/index.js";
@@ -37,6 +37,8 @@ const steuerung = new Steuerung(
   pruefeEinstellungen(speicher.lies("einstellungen.json")),
   pruefePresets(speicher.lies("presets.json")),
   pruefeImpuls(speicher.lies("impuls.json")),
+  undefined,
+  pruefeAuto(speicher.lies("auto.json")),
 );
 
 // ---------- Ausgaben und Mitlesen: bei jeder Änderung der Einstellungen neu ----------
@@ -107,6 +109,8 @@ function stand(): Stand {
     presets: [...steuerung.presets],
     letztesPreset: steuerung.letztesPreset,
     blende: steuerung.blende ? { ...steuerung.blende } : null,
+    blendeDauerS: steuerung.blendeDauerS,
+    auto: { ...steuerung.auto, an: steuerung.autoAn, restS: steuerung.autoRestS },
     impuls: steuerung.impuls,
     impulse: steuerung.impulse(),
     warnungen,
@@ -118,6 +122,7 @@ function stand(): Stand {
 steuerung.on("parameter", (p) => speicher.schreibeSpaeter("parameter.json", p, 2000));
 steuerung.on("presets", (p) => speicher.schreibeSpaeter("presets.json", p));
 steuerung.on("impuls", (i) => speicher.schreibeSpaeter("impuls.json", i));
+steuerung.on("auto", (a) => speicher.schreibeSpaeter("auto.json", a));
 // Ausgaben nur neu starten, wenn sich Netz oder Patch ändern. Ein Neustart gibt bei sACN kurz
 // an die MA ab – das darf nicht passieren, nur weil jemand die Überblendung oder die Vorschau verstellt.
 const ausgabeTeil = (e: Einstellungen) => JSON.stringify([e.artnet, e.sacn, e.rs485, e.patch]);

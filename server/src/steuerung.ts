@@ -7,9 +7,9 @@ import {
   type ImpulsArt, type ImpulsEinstellung, type LaufenderImpuls, type Modus, type Parameter,
 } from "@parrafraktor/engine";
 import {
-  BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeEinstellungen,
+  AUTO_VORGABE, BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeAuto, pruefeEinstellungen,
   pruefeImpuls, pruefeParameter, vorgabeName, vorgabeWert,
-  type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
+  type AutoEinstellung, type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 
 // Ein gestarteter Impuls
@@ -35,6 +35,8 @@ interface Ereignisse {
   blende: [];
   // Hüllkurve oder Element-Folge geändert: wird gespeichert
   impuls: [ImpulsEinstellung];
+  // Auswahl oder Zeiten von Auto geändert: wird gespeichert
+  auto: [AutoEinstellung];
 }
 
 export class Steuerung extends EventEmitter<Ereignisse> {
@@ -46,6 +48,11 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   private _presets: Presets;
   private _letztesPreset: number | null = null;
   private _blende: { id: number; anteil: number } | null = null;
+  private _blendeDauerS = 0;
+  private _auto: AutoEinstellung;
+  // Auto startet immer aus. Es fasst den Output nicht an, nur den Look.
+  private _autoAn = false;
+  private _autoRestS = 0;
   private _impuls: ImpulsEinstellung;
   private _impulse: Impuls[] = [];
   private impulsNr = 0;
@@ -57,12 +64,15 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     presets: Presets,
     impuls: ImpulsEinstellung = IMPULS_VORGABE,
     private readonly uhr: () => number = () => performance.now() / 1000,
+    auto: AutoEinstellung = AUTO_VORGABE,
   ) {
     super();
     this._parameter = parameter;
     this._einstellungen = einstellungen;
     this._presets = presets;
     this._impuls = impuls;
+    this._auto = auto;
+    this._blendeDauerS = einstellungen.ueberblendungS;
   }
 
   get parameter(): Readonly<Parameter> { return this._parameter; }
@@ -72,7 +82,12 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   get presets(): Readonly<Presets> { return this._presets; }
   get letztesPreset(): number | null { return this._letztesPreset; }
   get blende(): Readonly<{ id: number; anteil: number }> | null { return this._blende; }
+  get blendeDauerS(): number { return this._blendeDauerS; }
   get impuls(): Readonly<ImpulsEinstellung> { return this._impuls; }
+  get auto(): Readonly<AutoEinstellung> { return this._auto; }
+  get autoAn(): boolean { return this._autoAn; }
+  get autoRestS(): number { return this._autoRestS; }
+  get autoStartbar(): boolean { return this.autoListe().length >= 2; }
 
   // Laufende Impulse mit Zeiten relativ zu jetzt (für Takt, Vorschau und Anzeigen)
   impulse(): LaufenderImpuls[] {
@@ -176,17 +191,24 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // ---------- Presets ----------
 
   rufePresetAuf(nr: number): void {
+    if (!this._presets[nr]) return;
+    this.setzeAuto(false);   // Wer selbst ein Preset abruft, übernimmt
+    this.ladePreset(nr, this._einstellungen.ueberblendungS);
+  }
+
+  private ladePreset(nr: number, blendeS: number): void {
     const preset = this._presets[nr];
     if (!preset) return;
     // Pause bleibt, wie sie ist: sie gehört nicht zum Look
-    this.aendere({ ...preset.look }, nr);
-    this.starteBlende();
+    this.aendere({ ...preset.look }, nr, true);
+    this.starteBlende(blendeS);
     this.geaendert();
   }
 
   // Takt und Vorschau blenden von der aktuellen Stellung zum neuen Look über
-  private starteBlende(): void {
-    if (this._einstellungen.ueberblendungS <= 0) return;
+  private starteBlende(dauerS: number = this._einstellungen.ueberblendungS): void {
+    if (dauerS <= 0) return;
+    this._blendeDauerS = dauerS;
     this._blende = { id: (this._blende?.id ?? 0) + 1, anteil: 0 };
     this.emit("blende");
     this.geaendert();
@@ -204,6 +226,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   loeschePreset(nr: number): void {
     if (this._letztesPreset === nr) this._letztesPreset = null;
     this.setzePreset(nr, null);
+    if (this.autoListe().length < 2) this.setzeAuto(false);
   }
 
   benennePreset(nr: number, name: string): void {
@@ -215,6 +238,50 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     this._presets = this._presets.map((p, i) => (i === nr ? preset : p));
     this.emit("presets", this._presets);
     this.geaendert();
+  }
+
+  // ---------- Auto ----------
+
+  // Ausgewählte Plätze, auf denen auch ein Preset liegt
+  private autoListe(): number[] {
+    return this._presets.flatMap((p, nr) => (p && this._auto.auswahl[nr] ? [nr] : []));
+  }
+
+  setzeAuto(an: boolean): void {
+    if (an === this._autoAn) return;
+    if (an && this.autoListe().length < 2) return;   // Bei einem Preset gäbe es nichts zu wechseln
+    this._autoAn = an;
+    this._autoRestS = 0;
+    if (an) this.autoNaechstes();
+    this.geaendert();
+  }
+
+  stelleAuto(roh: unknown): void {
+    const neu = pruefeAuto(roh, this._auto);
+    if (JSON.stringify(neu) === JSON.stringify(this._auto)) return;
+    this._auto = neu;
+    this.emit("auto", neu);
+    if (this._autoAn) {
+      if (this.autoListe().length < 2) this.setzeAuto(false);
+      else this._autoRestS = Math.min(this._autoRestS, neu.blendeS + neu.halteS);
+    }
+    this.geaendert();
+  }
+
+  // Der Takt lässt die Zeit laufen. In der Pause steht auch Auto.
+  autoWeiter(dt: number): void {
+    if (!this._autoAn || !this._parameter.laeuft) return;
+    this._autoRestS -= dt;
+    if (this._autoRestS <= 0) this.autoNaechstes();
+  }
+
+  private autoNaechstes(): void {
+    const liste = this.autoListe();
+    const von = this._letztesPreset ?? -1;
+    const nr = liste.find((n) => n > von) ?? liste[0];
+    if (nr === undefined) return;
+    this.ladePreset(nr, this._auto.blendeS);
+    this._autoRestS = this._auto.blendeS + this._auto.halteS;
   }
 
   setzeEinstellungen(roh: unknown): void {
@@ -249,11 +316,13 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   // preset: Nummer, wenn die Änderung ein Preset abruft; sonst gilt kein Preset mehr als aktiv
-  private aendere(teil: Partial<Parameter>, preset: number | null = null): void {
+  // vonPreset: Abruf eines Presets; jede andere Änderung am Look ist Handbetrieb und beendet Auto
+  private aendere(teil: Partial<Parameter>, preset: number | null = null, vonPreset = false): void {
     const neu = { ...this._parameter, ...teil };
     const pauseOderGleich = Object.keys(teil).every((k) => k === "laeuft");
     if (!pauseOderGleich || preset !== null) this._letztesPreset = preset;
     if (JSON.stringify(neu) === JSON.stringify(this._parameter)) return;
+    if (!pauseOderGleich && !vonPreset) this.setzeAuto(false);
     this._parameter = neu;
     this.emit("parameter", neu);
     this.geaendert();

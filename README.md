@@ -94,7 +94,7 @@ Die Tasten zeigen ein Hauptmenü mit Untermenüs. Jedes Menü hat seine Neonfarb
 ```
 Hauptmenü                                   Untermenü (Pattern, Presets)
 ┌─────────┬─────────┬─────────┬─────────┐   ┌─────────┬─────────┬─────────┬─────────┐
-│Pattern ›│Presets ›│Impulse ›│ Seite › │   │  Platz  │  Platz  │  Platz  │  Platz  │
+│Pattern ›│Presets ›│Impulse ›│  Auto   │   │  Platz  │  Platz  │  Platz  │  Platz  │
 ├─────────┼─────────┼─────────┼─────────┤   ├─────────┼─────────┼─────────┼─────────┤
 │ Ordnung │Elemente │  Pause  │ Output  │   │‹ Zurück │  Platz  │  Platz  │ Seite › │
 └─────────┴─────────┴─────────┴─────────┘   └─────────┴─────────┴─────────┴─────────┘
@@ -111,7 +111,7 @@ Impulse (Live-Seite)
 |---|---|
 | Pattern › | Grundbewegung direkt wählen |
 | Presets › | Tippen ruft ab, **Halten** (0,8 s) speichert den aktuellen Look (2 Seiten à 6) |
-| Seite › | nächste Reglerseite, darunter ihr Name |
+| Auto | Tippen startet und stoppt Auto. Läuft es, leuchtet die Taste voll und zeigt den aktuellen Look. Gedämpft, wenn weniger als zwei Presets ausgewählt sind. Auswahl und Zeiten stellt man im Client ein |
 | Ordnung, Elemente | nächste Stufe der Verteilung (gedämpft, wenn die Grundbewegung sie nicht nutzt) |
 | Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (Hülle: Attack, Sustain, Release, Stärke; Lauf: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
@@ -216,6 +216,8 @@ Im Kopf der Vorschau schaltet man zwischen **Simple** (die Ansicht nach Aufbau, 
 ## Presets
 
 12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Breite, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
+
+**Auto** fährt die ausgewählten Presets der Reihe nach ab. Unter „Auswahl“ legt man per Tippen fest, welche mitlaufen (die Marke oben rechts zeigt es), und stellt zwei Zeiten ein: **Überblenden** ist die Dauer des Übergangs, **Halten** die Zeit, die der Look danach steht. Solange Auto läuft, leuchtet der Rahmen des Moduls Presets und daneben steht die Restzeit. Auto braucht mindestens zwei Presets. Es schaltet den Output nicht ein oder aus und startet nach einem Neustart immer aus. Sobald man den Look von Hand verändert oder ein Preset abruft, endet Auto; die Pause hält es nur an. Das gilt auch am Stream Deck, dort startet und stoppt man Auto mit der eigenen Taste im Hauptmenü.
 
 ## Ausgabe und Output
 

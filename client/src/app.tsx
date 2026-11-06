@@ -143,7 +143,7 @@ function VorschauFlaeche() {
         nebel: nebelRef.current,
         nebelSeite: seiteRef.current,
         blende: laden.stand.blende,
-        blendeDauer: laden.stand.einstellungen.ueberblendungS,
+        blendeDauer: laden.stand.blendeDauerS,
         impuls: laden.stand.impuls,
         impulse: laden.stand.impulse,
         impulseSeitS: (performance.now() - laden.standZeit) / 1000,
