@@ -40,27 +40,26 @@ usb_stecker_l = 40;      // [ANNAHME] Stecker mit Knickschutz, gerade
 /* [Grundform] */
 neigung = 30;            // Grad, siehe README (stehend und am FoH)
 b = 180;                 // Breite außen
-h_vorn = 28;             // Höhe der Vorderkante
+h_vorn = 50;             // Höhe der Vorderkante
 wand = 3.2;              // Seiten und Vorderwand
-platte = 5;              // Montageplatte
-rand_vorn = 6;           // Platte vor dem Rahmen
-rand_hinten = 12;        // Platte hinter dem Bett, ergibt Tiefe für die Stecker
+platte = 3.2;            // Oberseite, wird um das Deck zur Blende
+rand_vorn = 4;           // Oberseite vor dem Schacht
+rand_hinten = 24;        // Oberseite hinter dem Schacht, ergibt Tiefe für die Stecker
 fase = 2;                // Kante außen
 boden_d = 4;
 rueck_d = 4;
 luft = 0.3;              // Spiel zwischen gefügten Teilen je Seite
 
-/* [Deck-Bett] */
-spiel = 0.5;             // Abstand Deck zum Rand je Seite
-rahmen_b = 5;
-rahmen_hoehe = 10;       // Rand über der Rückplatte, Bedienelemente bleiben frei
+/* [Deck-Bett und Blende] */
+// Das Deck liegt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand.
+// Eingesetzt wird von unten, das Bett hält es von innen.
+blende = 2.5;            // Überstand auf den Rand; Tasten enden 9 mm davor [CAD]
+blende_luft = 0.3;       // zwischen Rand und Blende
+spiel = 0.5;             // Abstand Deck zum Schacht je Seite
+rahmen_b = 5;            // Wand des Schachts und Rand des Betts
+rahmen_hoehe = 10;       // Rand des Betts über der Rückplatte, darauf steht der Schacht
 bett_d = 6;              // Boden des Betts unter der Rückplatte
 bett_luft = 0.3;         // Rückplatte liegt so viel über dem Boden, die Schrauben ziehen auf die Sitze
-haken_x = 35;            // zwei Haken am Tastenrand gegen Aufhebeln, ± von der Mitte
-haken_b = 24;
-haken_ueber = 2.5;       // Überstand auf den Rand; Tasten enden 9 mm davor [CAD]
-haken_d = 3.5;
-haken_luft = 0.3;
 
 /* [Befestigung] */
 einsatz_m3_d = 4.0;      // Gewindeeinsatz M3 × 5,7, Bohrung laut Hersteller des Einsatzes prüfen
@@ -130,6 +129,8 @@ laenge = s0 + deck_h + spiel + rahmen_b + rand_hinten;    // Plattenlänge
 tiefe = laenge * cos(neigung);
 h_hinten = h_vorn + laenge * sin(neigung);
 cx = b / 2;
+deck_lage = -(platte + blende_luft + deck_rand_z);        // Rückplatte unter der Oberseite
+schacht_unten = deck_lage + rahmen_hoehe;
 function z_unten(y) = h_vorn + y * tan(neigung) - platte / cos(neigung);
 leiste_y = tiefe - rueck_d - leiste_d;
 x0 = wand + luft;                                         // Boden/Rückwand von links
@@ -143,7 +144,7 @@ assert(rahmen_hoehe < deck_rand_z - 5, "Rand zu hoch, Bedienung wäre behindert"
 module auf_platte() { translate([0, 0, h_vorn]) rotate([neigung, 0, 0]) children(); }
 
 // Koordinaten am Deck, Ursprung: Mitte des Reglerrands auf Höhe der Rückplatte
-module im_deck() { auf_platte() translate([cx, s0, bett_d]) children(); }
+module im_deck() { auf_platte() translate([cx, s0, deck_lage]) children(); }
 
 // Am Dom: Ursprung auf der Stirnfläche, z zeigt ins Deck
 module am_dom(sx) { translate([sx * loch_abstand / 2, loch_s, loch_z]) rotate([-loch_kippung, 0, 0]) children(); }
@@ -159,6 +160,16 @@ function laschen() = [for (sx = [-1, 1], ds = [-45, 45])
     [cx + sx * (deck_b / 2 + spiel + rahmen_b + 4.5), s0 + deck_h / 2 + ds]];
 
 // ---------------- Korpus ----------------
+
+// Schacht unter der Oberseite, trägt das Bett. Plattenkoordinaten
+module schacht() {
+    translate([0, 0, schacht_unten]) {
+        translate([cx - deck_b / 2 - spiel - rahmen_b, s0 - spiel - rahmen_b, 0])
+            linear_extrude(-schacht_unten - platte + 0.01) offset(r = 3) offset(delta = -3)
+                square([deck_b + 2 * spiel + 2 * rahmen_b, deck_h + 2 * spiel + 2 * rahmen_b]);
+        for (p = laschen()) translate([p[0] - 6.5, p[1] - 6.5, 0]) cube([13, 13, -schacht_unten - platte + 0.01]);
+    }
+}
 
 module korpus_aussen() {
     hull() {
@@ -202,19 +213,25 @@ module korpus() {
         union() {
             difference() { korpus_aussen(); korpus_innenraum(); }
             intersection() { korpus_aussen(); innen_verstaerkung(); }
+            auf_platte() schacht();
         }
         for (p = boden_schrauben()) einsatz_von_unten(p[0], p[1]);
         // Einsätze von hinten in die Leisten
         for (x = ls_x(), z = hinten_z)
             translate([x, tiefe - rueck_d + eps, z]) rotate([90, 0, 0]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
         auf_platte() {
-            // Bett: Schraube von innen
-            for (p = laschen()) {
-                translate([p[0], p[1], -platte - 1]) cylinder(d = m3_frei, h = platte + 2);
+            // Schacht fürs Deck
+            translate([cx - deck_b / 2 - spiel, s0 - spiel, schacht_unten - 1])
+                linear_extrude(-schacht_unten - platte + 1) offset(r = 2) offset(delta = -2) square([deck_b + 2 * spiel, deck_h + 2 * spiel]);
+            // Blende: Sichtöffnung, Kante gefast
+            hull() {
+                translate([cx - deck_b / 2 + blende, s0 + blende, -platte - 1]) linear_extrude(platte)
+                    offset(r = 6) offset(delta = -6) square([deck_b - 2 * blende, deck_h - 2 * blende]);
+                translate([cx - deck_b / 2 + blende - 1, s0 + blende - 1, -0.01]) linear_extrude(1)
+                    offset(r = 7) offset(delta = -7) square([deck_b - 2 * blende + 2, deck_h - 2 * blende + 2]);
             }
-            // Öffnung unter dem Bett: Schraubenzugang und USB
-            translate([cx - 52, s0 - 2, -platte - 1])
-                linear_extrude(platte + 2) offset(r = 4) offset(delta = -4) square([104, 128]);
+            // Einsätze für das Bett, von unten
+            for (p = laschen()) translate([p[0], p[1], schacht_unten - 0.01]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
         }
         // Lüftergitter rechts, passt für 40-mm-Lüfter (Lochabstand 32 mm)
         translate([b - wand - 1, luefter_y, luefter_z]) rotate([0, 90, 0]) {
@@ -333,8 +350,8 @@ module bett_lokal() {
                 union() {
                     // Boden mit Rampe unter dem Reglerrand
                     translate([-aussen_x, 0, 0]) rotate([90, 0, 90]) linear_extrude(2 * aussen_x)
-                        polygon([[s_a, -bett_d], [s_b, -bett_d], [s_b, -bett_luft], [41, -bett_luft],
-                                 [18, 1.6], [s_a, 1.6]]);
+                        polygon([[s_a, -bett_d], [s_b, -bett_d], [s_b, 7.8], [130, 7.8], [116, -bett_luft],
+                                 [41, -bett_luft], [18, 1.6], [s_a, 1.6]]);
                     // Rand
                     difference() {
                         translate([-aussen_x, s_a, -bett_d]) linear_extrude(rahmen_hoehe + bett_d)
@@ -342,21 +359,20 @@ module bett_lokal() {
                         translate([-deck_b / 2 - spiel, -spiel, -bett_d - 1]) linear_extrude(rahmen_hoehe + bett_d + 2)
                             offset(r = 2) offset(delta = -2) square([deck_b + 2 * spiel, deck_h + 2 * spiel]);
                     }
-                    // Haken
-                    for (sx = [-1, 1]) translate([sx * haken_x - haken_b / 2, 0, 0]) {
-                        translate([0, deck_h + spiel, -bett_d]) cube([haken_b, rahmen_b, deck_rand_z + haken_luft + haken_d + bett_d]);
-                        translate([0, deck_h + spiel - haken_ueber, deck_rand_z + haken_luft]) cube([haken_b, haken_ueber + 0.1, haken_d]);
-                    }
-                    // Laschen
-                    for (sx = [-1, 1], ds = [-45, 45]) translate([sx * (aussen_x + 4.5 - 0.1) - 5.5, deck_h / 2 + ds - 6.5, -bett_d])
-                        cube([11, 13, bett_d + 3]);
+                    // Laschen, stoßen von unten an den Schacht
+                    for (sx = [-1, 1], ds = [-45, 45]) translate([sx * (aussen_x + 4.5) - 6.5, deck_h / 2 + ds - 6.5, -bett_d])
+                        cube([13, 13, rahmen_hoehe + bett_d]);
                     // Sitze: voller Querschnitt bis zur Stirnfläche
                     for (sx = [-1, 1]) am_dom(sx) translate([0, 0, -8]) cylinder(d = dom_d - 0.4, h = 8);
                 }
                 // Platz für den Dom und alles davor im Deck
                 for (sx = [-1, 1]) am_dom(sx) cylinder(d = dom_d + 0.8, h = 20);
-                // Boden unter dem Bett plan
+                // Boden unter dem Bett plan, untere Ecken 45° abgeschrägt (Platz für Ballast, Pi, Rückwand)
                 translate([-200, -50, -bett_d - 50]) cube([400, 400, 50]);
+                translate([-200, 0, 0]) rotate([90, 0, 90]) linear_extrude(400) {
+                    polygon([[s_a - 1, -bett_d - 1], [s_a + 13, -bett_d - 1], [s_a - 1, 7]]);
+                    polygon([[s_b + 1, -bett_d - 1], [s_b - 13, -bett_d - 1], [s_b + 1, 7]]);
+                }
             }
         }
         for (sx = [-1, 1]) am_dom(sx) {
@@ -366,8 +382,11 @@ module bett_lokal() {
         // USB
         translate([-usb_b / 2, usb_s - usb_h / 2, -bett_d - 1]) linear_extrude(rahmen_hoehe)
             offset(r = 3) offset(delta = -3) square([usb_b, usb_h]);
-        // Einsätze in den Laschen, von unten
-        for (sx = [-1, 1], ds = [-45, 45]) translate([sx * (aussen_x + 4.5), deck_h / 2 + ds, -bett_d - 0.01]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
+        // Laschen: Schraube von unten in den Schacht
+        for (sx = [-1, 1], ds = [-45, 45]) translate([sx * (aussen_x + 4.5), deck_h / 2 + ds, 0]) {
+            translate([0, 0, -bett_d - 1]) cylinder(d = m3_frei, h = rahmen_hoehe + bett_d + 2);
+            translate([0, 0, -bett_d - 1]) cylinder(d = 6.5, h = bett_d + rahmen_hoehe - 6 + 1);
+        }
     }
 }
 
@@ -536,10 +555,9 @@ farbe_klein = "#7f8c99";
 
 module teile_farbig(ex = 0) {
     // ex = 0 zusammengebaut, 1 Explosion
-    color(farbe_korpus) translate([0, 0, ex * 70]) montiert("korpus");
-    color(farbe_rahmen) translate([0, ex * -35, ex * 130]) montiert("bett");
-    color("#111418") translate([0, ex * -55, ex * 185]) montiert("deck");
-    color("#c9a227") translate([0, ex * -22, ex * 105]) montiert("deck_usb");
+    color(farbe_korpus) translate([0, 0, ex * 370]) montiert("korpus");
+    color(farbe_rahmen) translate([0, ex * -6, ex * 100]) montiert("bett");
+    color("#111418") translate([0, ex * -30, ex * 185]) montiert("deck");
     color(farbe_boden) montiert("boden");
     color("#2f7d4f") translate([0, 0, ex * 22]) montiert("pi");
     color(farbe_klein) translate([0, 0, ex * 45]) montiert("ballastdeckel");
@@ -580,6 +598,6 @@ module innenleben() {
 
 if (teil == "alles") { teile_farbig(0); m_bedienung(); }
 else if (teil == "innen") innenleben();
-else if (teil == "explosion") { teile_farbig(1); translate([0, -55, 185]) m_bedienung(); }
+else if (teil == "explosion") { teile_farbig(1); translate([0, -30, 185]) m_bedienung(); }
 else if (lage == "montiert") montiert(teil);
 else drucklage(teil);

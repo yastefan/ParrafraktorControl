@@ -1,6 +1,6 @@
 # Tischgehäuse Stream Deck + und Raspberry Pi 4
 
-Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck sitzt 30° geneigt auf einem eigenen Bett, das die schrägen Originalgewinde nutzt und am Tastenrand zwei Haken gegen Aufhebeln hat. Der Pi liegt darunter.
+Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand, von innen hält es ein Bett an den schrägen Originalgewinden. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Außenmaße mit Füßen 180 × 151 × 142 mm, mit Haube 216 mm tief.
 
 **Stand: nur am Modell geprüft, nichts gedruckt und nichts an echter Hardware anprobiert.** Die Maße des Decks stammen aus Elgatos CAD-Modell. Zuerst nur `bett.stl` drucken und das Deck einsetzen.
 
@@ -32,7 +32,7 @@ bash hardware/gehaeuse/ansichten.sh
 
 ## Vor dem ersten Druck
 
-**Zuerst `bett.stl` drucken.** Es enthält Sitze und Haken, trägt also alles, was am Deck passen muss. Gewindeeinsätze noch nicht nötig: Deck mit dem Tastenrand unter die Haken schieben, Reglerrand absenken, Originalschrauben von unten von Hand eindrehen. Passt das, die übrigen Teile drucken.
+**Zuerst `bett.stl` drucken.** Es enthält die Sitze, trägt also das, was am Deck passen muss. Gewindeeinsätze noch nicht nötig: Deck auflegen, Originalschrauben von unten von Hand eindrehen. Passt das, die übrigen Teile drucken; ob die Blende passt, zeigt dann der Korpus.
 
 Noch offen, in `gehaeuse.scad`:
 
@@ -60,13 +60,13 @@ Das CAD zeigt die Serie, nicht unbedingt dein Gerät; das Bett prüft es. Außer
 
 ## Stückliste
 
-Druckteile (PETG, zusammen etwa 670 g mit Haube, laut `pruefbericht.txt` überschlägig):
+Druckteile (PETG, zusammen etwa 770 g mit Haube, laut `pruefbericht.txt` überschlägig):
 
 | Teil | Zweck |
 |---|---|
-| `korpus` | Keil mit Öffnung für das Bett |
+| `korpus` | Keil mit Blende und Schacht fürs Deck |
 | `boden` | Boden und Rückwand als ein Teil, trägt Pi, Ballast und Zugentlastung |
-| `bett` | trägt das Deck: schräge Sitze, Rand, zwei Haken. Einzeln nachdruckbar |
+| `bett` | trägt das Deck von innen: schräge Sitze, Rand, Laschen. Einzeln nachdruckbar |
 | `einsatz_d` | Einsatzplatte mit Neutrik-D-Ausschnitt für Ethernet, für DMX ein zweites Mal |
 | `einsatz_blind` | verschließt die RS485-Bucht bis zur Entscheidung |
 | `zugentlastung` | Klemme fürs Netzkabel |
@@ -79,8 +79,8 @@ Kaufteile:
 |---|---|
 | 26 (+4 für RS485) | Gewindeeinsatz M3 × 5,7 |
 | 4 | Gewindeeinsatz M2,5 |
-| 2 | Originalschrauben des Deck-Fußes, dazu Kreuzschlitz-Dreher mit mindestens 100 mm Schaft |
-| 4 | M3 × 10, Korpus zu Bett, Kopf innen |
+| 2 | Originalschrauben des Deck-Fußes, dazu Kreuzschlitz-Dreher |
+| 4 | M3 × 12, Bett in den Schacht, von unten |
 | 6 | M3 × 10 Sicherheits-Torx: 4 Boden, 2 Rückwand oben |
 | 4 | M3 × 14 Sicherheits-Torx für die Haube (ohne Haube M3 × 10) |
 | 8 | M3 × 8, Einsatzplatten |
@@ -105,13 +105,13 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 
 | Teil | Lage (STL ist schon so gedreht) |
 |---|---|
-| `korpus` | Montageplatte auf dem Druckbett, Öffnung oben |
-| `bett` | Boden auf dem Druckbett. Die Haken haben 3 mm flachen Überhang, die Schraubenkanäle liegen knapp über 45°; danach nacharbeiten, falls etwas hängt |
+| `korpus` | Oberseite auf dem Druckbett, Öffnung oben. Die Blende wird so glatt wie das Druckbett; für eine saubere Sichtfläche ohne Spuren drucken |
+| `bett` | Boden auf dem Druckbett. Die Schraubenkanäle liegen knapp über 45°; nacharbeiten, falls etwas hängt |
 | `boden` | Boden auf dem Bett, Rückwand steht. **Brücken** über den 44-mm-Buchten und im Lüftungsbereich, sind später von der Platte verdeckt; Brim empfohlen |
 | `haube` | Rückseite auf dem Bett |
 | Rest | flach |
 
-Überhänge zeigt `pruefbericht.txt`. Die Flächen dort sind kurze Brücken und die Haken; ob sie sauber werden, zeigt erst der Druck.
+Überhänge zeigt `pruefbericht.txt`. Die Flächen dort sind kurze Brücken; ob sie sauber werden, zeigt erst der Druck.
 
 ## Montage
 
@@ -120,8 +120,8 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 3. Pi mit Kühlkörper auf den Boden schrauben. Netzteilstecker von außen durch das Ø14-Loch führen, einstecken, Kabel mit der Zugentlastung klemmen, Tülle setzen.
 4. Panel-Buchse in `einsatz_d`, Patchkabel zum Pi, Einsatzplatten verschrauben.
 5. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben (Bohrungen im Boden, Abstand 90 mm in y).
-6. Bett von innen auf den Korpus schrauben. Fuß vom Deck abschrauben. Deck mit dem Tastenrand unter die Haken schieben, Reglerrand absenken, die zwei Originalschrauben von innen durch die schrägen Kanäle eindrehen (Korpus noch ohne Boden, Dreher kommt von unten). Nur handfest, das Gewinde sitzt im Kunststoff oder Einsatz des Decks.
-7. USB-Kabel in Deck und Pi stecken, mit den Kabelbindern an den Ösen führen, Schlaufe lassen.
+6. Fuß vom Deck abschrauben. Deck auf das Bett legen, die zwei Originalschrauben von unten durch die schrägen Kanäle eindrehen. Nur handfest, das Gewinde sitzt im Deck.
+7. USB-Kabel ins Deck stecken. Deck mit Bett von unten in den Schacht des Korpus schieben, bis der Rand an der Blende liegt, und das Bett mit vier M3 × 12 von unten anschrauben. Kabel in den Pi stecken, mit Kabelbindern an den Ösen führen, Schlaufe lassen.
 8. Korpus senkrecht über den Boden stülpen, von unten vier Schrauben, hinten zwei.
 9. Beim Publikum: Stecker einstecken, Haube mit vier Schrauben von hinten befestigen, Kabel unten herausführen und am Tisch sichern.
 
@@ -130,6 +130,7 @@ Für die SD-Karte muss der Korpus ab (Boden bleibt verschraubt), das ist gewollt
 ## Entscheidungen
 
 - **Neigung 30°:** flach genug für den Griff von oben im Stehen, am FoH sitzend noch lesbar. Parameter `neigung`; ändern verschiebt die Höhe. Nur am Modell beurteilt.
+- **Bündiges Deck statt aufgesetztem Rahmen:** Wunsch des Users. Kostet Bauhöhe: Vorderkante 50 mm, damit Pi und Ballast unter das Bett passen.
 - **Keine Abdichtung:** laut User nur außerhalb der Regie. PETG reicht dort; es wird ab etwa 70 °C weich, deshalb nicht in die Sonne stellen. Das Deck selbst ist nicht wetterfest.
 - **Haube statt verschraubter Buchsen allein:** Stecker und Schrauben hinten sind ohne Werkzeug nicht erreichbar, am FoH bleibt die Haube weg.
 - **Einsatzplatten:** Stecker und Adapter für RS485 sind offen. Bucht 44 × 44 mm, Platte 60 × 60 mm, freier Raum innen `rs485_platz` (26 × 50 × 14 mm), vier Einsatzsäulen. Ein HAT auf dem Pi ist nicht modelliert, Höhe und Stecker dann prüfen.
@@ -155,7 +156,7 @@ Das echte Elgato-Modell wird punktweise gegen die Teile geprüft, weil sein Netz
 DECK_STP=~/Downloads/stream-deck-stp-1.stp /Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd hardware/gehaeuse/deck_aus_stp.py
 ```
 
-**Standfestigkeit:** Waagerecht an der Deck-Oberkante kippt das Gehäuse überschlägig schon bei etwa 6–8 N (0,6–0,8 kg), auch mit Ballast. Frei stehend ist das nur am FoH vertretbar. **Beim Publikum das Gehäuse auf den Tisch schrauben.** Mehr Ballast verschiebt das kaum genug.
+**Standfestigkeit:** Waagerecht an der Deck-Oberkante kippt das Gehäuse überschlägig schon bei etwa 8–9 N (0,8–0,9 kg), mit Ballast. Frei stehend ist das nur am FoH vertretbar. **Beim Publikum das Gehäuse auf den Tisch schrauben.** Mehr Ballast verschiebt das kaum genug.
 
 Nicht geprüft: Festigkeit, vor allem der schrägen Sitze unter Zug, Passung der Einsätze, Temperatur, Kabelführung im Raum (Biegeradien), echte Bedienung. Platzhalter für Stecker und Pi sind einfache Quader.
 
