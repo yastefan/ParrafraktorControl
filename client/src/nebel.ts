@@ -308,7 +308,7 @@ export class NebelBild {
     this.deko(ctx, breite, hoehe, sp, lampe, farbe, anzahl);
   }
 
-  // Boden, Decke, Spiegel, Lampe, Messwerte
+  // Boden, Spiegel als Scherenschnitt, Lampe, Messwerte
   private deko(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, sp: Float64Array, lampe: NebelLampe, farbe: string, anzahl: number): void {
     const X = this.sx, Y = this.sy;
     ctx.lineWidth = 1;
@@ -320,39 +320,48 @@ export class NebelBild {
       else ctx.moveTo(X(x!, z!), Y(x!, RAUM.y1, z!));
     });
     ctx.stroke();
-    // Rahmen der Elemente: in ihrer Ebene gedreht, sonst nichts
-    ctx.strokeStyle = "rgba(232,236,244,0.8)";
-    ctx.beginPath();
-    for (let k = 0; k < ELEMENTE; k++) {
+    const lx = X(lampe.x, lampe.z), ly = Y(lampe.x, lampe.y, lampe.z), r = 12;
+    const lampeZeichnen = () => {
+      const glanz = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+      glanz.addColorStop(0, `rgba(${farbe},0.9)`);
+      glanz.addColorStop(1, `rgba(${farbe},0)`);
+      ctx.fillStyle = glanz;
+      ctx.beginPath(); ctx.arc(lx, ly, r, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = `rgb(${farbe})`;
+      ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, 2 * Math.PI); ctx.fill();
+    };
+    // Scherenschnitt von hinten nach vorn: Vorderes verdeckt Hinteres, auch die Lampe dahinter.
+    // Reihenfolge nach Tiefe, weil die Elemente in einer Reihe alle gleich weit vorn stehen können.
+    const ordnung = Array.from({ length: ELEMENTE }, (_, k) => k).sort((a, b) => sp[LAGE + a * 4 + 3]! - sp[LAGE + b * 4 + 3]!);
+    let lampeFehlt = true;
+    for (const k of ordnung) {
       const l = LAGE + k * 4, c = sp[l]!, s = sp[l + 1]!, mx = sp[l + 2]!, mz = sp[l + 3]!, h = ELEMENT_B / 2;
+      if (lampeFehlt && lampe.z < mz) { lampeZeichnen(); lampeFehlt = false; }
+      ctx.fillStyle = "rgba(6,5,10,0.88)";
+      for (let i = 0; i < SPIEGEL_N; i++) {
+        const o = (k * SPIEGEL_N + i) * FELDER;
+        ctx.beginPath();
+        for (let e = 0; e < 4; e++) {
+          const a = e === 0 || e === 3 ? -1 : 1, b = e < 2 ? -1 : 1;
+          const x = sp[o]! + a * sp[o + 3]! + b * sp[o + 6]!, y = sp[o + 1]! + a * sp[o + 4]! + b * sp[o + 7]!, z = sp[o + 2]! + a * sp[o + 5]! + b * sp[o + 8]!;
+          if (e) ctx.lineTo(X(x, z), Y(x, y, z));
+          else ctx.moveTo(X(x, z), Y(x, y, z));
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Rahmen: in seiner Ebene gedreht, sonst nichts
+      ctx.strokeStyle = "rgba(232,236,244,0.5)";
+      ctx.beginPath();
       for (let e = 0; e < 5; e++) {
         const a = e === 0 || e === 3 || e === 4 ? -h : h, b = e < 2 || e === 4 ? -h : h;
         const x = mx + a * c - b * s, y = a * s + b * c;
         if (e) ctx.lineTo(X(x, mz), Y(x, y, mz));
         else ctx.moveTo(X(x, mz), Y(x, y, mz));
       }
+      ctx.stroke();
     }
-    ctx.stroke();
-    ctx.strokeStyle = "rgba(232,236,244,0.42)";
-    ctx.beginPath();
-    for (let o = 0; o < LAGE; o += FELDER) {
-      for (let e = 0; e < 5; e++) {
-        const a = e === 0 || e === 3 || e === 4 ? -1 : 1, b = e < 2 || e === 4 ? -1 : 1;
-        const x = sp[o]! + a * sp[o + 3]! + b * sp[o + 6]!, y = sp[o + 1]! + a * sp[o + 4]! + b * sp[o + 7]!, z = sp[o + 2]! + a * sp[o + 5]! + b * sp[o + 8]!;
-        if (e) ctx.lineTo(X(x, z), Y(x, y, z));
-        else ctx.moveTo(X(x, z), Y(x, y, z));
-      }
-    }
-    ctx.stroke();
-
-    const lx = X(lampe.x, lampe.z), ly = Y(lampe.x, lampe.y, lampe.z), r = 12;
-    const glanz = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
-    glanz.addColorStop(0, `rgba(${farbe},0.9)`);
-    glanz.addColorStop(1, `rgba(${farbe},0)`);
-    ctx.fillStyle = glanz;
-    ctx.beginPath(); ctx.arc(lx, ly, r, 0, 2 * Math.PI); ctx.fill();
-    ctx.fillStyle = `rgb(${farbe})`;
-    ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, 2 * Math.PI); ctx.fill();
+    if (lampeFehlt) lampeZeichnen();
 
     ctx.font = "600 10px -apple-system, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.5)";
