@@ -39,6 +39,7 @@ grandMA3-Fixture „Gobbesso Parrafraktor“, Mode Standard, **37 Kanäle je Ele
 - **Überblendung** (Einstellung, 0–10 s, Vorgabe 2 s) von/zur Stellung der MA, die mitgelesen wird; ohne Mitlesen wird gesprungen.
 - **TiltRotate**: `rotateMaxUpm` = U/min bei DMX 0/255, Platzhalter 10 (bewusst langsam), Regler im Einstellungsmenü.
 - **Vorschau-Aufbau** (`einstellungen.aufbau`): nebeneinander (Draufsicht) oder hintereinander mit Drehung je Element (Vorderansicht mit Modus Spiegel/Licht, Modus pro Gerät in `localStorage`). Nur Darstellung, Reihenfolge bleibt eigener Parameter. Umschalter **Simple** (intern `bild`, die Ansicht nach Aufbau), **Phaser** (wie grandMA3: Winkel je Spiegel als Punkt mit Spur, darunter die Elemente von oben wie in Simple) und **Reflexion** (Strahlen wie Website-Simulation, Raum 10 × 6 m, Scheinwerfer ziehbar, zielt auf die Mitte, Zoom-Fader im View); `ansicht`, Lage und Zoom des Scheinwerfers pro Gerät in `localStorage`. Oberfläche im HUD-Stil ohne Scrollen (ab ca. 1000 × 620): `Modul` (Rahmen, Reiter, Aktionen; `--akzent` je Klasse), oben Vorschau + Pattern/Presets, Mitte `Bewegung` (senkrechte `Fader`, relativ, damit nichts springt) + `Verteilung`, unten Impulsband mit Mehr-Fenster.
+- **Nebel** (`client/src/nebel.ts`, Prototyp, Umschalter im Reflexion-View): Strahlen eines Scheinwerfers mit allen Reflexionen, Kamera aus dem Publikum leicht versetzt, waagerecht (Elemente stehen aufrecht), Lampe vor den Elementen (Vorgabe, Wunsch des Users), ziehbar in x/y, Tiefe per Regler, Spiegel als Scherenschnitt, Licht davor liegt in eigener Lage darüber, läuft weich aus (`AUSLAUF_M`), 4000 Strahlen je Bild in einen Puffer mit 60 % Auflösung, der abklingt (`ABKLINGEN`, gegen Flimmern, wechselnde Strahlenlage). Annahmen: 0,5 m Abstand der Elemente, Nebel gleichmäßig dicht. Umschalter **Spiegel** Vorn (Vorgabe)/Hinten/Beide: Welche Seite am echten Spiegel spiegelt, ist offen (Website: Rückseite schluckt). Rechenzeit steht im Bild, zum Ablesen auf dem iPad.
 - **Ausgaben neu starten** nur bei Änderung von Art-Net/sACN/RS485/Patch (sonst gäbe sACN kurz an die MA ab).
 - **IP-Konfiguration** im Einstellungsmenü (Ziel-IP, Netzwerkkarte je Ausgabe); die IP des Rechners selbst stellt die App nicht ein.
 - **Phase** bleibt der Name (wie MA3; „Wellen“ war dem User nicht recht). **Breite** (`breite`, %, nur Sinus) wie Width im MA3-Phaser: Durchlauf auf den Anteil gedrängt (`schmal` in `pattern.ts`, weich an/aus, 100→90 % übergeblendet), sonst Offset. **Speed** 0–10 BPM (vorher 60, dem User zu schnell).
@@ -58,6 +59,7 @@ grandMA3-Fixture „Gobbesso Parrafraktor“, Mode Standard, **37 Kanäle je Ele
 
 ## Offen
 
+- Nebel: Abstand der Elemente, spiegelnde Seite und Rechenzeit auf dem iPad.
 - Echte Drehzahl von TiltRotate und Verhalten der Spiegel-Firmware bei Tilt während/nach TiltRotate.
 - Art-Net vs. sACN im echten Aufbau: Was sendet die MA, kann der Node Priority/Merge?
 - RS485 am Pi (UART, Break), MIDI- und OSC-Modul.

@@ -12,12 +12,14 @@
 // dahinter die Spur der letzten Bewegung; unter jedem Element klein seine Vorderansicht.
 // Und die Ansicht "reflexion" wie die Website-Simulation, nur einfacher: Draufsicht auf den
 // Raum, die Elemente nebeneinander, ein fester Scheinwerfer davor; die Strahlen werden an den
-// Spiegeln reflektiert und treffen auf die Wände.
+// Spiegeln reflektiert und treffen auf die Wände. Umschaltbar auf den Nebel (nebel.ts): Strahlen
+// mit allen Reflexionen, von vorn leicht versetzt, die Elemente hintereinander wie im Aufbau.
 import {
   ELEMENTE, Engine, SPIEGEL_N, weich, wendeImpulseAn,
   type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
 } from "@parrafraktor/engine";
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
+import { NebelBild, NEBEL_LAMPE_VORGABE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
 
 export type VorderModus = "spiegel" | "licht";
 export type Ansicht = "bild" | "phaser" | "reflexion";
@@ -30,6 +32,8 @@ export interface VorschauDaten {
   modus: VorderModus;
   ansicht: Ansicht;
   phaserElemente: boolean;   // Phaser: Vorderansicht jedes Elements im Hintergrund
+  nebel: boolean;            // Reflexion: Strahlen im Nebel statt Draufsicht
+  nebelSeite: SpiegelSeite;
   blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
   blendeDauer: number;                              // Sekunden
   impuls: ImpulsEinstellung;
@@ -184,6 +188,11 @@ export class Vorschau {
   lampe: Punkt = { ...LAMPE_VORGABE };
   zoom: number = ZOOM.vorgabe;
   private raumMass = { m: 1, ox: 0, oy: 0 };
+  // Nebel: eigene Lage und eigener Zoom, weil der Scheinwerfer dort woanders steht
+  nebelLampe: NebelLampe = { ...NEBEL_LAMPE_VORGABE };
+  nebelZoom: number = NEBEL_ZOOM_VORGABE;
+  private nebelBild: NebelBild | null = null;
+  private zeigtNebel = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -210,7 +219,7 @@ export class Vorschau {
   }
 
   // Punkt auf dem Canvas (CSS-Pixel) → Raum, im Raum gehalten
-  raumPunkt(x: number, y: number): Punkt {
+  private raumPunkt(x: number, y: number): Punkt {
     const { m, ox, oy } = this.raumMass;
     return {
       x: Math.min(RAUM.b - 0.2, Math.max(0.2, (x - ox) / m)),
@@ -220,8 +229,23 @@ export class Vorschau {
 
   // Liegt der Punkt (CSS-Pixel) auf dem Scheinwerfer?
   aufLampe(x: number, y: number): boolean {
+    if (this.zeigtNebel) return this.nebelBild?.aufLampe(x, y, this.nebelLampe) ?? false;
     const { m, ox, oy } = this.raumMass;
     return Math.hypot(x - (ox + this.lampe.x * m), y - (oy + this.lampe.y * m)) < Math.max(32, m * 0.6);   // großzügig für Finger
+  }
+
+  // Scheinwerfer an den Punkt (CSS-Pixel) ziehen
+  zieheLampe(x: number, y: number): void {
+    if (this.zeigtNebel) {
+      if (this.nebelBild) this.nebelLampe = this.nebelBild.punkt(x, y, this.nebelLampe);
+    } else {
+      this.lampe = this.raumPunkt(x, y);
+    }
+  }
+
+  // Tiefe des Scheinwerfers im Nebel
+  setzeLampenTiefe(z: number): void {
+    this.nebelLampe = this.nebelBild ? this.nebelBild.inTiefe(this.nebelLampe, z) : { ...this.nebelLampe, z };
   }
 
   stoppe(): void {
@@ -279,7 +303,15 @@ export class Vorschau {
     if (!ctx || !breite || !hoehe) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, breite, hoehe);
+    this.zeigtNebel = d.ansicht === "reflexion" && d.nebel;
     if (d.ansicht === "phaser") this.phaser(ctx, breite, hoehe, d, winkel);
+    else if (this.zeigtNebel) {
+      this.nebelBild ??= new NebelBild();
+      this.nebelBild.zeichne(
+        ctx, breite, hoehe, winkel, d.aufbau.drehung, d.aufbau.anordnung !== "hintereinander",
+        this.nebelLampe, this.nebelZoom, d.nebelSeite, d.live ? FARBE.lichtLive : FARBE.licht,
+      );
+    }
     else if (d.ansicht === "reflexion") this.reflexion(ctx, breite, hoehe, d, winkel);
     else if (d.aufbau.anordnung === "hintereinander") this.vorderansicht(ctx, breite, hoehe, dpr, d, winkel);
     else this.draufsicht(ctx, breite, hoehe, d.live, winkel);
