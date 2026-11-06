@@ -13,7 +13,9 @@ const SPIEGEL_B = RASTER - 0.012;
 const TIEFE = 0.5;                       // Abstand der Elemente hintereinander: angenommen, nicht gemessen
 const LUECKE = 0.25;                     // Lücke, wenn sie in einer Reihe stehen
 const RAUM = { x0: -5, x1: 5, y0: -3.5, y1: 2.6, z0: -4, z1: 9 };
-const SCHRAEG = { x: 0.3, y: -0.12 };    // so viel verschiebt 1 m Querrichtung das Bild: zeigt die Tiefe
+// Blick waagerecht von der Seite, um die Hochachse etwas zum Publikum gedreht: Senkrechtes bleibt senkrecht
+const BLICK = (22 * Math.PI) / 180;
+const BLICK_Z = Math.cos(BLICK), BLICK_X = Math.sin(BLICK);
 const REFLEXION = 0.9;                   // Anteil, den ein Spiegel zurückwirft
 const MAX_SPRUENGE = 6;
 const STRAHL_MAX = 40;                   // länger als jede Strecke im Raum
@@ -158,12 +160,12 @@ export class NebelBild {
   private msRechnen = 0;
   private msBild = 16;
 
-  private sx = (x: number, z: number) => this.ox + (z - RAUM.z0 + SCHRAEG.x * x) * this.m;
-  private sy = (x: number, y: number) => this.oy + (y - RAUM.y0 + SCHRAEG.y * x) * this.m;
+  private sx = (x: number, z: number) => this.ox + ((z - RAUM.z0) * BLICK_Z + x * BLICK_X) * this.m;
+  private sy = (y: number) => this.oy + (y - RAUM.y0) * this.m;
 
   private passe(b: number, h: number): void {
-    this.m = Math.min(b / (RAUM.z1 - RAUM.z0), h / (RAUM.y1 - RAUM.y0));
-    this.ox = (b - (RAUM.z1 - RAUM.z0) * this.m) / 2;
+    this.m = Math.min(b / ((RAUM.z1 - RAUM.z0) * BLICK_Z), h / (RAUM.y1 - RAUM.y0));
+    this.ox = (b - (RAUM.z1 - RAUM.z0) * BLICK_Z * this.m) / 2;
     this.oy = (h - (RAUM.y1 - RAUM.y0) * this.m) / 2;
     const breite = Math.max(1, Math.round(b * AUFLOESUNG)), hoehe = Math.max(1, Math.round(h * AUFLOESUNG));
     if (breite === this.b && hoehe === this.h) return;
@@ -176,13 +178,13 @@ export class NebelBild {
   // Punkt auf dem Canvas (CSS-Pixel) → Lampe im Raum
   punkt(x: number, y: number): NebelLampe {
     return {
-      z: Math.min(RAUM.z1 - 0.2, Math.max(RAUM.z0 + 0.2, (x - this.ox) / this.m + RAUM.z0)),
+      z: Math.min(RAUM.z1 - 0.2, Math.max(RAUM.z0 + 0.2, (x - this.ox) / (this.m * BLICK_Z) + RAUM.z0)),
       y: Math.min(RAUM.y1 - 0.2, Math.max(RAUM.y0 + 0.2, (y - this.oy) / this.m + RAUM.y0)),
     };
   }
 
   aufLampe(x: number, y: number, lampe: NebelLampe): boolean {
-    return Math.hypot(x - this.sx(0, lampe.z), y - this.sy(0, lampe.y)) < Math.max(32, this.m * 0.6);
+    return Math.hypot(x - this.sx(0, lampe.z), y - this.sy(lampe.y)) < Math.max(32, this.m * 0.6);
   }
 
   private spurZeichnen(ax: number, ay: number, bx: number, by: number, g: number): void {
@@ -222,21 +224,21 @@ export class NebelBild {
 
     // Weg der Lampe bis zur ersten Elementebene abgedunkelt
     const grenze = lampe.z < 0 ? 0 : lampe.z > TIEFE * (ELEMENTE - 1) ? TIEFE * (ELEMENTE - 1) : null;
-    const px = (x: number, z: number) => this.sx(x, z) * AUFLOESUNG, py = (x: number, y: number) => this.sy(x, y) * AUFLOESUNG;
+    const px = (x: number, z: number) => this.sx(x, z) * AUFLOESUNG, py = (y: number) => this.sy(y) * AUFLOESUNG;
     this.folge++;
     const versatzU = (this.folge * 0.7548776662) % 1, versatzV = (this.folge * 0.5698402910) % 1;
     const anzahl = verfolgeAlle(sp, seite, lampe, zoom, NEBEL_STRAHLEN, versatzU, versatzV, (ax, ay, az, bx, by, bz, g, erster) => {
       if (erster && grenze !== null) {
         const t = (grenze - az) / (bz - az || 1e-9);
         if (t >= 1 || t <= 0) {
-          this.spurZeichnen(px(ax, az), py(ax, ay), px(bx, bz), py(bx, by), t >= 1 ? g * VORLICHT : g);
+          this.spurZeichnen(px(ax, az), py(ay), px(bx, bz), py(by), t >= 1 ? g * VORLICHT : g);
         } else {
           const mx = ax + (bx - ax) * t, my = ay + (by - ay) * t;
-          this.spurZeichnen(px(ax, az), py(ax, ay), px(mx, grenze), py(mx, my), g * VORLICHT);
-          this.spurZeichnen(px(mx, grenze), py(mx, my), px(bx, bz), py(bx, by), g);
+          this.spurZeichnen(px(ax, az), py(ay), px(mx, grenze), py(my), g * VORLICHT);
+          this.spurZeichnen(px(mx, grenze), py(my), px(bx, bz), py(by), g);
         }
       } else {
-        this.spurZeichnen(px(ax, az), py(ax, ay), px(bx, bz), py(bx, by), g);
+        this.spurZeichnen(px(ax, az), py(ay), px(bx, bz), py(by), g);
       }
     });
 
@@ -272,8 +274,21 @@ export class NebelBild {
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
     ctx.beginPath();
     for (const y of [RAUM.y0, RAUM.y1]) {
-      ctx.moveTo(X(0, RAUM.z0), Y(0, y));
-      ctx.lineTo(X(0, RAUM.z1), Y(0, y));
+      ctx.moveTo(X(0, RAUM.z0), Y(y));
+      ctx.lineTo(X(0, RAUM.z1), Y(y));
+    }
+    ctx.stroke();
+    // Rahmen der Elemente: in ihrer Ebene gedreht, sonst nichts
+    ctx.strokeStyle = "rgba(232,236,244,0.8)";
+    ctx.beginPath();
+    for (let k = 0; k < ELEMENTE; k++) {
+      const l = LAGE + k * 4, c = sp[l]!, s = sp[l + 1]!, mx = sp[l + 2]!, mz = sp[l + 3]!, h = ELEMENT_B / 2;
+      for (let e = 0; e < 5; e++) {
+        const a = e === 0 || e === 3 || e === 4 ? -h : h, b = e < 2 || e === 4 ? -h : h;
+        const x = mx + a * c - b * s, y = a * s + b * c;
+        if (e) ctx.lineTo(X(x, mz), Y(y));
+        else ctx.moveTo(X(x, mz), Y(y));
+      }
     }
     ctx.stroke();
     ctx.strokeStyle = "rgba(232,236,244,0.42)";
@@ -282,13 +297,13 @@ export class NebelBild {
       for (let e = 0; e < 5; e++) {
         const a = e === 0 || e === 3 || e === 4 ? -1 : 1, b = e < 2 || e === 4 ? -1 : 1;
         const x = sp[o]! + a * sp[o + 3]! + b * sp[o + 6]!, y = sp[o + 1]! + a * sp[o + 4]! + b * sp[o + 7]!, z = sp[o + 2]! + a * sp[o + 5]! + b * sp[o + 8]!;
-        if (e) ctx.lineTo(X(x, z), Y(x, y));
-        else ctx.moveTo(X(x, z), Y(x, y));
+        if (e) ctx.lineTo(X(x, z), Y(y));
+        else ctx.moveTo(X(x, z), Y(y));
       }
     }
     ctx.stroke();
 
-    const lx = X(0, lampe.z), ly = Y(0, lampe.y);
+    const lx = X(0, lampe.z), ly = Y(lampe.y);
     const glanz = ctx.createRadialGradient(lx, ly, 0, lx, ly, m * 0.4);
     glanz.addColorStop(0, `rgba(${farbe},0.9)`);
     glanz.addColorStop(1, `rgba(${farbe},0)`);
