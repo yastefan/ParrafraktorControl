@@ -10,6 +10,15 @@ Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken u
 
 Weitere Ansichten liegen in `bilder/`.
 
+## Nächste Schritte (Wünsche des Users)
+
+Noch nicht umgesetzt:
+
+- Gewinkelter USB-C-Stecker am Deck wird besorgt: `usb_stecker_l` und Platzhalter anpassen, das spart Tiefe.
+- Weniger wuchtig: Tiefe und Höhe verringern, soweit Pi, Ballast und Stecker es zulassen.
+- Ränder neben dem Deck verkleinern: `b` ist 180 mm, das Deck 140 mm. Seitlich liegen Laschen und RS485-Platz, die dafür umziehen müssen.
+- Kanten des Gehäuses abrunden: bisher nur 2 mm Fase (`fase`).
+
 ## Dateien
 
 | Datei | Inhalt |
