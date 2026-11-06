@@ -87,6 +87,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   get auto(): Readonly<AutoEinstellung> { return this._auto; }
   get autoAn(): boolean { return this._autoAn; }
   get autoRestS(): number { return this._autoRestS; }
+  get autoStartbar(): boolean { return this.autoListe().length >= 2; }
 
   // Laufende Impulse mit Zeiten relativ zu jetzt (für Takt, Vorschau und Anzeigen)
   impulse(): LaufenderImpuls[] {

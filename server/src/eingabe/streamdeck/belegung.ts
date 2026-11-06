@@ -4,7 +4,7 @@
 //
 // Hauptmenü:
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Pattern › │Presets › │Impulse › │ Seite ›  │   Seite: nächste Reglerseite (Name darunter)
+//   │Pattern › │Presets › │Impulse › │   Auto   │   Auto: Tippen startet und stoppt (Auswahl im Client)
 //   ├──────────┼──────────┼──────────┼──────────┤
 //   │ Ordnung  │ Elemente │  Pause   │  Output  │   Ordnung/Elemente: Stufe weiterschalten
 //   └──────────┴──────────┴──────────┴──────────┘   Output: gedrückt halten (Schutz vor Versehen)
@@ -75,7 +75,7 @@ export const HAUPT = {
   pattern: 0,
   presets: 1,
   impulse: 2,
-  seite: 3,
+  auto: 3,
   ordnung: 4,
   elemente: 5,
   pause: 6,

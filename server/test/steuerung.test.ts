@@ -87,6 +87,31 @@ describe("Auto", () => {
   });
 });
 
+describe("Auto am Stream Deck", () => {
+  it("Taste startet und stoppt, ist ohne genug Presets gedämpft und zeigt den Look", async () => {
+    const { StreamDeckModul } = await import("../src/eingabe/streamdeck/index.js");
+    const { HAUPT } = await import("../src/eingabe/streamdeck/belegung.js");
+    const s = neu();
+    const m = new StreamDeckModul(s) as unknown as {
+      tastenInhalt(t: number): { titel: string; unter?: string; leise?: boolean };
+      aktion(t: number): { tippen?: () => void } | undefined;
+    };
+    expect(m.tastenInhalt(HAUPT.auto).leise).toBe(true);
+    s.speicherePreset(0);
+    s.setze({ amplitude: 50 });
+    s.speicherePreset(1);
+    s.benennePreset(1, "Zwei");
+    expect(m.tastenInhalt(HAUPT.auto)).toMatchObject({ titel: "Auto", unter: "aus" });
+    m.aktion(HAUPT.auto)!.tippen!();
+    expect(s.autoAn).toBe(true);
+    s.rufePresetAuf(1);
+    s.setzeAuto(true);
+    expect(m.tastenInhalt(HAUPT.auto).titel).toBe("AUTO");
+    m.aktion(HAUPT.auto)!.tippen!();
+    expect(s.autoAn).toBe(false);
+  });
+});
+
 describe("Presets", () => {
   it("speichert den Look und ruft ihn mit Überblendung ab", () => {
     const s = neu();
