@@ -7,7 +7,7 @@ import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
 import { Bewegung, Verteilung, hatVerteilung } from "./teile/regler.js";
 import { Modul } from "./teile/modul.js";
-import { NEBEL_LAMPE_VORGABE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
+import { NEBEL_LAMPE_VORGABE, NEBEL_TIEFE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
 import { LAMPE_VORGABE, Vorschau, ZOOM, type Ansicht, type VorderModus } from "./vorschau.js";
 
 export function App() {
@@ -56,9 +56,9 @@ const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser"
 const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
 const ZOOM_SCHLUESSEL = "parrafraktor.zoom";
 const NEBEL_SCHLUESSEL = "parrafraktor.nebel";
-const NEBEL_LAMPE_SCHLUESSEL = "parrafraktor.nebelLampe";
+const NEBEL_LAMPE_SCHLUESSEL = "parrafraktor.nebelLampeVorn";   // neuer Name: Vorgabe ist jetzt vor den Elementen
 const NEBEL_ZOOM_SCHLUESSEL = "parrafraktor.nebelZoom";
-const NEBEL_SEITE_SCHLUESSEL = "parrafraktor.nebelSeite";
+const NEBEL_SEITE_SCHLUESSEL = "parrafraktor.nebelSeiteVorn";
 const SEITE_NAME: Record<SpiegelSeite, string> = { hinten: "Hinten", vorn: "Vorn", beide: "Beide" };
 function leseZoom(schluessel = ZOOM_SCHLUESSEL, vorgabe: number = ZOOM.vorgabe): number {
   const z = Number(lese(schluessel));
@@ -71,9 +71,12 @@ function leseNebelLampe(): NebelLampe {
   } catch { /* Vorgabe */ }
   return { ...NEBEL_LAMPE_VORGABE };
 }
+// Tiefe lesbar: bezogen auf das vorderste (z = 1) und hinterste Element (z = 0)
+const tiefeText = (z: number): string =>
+  z >= 1 ? `${(z - 1).toFixed(1)} m vorn` : z <= 0 ? `${(-z).toFixed(1)} m hinten` : "im Aufbau";
 function leseSeite(): SpiegelSeite {
   const s = lese(NEBEL_SEITE_SCHLUESSEL);
-  return s === "vorn" || s === "beide" ? s : "hinten";
+  return s === "hinten" || s === "beide" ? s : "vorn";
 }
 function leseLampe(): { x: number; y: number } {
   try {
@@ -115,6 +118,7 @@ function VorschauFlaeche() {
   nebelRef.current = nebel;
   const [nebelZoom, setNebelZoom] = useState(() => leseZoom(NEBEL_ZOOM_SCHLUESSEL, NEBEL_ZOOM_VORGABE));
   const [seite, setSeite] = useState<SpiegelSeite>(leseSeite);
+  const [tiefe, setTiefe] = useState(() => leseNebelLampe().z);
   const seiteRef = useRef(seite);
   seiteRef.current = seite;
   const zieht = useRef<number | null>(null);
@@ -232,6 +236,22 @@ function VorschauFlaeche() {
             onChange={(ev) => merke(nebel ? NEBEL_ZOOM_SCHLUESSEL : ZOOM_SCHLUESSEL, ev.currentTarget.value)}
           />
           <output>{nebel ? nebelZoom : zoom}°</output>
+        </label>
+      )}
+      {ansicht === "reflexion" && nebel && (
+        <label class="vorschau-zoom vorschau-tiefe">
+          <span>Tiefe</span>
+          <input
+            type="range" min={NEBEL_TIEFE.min} max={NEBEL_TIEFE.max} step={0.1} value={tiefe}
+            style={{ "--fuellung": `${((tiefe - NEBEL_TIEFE.min) / (NEBEL_TIEFE.max - NEBEL_TIEFE.min)) * 100}%` }}
+            onInput={(ev) => {
+              const z = Number(ev.currentTarget.value);
+              setTiefe(z);
+              vorschau.current?.setzeLampenTiefe(z);
+            }}
+            onChange={() => { if (vorschau.current) merke(NEBEL_LAMPE_SCHLUESSEL, JSON.stringify(vorschau.current.nebelLampe)); }}
+          />
+          <output>{tiefeText(tiefe)}</output>
         </label>
       )}
       {ansicht === "reflexion" && nebel && (

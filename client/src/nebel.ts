@@ -29,7 +29,8 @@ const HELLIGKEIT = 300;
 const AUFLOESUNG = 0.6;                  // Puffer gegenüber CSS-Pixeln: Der Nebel ist weich, das spart am meisten
 
 export const NEBEL_STRAHLEN = 4000;
-export const NEBEL_LAMPE_VORGABE: Readonly<NebelLampe> = { x: 0, y: 2.2, z: -3 };
+export const NEBEL_LAMPE_VORGABE: Readonly<NebelLampe> = { x: 0, y: 1.5, z: 4 };   // vor den Elementen, unten
+export const NEBEL_TIEFE = { min: RAUM.z0 + 0.2, max: 8 } as const;
 export const NEBEL_ZOOM_VORGABE = 32;
 
 // 36 Spiegel flach im Speicher, damit das Rechnen nichts anlegen muss
@@ -151,8 +152,14 @@ export function verfolgeAlle(
 export class NebelBild {
   private readonly spiegel = new Float64Array(GROESSE);
   private readonly bild = document.createElement("canvas");
+  private readonly bildVorn = document.createElement("canvas");
+  // Zwei Lagen: Licht hinter dem vordersten Element liegt unter dem Scherenschnitt, davor darüber
   private puffer = new Float32Array(0);
+  private pufferVorn = new Float32Array(0);
   private pixel: ImageData | null = null;
+  private pixelVorn: ImageData | null = null;
+  private breite = 0;   // CSS-Pixel
+  private hoehe = 0;
   private b = 0;
   private h = 0;
   private brenn = 1;   // Bildweite in CSS-Pixeln
@@ -172,6 +179,8 @@ export class NebelBild {
     this.my + (this.brenn * y) / ((x - KAMERA.x) * VOR.x + (z - KAMERA.z) * VOR.z);
 
   private passe(b: number, h: number): void {
+    this.breite = b;
+    this.hoehe = h;
     this.brenn = 2 * Math.min(h, b / 1.6);
     this.mx = b / 2;
     this.my = h / 2;
@@ -179,13 +188,18 @@ export class NebelBild {
     if (breite === this.b && hoehe === this.h) return;
     this.b = breite; this.h = hoehe;
     this.bild.width = breite; this.bild.height = hoehe;
+    this.bildVorn.width = breite; this.bildVorn.height = hoehe;
     this.puffer = new Float32Array(breite * hoehe);
+    this.pufferVorn = new Float32Array(breite * hoehe);
     this.pixel = this.bild.getContext("2d")?.createImageData(breite, hoehe) ?? null;
+    this.pixelVorn = this.bildVorn.getContext("2d")?.createImageData(breite, hoehe) ?? null;
   }
 
-  // Punkt auf dem Canvas (CSS-Pixel) → Lampe: Sie bleibt in ihrer Tiefe und folgt dem Finger
+  // Punkt auf dem Canvas (CSS-Pixel) → Lampe: Sie bleibt in ihrer Tiefe und folgt dem Finger, im Bild
   punkt(x: number, y: number, lampe: NebelLampe): NebelLampe {
-    const qx = (x - this.mx) / this.brenn, qy = (y - this.my) / this.brenn;
+    const rand = 14;
+    const qx = (Math.min(this.breite - rand, Math.max(rand, x)) - this.mx) / this.brenn;
+    const qy = (Math.min(this.hoehe - rand, Math.max(rand, y)) - this.my) / this.brenn;
     const dx = VOR.x + RECHTS.x * qx, dz = VOR.z + RECHTS.z * qx;
     const t = (lampe.z - KAMERA.z) / dz;
     return {
@@ -195,13 +209,19 @@ export class NebelBild {
     };
   }
 
+  // Lampe in eine neue Tiefe stellen, sie bleibt dabei im Bild
+  inTiefe(lampe: NebelLampe, z: number): NebelLampe {
+    const neu = { ...lampe, z: Math.min(NEBEL_TIEFE.max, Math.max(NEBEL_TIEFE.min, z)) };
+    return this.punkt(this.sx(neu.x, neu.z), this.sy(neu.x, neu.y, neu.z), neu);
+  }
+
   aufLampe(x: number, y: number, lampe: NebelLampe): boolean {
     return Math.hypot(x - this.sx(lampe.x, lampe.z), y - this.sy(lampe.x, lampe.y, lampe.z)) < 32;
   }
 
   // Lichtspur von a nach b, die Stärke läuft von ga nach gb
-  private spurZeichnen(ax: number, ay: number, bx: number, by: number, ga: number, gb: number): void {
-    const w = this.b, h = this.h, p = this.puffer;
+  private spurZeichnen(p: Float32Array, ax: number, ay: number, bx: number, by: number, ga: number, gb: number): void {
+    const w = this.b, h = this.h;
     let dx = bx - ax, dy = by - ay;
     // Auf das Bild beschneiden: Nah an der Kamera werden Spuren sehr lang
     let t0 = 0, t1 = 1;
@@ -246,23 +266,34 @@ export class NebelBild {
     const start = performance.now();
     this.passe(breite, hoehe);
     const sp = baueSpiegel(winkel, drehung, reihe, this.spiegel);
-    const p = this.puffer;
-    for (let i = 0; i < p.length; i++) p[i]! *= ABKLINGEN;
+    const p = this.puffer, pv = this.pufferVorn;
+    for (let i = 0; i < p.length; i++) { p[i]! *= ABKLINGEN; pv[i]! *= ABKLINGEN; }
 
     // Weg der Lampe bis zur ersten Elementebene abgedunkelt
-    const grenze = lampe.z < 0 ? 0 : lampe.z > TIEFE * (ELEMENTE - 1) ? TIEFE * (ELEMENTE - 1) : null;
+    const zVorn = reihe ? TIEFE : TIEFE * (ELEMENTE - 1), zHinten = reihe ? TIEFE : 0;
+    const grenze = lampe.z < zHinten ? zHinten : lampe.z > zVorn ? zVorn : null;
     const px = (x: number, z: number) => this.sx(x, z) * AUFLOESUNG;
     const py = (x: number, y: number, z: number) => this.sy(x, y, z) * AUFLOESUNG;
+    // Spur in die passende Lage, wenn nötig an der Ebene des vordersten Elements geteilt
+    const lage = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, ga: number, gb: number) => {
+      const xa = px(ax, az), ya = py(ax, ay, az), xb = px(bx, bz), yb = py(bx, by, bz);
+      if (az >= zVorn && bz >= zVorn) { this.spurZeichnen(pv, xa, ya, xb, yb, ga, gb); return; }
+      if (az <= zVorn && bz <= zVorn) { this.spurZeichnen(p, xa, ya, xb, yb, ga, gb); return; }
+      const t = (zVorn - az) / (bz - az), mx = ax + (bx - ax) * t, my = ay + (by - ay) * t;
+      const xm = px(mx, zVorn), ym = py(mx, my, zVorn), gm = ga + (gb - ga) * t;
+      this.spurZeichnen(az > zVorn ? pv : p, xa, ya, xm, ym, ga, gm);
+      this.spurZeichnen(az > zVorn ? p : pv, xm, ym, xb, yb, gm, gb);
+    };
     // Stück zeichnen; der Weg zählt ab den Elementen, dahinter wird das Licht schwächer
     let weg = 0;
     const stueck = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, g: number) => {
       const lang = Math.hypot(bx - ax, by - ay, bz - az);
       const ga = g * Math.exp(-weg / AUSLAUF_M);
       weg += lang;
-      this.spurZeichnen(px(ax, az), py(ax, ay, az), px(bx, bz), py(bx, by, bz), ga, g * Math.exp(-weg / AUSLAUF_M));
+      lage(ax, ay, az, bx, by, bz, ga, g * Math.exp(-weg / AUSLAUF_M));
     };
     const dunkel = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, g: number) =>
-      this.spurZeichnen(px(ax, az), py(ax, ay, az), px(bx, bz), py(bx, by, bz), g * VORLICHT, g * VORLICHT);
+      lage(ax, ay, az, bx, by, bz, g * VORLICHT, g * VORLICHT);
     this.folge++;
     const versatzU = (this.folge * 0.7548776662) % 1, versatzV = (this.folge * 0.5698402910) % 1;
     const anzahl = verfolgeAlle(sp, seite, lampe, zoom, NEBEL_STRAHLEN, versatzU, versatzV, (ax, ay, az, bx, by, bz, g, erster) => {
@@ -286,18 +317,23 @@ export class NebelBild {
     // Puffer → Farbe. Heller, wenn das Bild größer ist; die Spuren werden dort ja länger.
     const [fr, fg, fb] = farbe.split(",").map(Number) as [number, number, number];
     const s = (HELLIGKEIT * (1 - ABKLINGEN) * ((this.brenn * AUFLOESUNG) / 340)) / Math.max(1, anzahl);
-    const d = this.pixel;
-    if (d) {
-      const data = d.data;
+    const d = this.pixel, dv = this.pixelVorn;
+    if (d && dv) {
+      const data = d.data, dataV = dv.data;
       for (let i = 0, o = 0; i < p.length; i++, o += 4) {
-        const v = p[i]! * s;
-        const k = v < 0.002 ? v : 1 - Math.exp(-v);
+        const v = p[i]! * s, vv = pv[i]! * s;
+        const k = v < 0.002 ? v : 1 - Math.exp(-v), kv = vv < 0.002 ? vv : 1 - Math.exp(-vv);
         data[o] = 4 + (fr - 4) * k;
         data[o + 1] = 3 + (fg - 3) * k;
         data[o + 2] = 8 + (fb - 8) * k;
         data[o + 3] = 255;
+        dataV[o] = fr * kv;
+        dataV[o + 1] = fg * kv;
+        dataV[o + 2] = fb * kv;
+        dataV[o + 3] = 255;
       }
       this.bild.getContext("2d")?.putImageData(d, 0, 0);
+      this.bildVorn.getContext("2d")?.putImageData(dv, 0, 0);
     }
     const ende = performance.now();
     this.msRechnen += (ende - start - this.msRechnen) * 0.08;
@@ -305,11 +341,15 @@ export class NebelBild {
     this.letztes = ende;
 
     ctx.drawImage(this.bild, 0, 0, breite, hoehe);
-    this.deko(ctx, breite, hoehe, sp, lampe, farbe, anzahl);
+    this.deko(ctx, breite, hoehe, sp, lampe, farbe, anzahl, () => {
+      ctx.globalCompositeOperation = "lighter";
+      ctx.drawImage(this.bildVorn, 0, 0, breite, hoehe);
+      ctx.globalCompositeOperation = "source-over";
+    });
   }
 
   // Boden, Spiegel als Scherenschnitt, Lampe, Messwerte
-  private deko(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, sp: Float64Array, lampe: NebelLampe, farbe: string, anzahl: number): void {
+  private deko(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, sp: Float64Array, lampe: NebelLampe, farbe: string, anzahl: number, lichtDavor: () => void): void {
     const X = this.sx, Y = this.sy;
     ctx.lineWidth = 1;
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
@@ -361,6 +401,7 @@ export class NebelBild {
       }
       ctx.stroke();
     }
+    lichtDavor();
     if (lampeFehlt) lampeZeichnen();
 
     ctx.font = "600 10px -apple-system, sans-serif";

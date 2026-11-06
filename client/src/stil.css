@@ -233,8 +233,10 @@ button { border-radius: 0; }
 }
 .vorschau-zoom input[type="range"] { flex: 1; min-width: 0; height: 30px; }
 .vorschau-zoom output { min-width: 32px; text-align: right; color: var(--text); }
-.nebel .vorschau-zoom { top: 4px; bottom: auto; }   /* unten links liegt der Spiegel-Umschalter */
-.vorschau-seite { position: absolute; left: 8px; bottom: 8px; z-index: 1; align-items: center; }
+.nebel .vorschau-zoom { top: 4px; bottom: auto; width: min(270px, 48%); }   /* unten steht die Lampe */
+.nebel .vorschau-tiefe { top: 36px; }
+.nebel .vorschau-zoom output { min-width: 74px; }
+.vorschau-seite { position: absolute; right: 8px; bottom: 8px; z-index: 1; align-items: center; }
 .vorschau-seite span { padding: 0 8px; font-size: 11px; color: var(--leise); }
 .vorschau-seite button { min-height: 30px; padding: 0 10px; font-size: 11px; text-transform: uppercase; }
 

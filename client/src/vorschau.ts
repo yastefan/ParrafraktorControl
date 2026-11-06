@@ -243,6 +243,11 @@ export class Vorschau {
     }
   }
 
+  // Tiefe des Scheinwerfers im Nebel
+  setzeLampenTiefe(z: number): void {
+    this.nebelLampe = this.nebelBild ? this.nebelBild.inTiefe(this.nebelLampe, z) : { ...this.nebelLampe, z };
+  }
+
   stoppe(): void {
     cancelAnimationFrame(this.bild);
   }
