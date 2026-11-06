@@ -233,6 +233,10 @@ button { border-radius: 0; }
 }
 .vorschau-zoom input[type="range"] { flex: 1; min-width: 0; height: 30px; }
 .vorschau-zoom output { min-width: 32px; text-align: right; color: var(--text); }
+.nebel .vorschau-zoom { top: 4px; bottom: auto; }   /* unten links steht die Lampe */
+.vorschau-seite { position: absolute; right: 8px; bottom: 8px; z-index: 1; align-items: center; }
+.vorschau-seite span { padding: 0 8px; font-size: 11px; color: var(--leise); }
+.vorschau-seite button { min-height: 30px; padding: 0 10px; font-size: 11px; text-transform: uppercase; }
 
 .umschalter { display: flex; gap: 2px; background: var(--grund); padding: 2px; }
 .umschalter button { min-height: 34px; padding: 0 10px; border: none; background: transparent; color: var(--leise); cursor: pointer; }

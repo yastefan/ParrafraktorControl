@@ -7,6 +7,7 @@ import { Patterns } from "./teile/patterns.js";
 import { Presets } from "./teile/presets.js";
 import { Bewegung, Verteilung, hatVerteilung } from "./teile/regler.js";
 import { Modul } from "./teile/modul.js";
+import { NEBEL_LAMPE_VORGABE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
 import { LAMPE_VORGABE, Vorschau, ZOOM, type Ansicht, type VorderModus } from "./vorschau.js";
 
 export function App() {
@@ -54,9 +55,25 @@ const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser"
 
 const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
 const ZOOM_SCHLUESSEL = "parrafraktor.zoom";
-function leseZoom(): number {
-  const z = Number(lese(ZOOM_SCHLUESSEL));
-  return lese(ZOOM_SCHLUESSEL) !== null && Number.isFinite(z) ? Math.min(ZOOM.max, Math.max(ZOOM.min, z)) : ZOOM.vorgabe;
+const NEBEL_SCHLUESSEL = "parrafraktor.nebel";
+const NEBEL_LAMPE_SCHLUESSEL = "parrafraktor.nebelLampe";
+const NEBEL_ZOOM_SCHLUESSEL = "parrafraktor.nebelZoom";
+const NEBEL_SEITE_SCHLUESSEL = "parrafraktor.nebelSeite";
+const SEITE_NAME: Record<SpiegelSeite, string> = { hinten: "Hinten", vorn: "Vorn", beide: "Beide" };
+function leseZoom(schluessel = ZOOM_SCHLUESSEL, vorgabe: number = ZOOM.vorgabe): number {
+  const z = Number(lese(schluessel));
+  return lese(schluessel) !== null && Number.isFinite(z) ? Math.min(ZOOM.max, Math.max(ZOOM.min, z)) : vorgabe;
+}
+function leseNebelLampe(): NebelLampe {
+  try {
+    const l = JSON.parse(lese(NEBEL_LAMPE_SCHLUESSEL) ?? "null");
+    if (Number.isFinite(l?.z) && Number.isFinite(l?.y)) return { z: l.z, y: l.y };
+  } catch { /* Vorgabe */ }
+  return { ...NEBEL_LAMPE_VORGABE };
+}
+function leseSeite(): SpiegelSeite {
+  const s = lese(NEBEL_SEITE_SCHLUESSEL);
+  return s === "vorn" || s === "beide" ? s : "hinten";
 }
 function leseLampe(): { x: number; y: number } {
   try {
@@ -92,7 +109,14 @@ function VorschauFlaeche() {
   const ansichtRef = useRef(ansicht);
   ansichtRef.current = ansicht;
   const vorschau = useRef<Vorschau>();
-  const [zoom, setZoom] = useState(leseZoom);
+  const [zoom, setZoom] = useState(() => leseZoom());
+  const [nebel, setNebel] = useState(() => lese(NEBEL_SCHLUESSEL) === "ja");
+  const nebelRef = useRef(nebel);
+  nebelRef.current = nebel;
+  const [nebelZoom, setNebelZoom] = useState(() => leseZoom(NEBEL_ZOOM_SCHLUESSEL, NEBEL_ZOOM_VORGABE));
+  const [seite, setSeite] = useState<SpiegelSeite>(leseSeite);
+  const seiteRef = useRef(seite);
+  seiteRef.current = seite;
   const zieht = useRef<number | null>(null);
   useEffect(() => {
     const v = new Vorschau(canvas.current!, () => {
@@ -106,6 +130,8 @@ function VorschauFlaeche() {
         modus: modusRef.current,
         ansicht: ansichtRef.current,
         phaserElemente: phaserElementeRef.current,
+        nebel: nebelRef.current,
+        nebelSeite: seiteRef.current,
         blende: laden.stand.blende,
         blendeDauer: laden.stand.einstellungen.ueberblendungS,
         impuls: laden.stand.impuls,
@@ -116,6 +142,8 @@ function VorschauFlaeche() {
     });
     v.lampe = leseLampe();
     v.zoom = leseZoom();
+    v.nebelLampe = leseNebelLampe();
+    v.nebelZoom = leseZoom(NEBEL_ZOOM_SCHLUESSEL, NEBEL_ZOOM_VORGABE);
     vorschau.current = v;
     v.starte();
     const ab = laden.abonniere(() => { if (laden.stand) v.gleiche(laden.stand.takt); });
@@ -135,6 +163,15 @@ function VorschauFlaeche() {
           Elemente
         </button>
       )}
+      {ansicht === "reflexion" && (
+        <button
+          type="button" class={`aktion haken ${nebel ? "aktiv" : ""}`} aria-pressed={nebel}
+          title="Strahlen im Nebel, schräg von der Seite"
+          onClick={() => { setNebel(!nebel); merke(NEBEL_SCHLUESSEL, nebel ? "nein" : "ja"); }}
+        >
+          Nebel
+        </button>
+      )}
       {(["bild", "phaser", "reflexion"] as const).map((a) => (
         <button type="button" key={a} class={`aktion ${ansicht === a ? "aktiv" : ""}`} aria-pressed={ansicht === a} onClick={() => zeige(a)}>
           {ANSICHT_NAME[a]}
@@ -142,10 +179,10 @@ function VorschauFlaeche() {
       ))}
     </>
   );
-  const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? "Reflexion" : vorn && modus === "licht" ? "Licht" : "Simple";
+  const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? (nebel ? "Nebel" : "Reflexion") : vorn && modus === "licht" ? "Licht" : "Simple";
   return (
     <Modul titel={`Live // ${titel}`} klasse="m-vorschau" aktionen={umschalter}>
-    <div class={`vorschau-rahmen ${vorn ? "vorn" : ""} ${ansicht}`}>
+    <div class={`vorschau-rahmen ${vorn ? "vorn" : ""} ${ansicht} ${ansicht === "reflexion" && nebel ? "nebel" : ""}`}>
       <canvas
         ref={canvas}
         class="vorschau"
@@ -162,35 +199,51 @@ function VorschauFlaeche() {
           const v = vorschau.current;
           if (!v || zieht.current !== ev.pointerId) return;
           const r = ev.currentTarget.getBoundingClientRect();
-          v.lampe = v.raumPunkt(ev.clientX - r.left, ev.clientY - r.top);
+          v.zieheLampe(ev.clientX - r.left, ev.clientY - r.top);
         }}
         onPointerUp={() => {
           if (zieht.current === null) return;
           zieht.current = null;
-          if (vorschau.current) merke(LAMPE_SCHLUESSEL, JSON.stringify(vorschau.current.lampe));
+          const v = vorschau.current;
+          if (v) {
+            if (nebel) merke(NEBEL_LAMPE_SCHLUESSEL, JSON.stringify(v.nebelLampe));
+            else merke(LAMPE_SCHLUESSEL, JSON.stringify(v.lampe));
+          }
         }}
         onPointerCancel={() => { zieht.current = null; }}
         role="img"
         aria-label={ansicht === "phaser"
           ? "Winkel der 36 Spiegel als Diagramm"
-          : ansicht === "reflexion" ? "Draufsicht mit Scheinwerfer und reflektierten Strahlen"
+          : ansicht === "reflexion" ? (nebel ? "Strahlen im Nebel, schräg von der Seite" : "Draufsicht mit Scheinwerfer und reflektierten Strahlen")
           : vorn ? "Vorschau der drei Elemente von vorn" : "Vorschau der 36 Spiegel von oben"}
       />
       {ansicht === "reflexion" && (
         <label class="vorschau-zoom">
           <span>Zoom</span>
           <input
-            type="range" min={ZOOM.min} max={ZOOM.max} step={1} value={zoom}
-            style={{ "--fuellung": `${((zoom - ZOOM.min) / (ZOOM.max - ZOOM.min)) * 100}%` }}
+            type="range" min={ZOOM.min} max={ZOOM.max} step={1} value={nebel ? nebelZoom : zoom}
+            style={{ "--fuellung": `${(((nebel ? nebelZoom : zoom) - ZOOM.min) / (ZOOM.max - ZOOM.min)) * 100}%` }}
             onInput={(ev) => {
               const z = Number(ev.currentTarget.value);
-              setZoom(z);
-              if (vorschau.current) vorschau.current.zoom = z;
+              const v = vorschau.current;
+              if (nebel) { setNebelZoom(z); if (v) v.nebelZoom = z; }
+              else { setZoom(z); if (v) v.zoom = z; }
             }}
-            onChange={(ev) => merke(ZOOM_SCHLUESSEL, ev.currentTarget.value)}
+            onChange={(ev) => merke(nebel ? NEBEL_ZOOM_SCHLUESSEL : ZOOM_SCHLUESSEL, ev.currentTarget.value)}
           />
-          <output>{zoom}°</output>
+          <output>{nebel ? nebelZoom : zoom}°</output>
         </label>
+      )}
+      {ansicht === "reflexion" && nebel && (
+        // Welche Seite spiegelt, ist am echten Spiegel noch zu klären; die andere schluckt das Licht
+        <div class="umschalter vorschau-seite" title="Wohin die spiegelnde Seite bei Tilt 0 zeigt">
+          <span>Spiegel</span>
+          {(["hinten", "vorn", "beide"] as const).map((s) => (
+            <button type="button" key={s} class={seite === s ? "aktiv" : ""} aria-pressed={seite === s} onClick={() => { setSeite(s); merke(NEBEL_SEITE_SCHLUESSEL, s); }}>
+              {SEITE_NAME[s]}
+            </button>
+          ))}
+        </div>
       )}
       {vorn && (
         <div class="umschalter vorschau-modus">
