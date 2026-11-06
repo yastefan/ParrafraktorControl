@@ -13,7 +13,7 @@
 // Und die Ansicht "reflexion" wie die Website-Simulation, nur einfacher: Draufsicht auf den
 // Raum, die Elemente nebeneinander, ein fester Scheinwerfer davor; die Strahlen werden an den
 // Spiegeln reflektiert und treffen auf die Wände. Umschaltbar auf den Nebel (nebel.ts): Strahlen
-// mit allen Reflexionen, schräg von der Seite, die Elemente hintereinander wie im Aufbau.
+// mit allen Reflexionen, von vorn leicht versetzt, die Elemente hintereinander wie im Aufbau.
 import {
   ELEMENTE, Engine, SPIEGEL_N, weich, wendeImpulseAn,
   type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
@@ -237,7 +237,7 @@ export class Vorschau {
   // Scheinwerfer an den Punkt (CSS-Pixel) ziehen
   zieheLampe(x: number, y: number): void {
     if (this.zeigtNebel) {
-      if (this.nebelBild) this.nebelLampe = this.nebelBild.punkt(x, y);
+      if (this.nebelBild) this.nebelLampe = this.nebelBild.punkt(x, y, this.nebelLampe);
     } else {
       this.lampe = this.raumPunkt(x, y);
     }

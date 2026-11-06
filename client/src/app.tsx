@@ -67,7 +67,7 @@ function leseZoom(schluessel = ZOOM_SCHLUESSEL, vorgabe: number = ZOOM.vorgabe):
 function leseNebelLampe(): NebelLampe {
   try {
     const l = JSON.parse(lese(NEBEL_LAMPE_SCHLUESSEL) ?? "null");
-    if (Number.isFinite(l?.z) && Number.isFinite(l?.y)) return { z: l.z, y: l.y };
+    if (Number.isFinite(l?.x) && Number.isFinite(l?.y) && Number.isFinite(l?.z)) return { x: l.x, y: l.y, z: l.z };
   } catch { /* Vorgabe */ }
   return { ...NEBEL_LAMPE_VORGABE };
 }
@@ -166,7 +166,7 @@ function VorschauFlaeche() {
       {ansicht === "reflexion" && (
         <button
           type="button" class={`aktion haken ${nebel ? "aktiv" : ""}`} aria-pressed={nebel}
-          title="Strahlen im Nebel, schräg von der Seite"
+          title="Strahlen im Nebel, von vorn leicht versetzt"
           onClick={() => { setNebel(!nebel); merke(NEBEL_SCHLUESSEL, nebel ? "nein" : "ja"); }}
         >
           Nebel
@@ -214,7 +214,7 @@ function VorschauFlaeche() {
         role="img"
         aria-label={ansicht === "phaser"
           ? "Winkel der 36 Spiegel als Diagramm"
-          : ansicht === "reflexion" ? (nebel ? "Strahlen im Nebel, schräg von der Seite" : "Draufsicht mit Scheinwerfer und reflektierten Strahlen")
+          : ansicht === "reflexion" ? (nebel ? "Strahlen im Nebel, von vorn leicht versetzt" : "Draufsicht mit Scheinwerfer und reflektierten Strahlen")
           : vorn ? "Vorschau der drei Elemente von vorn" : "Vorschau der 36 Spiegel von oben"}
       />
       {ansicht === "reflexion" && (
