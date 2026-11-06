@@ -5,27 +5,36 @@
 // z = nach oben, z = 0 ist die Unterseite des Gehäuses (Gummifüße darunter).
 //
 // Quellen stehen in README.md. Kennzeichnung der Maße:
-//   [gemessen]  vom User am Gerät gemessen
+//   [CAD]       aus Elgatos STP-Modell des Stream Deck + (Version 1), vom User bestätigt: 140/135/30, 83
 //   [Elgato]    offizielles Datenblatt, [RPi] offizielle Zeichnung
 //   [ANNAHME]   nicht belegt, vor dem Druck am Gerät messen!
 
 /* [Ausgabe] */
-teil = "alles";          // korpus, boden, rahmen, einsatz_d, einsatz_blind, zugentlastung, ballastdeckel, haube, schablone, alles, explosion, innen
+teil = "alles";          // korpus, boden, bett, einsatz_d, einsatz_blind, zugentlastung, ballastdeckel, haube, alles, explosion, innen
 lage = "druck";          // druck = Drucklage, montiert = Einbaulage
 mit_haube = true;        // nur für die Gesamtansicht
 
 /* [Stream Deck +] */
-deck_b = 140;            // [Elgato] Breite 140 mm
-deck_h = 125;            // [ANNAHME] Höhe der Front; Elgato nennt nur 138 × 110 mit Fuß
-deck_t = 28;             // [ANNAHME] Dicke ohne Fuß
-loch_abstand = 83;       // [gemessen] Mitte zu Mitte der Gewinde
-loch_s = 62.5;           // [ANNAHME] Abstand der Löcher vom unteren Deck-Rand (zunächst Mitte)
-langloch = 2.5;          // Spielraum der Löcher in s-Richtung, je Seite. Nach dem Messen auf 0.5 senken.
+// Koordinaten am Deck: x quer, s vom Reglerrand zum Tastenrand, z ab Rückplatte zur Front.
+deck_b = 140.03;         // [CAD]
+deck_h = 135.47;         // [CAD]
+deck_rand_z = 29.37;     // [CAD] Vorderkante des Rands über der Rückplatte
+deck_profil = [          // [CAD] Rückseite (Schnitt) für Platzhalter, ohne Dome
+    [0, 17], [7.93, 7.3], [15.7, 4], [18, 2.5], [41, 0], [115, 0], [130, 8.6], [135.47, 17],
+    [135.47, deck_rand_z], [0, deck_rand_z]];
+loch_abstand = 83;       // [CAD], vom User gemessen
+loch_s = 21.24;          // [CAD] Mitte der Dom-Stirnfläche
+loch_z = 0.88;           // [CAD]
+loch_kippung = 49.68;    // [CAD] Winkel der Schraubenachse zur Normalen der Rückplatte
+dom_d = 8;               // [CAD] Dom mit Stirnfläche, in den das Gewinde führt
+auge_d = 15.3;           // [CAD] Vertiefung vor dem Dom
+loch_tiefe = 6.3;        // [CAD] Sackloch ab Stirnfläche
 schraube_l = 8;          // [Elgato] Originalschraube M3 × 0,5, Länge 8 mm
-gewinde_tiefe = 4.5;     // [ANNAHME] nutzbare Gewindetiefe im Deck, siehe Prüfung unten
-usb_von_oben = 22;       // [ANNAHME] USB-C-Buchse auf der Rückseite, Abstand zum oberen Rand, mittig
-fenster_b = 70;          // Durchlass in der Montageplatte für Stecker und Kabel
-fenster_h = 36;
+sitz = 3;                // Material zwischen Dom und Schraubenkopf; 8 − 3 = 5 mm Gewinde
+usb_s = 106.55;          // [CAD] Mitte der USB-C-Buchse auf der Rückplatte
+usb_z = 3.05;            // [CAD] Boden der Stecker-Mulde über der Rückplatte
+usb_b = 26;              // Durchlass im Bett für Stecker und Knickschutz
+usb_h = 20;
 usb_stecker_l = 40;      // [ANNAHME] Stecker mit Knickschutz, gerade
 
 /* [Grundform] */
@@ -34,18 +43,24 @@ b = 180;                 // Breite außen
 h_vorn = 28;             // Höhe der Vorderkante
 wand = 3.2;              // Seiten und Vorderwand
 platte = 5;              // Montageplatte
-platte_rest = 4;         // Plattendicke unter dem Schraubenkopf; 8 − 4 = 4 mm im Deck
 rand_vorn = 6;           // Platte vor dem Rahmen
-rand_hinten = 22;        // Platte hinter dem Rahmen, ergibt Tiefe für die Stecker
+rand_hinten = 12;        // Platte hinter dem Bett, ergibt Tiefe für die Stecker
 fase = 2;                // Kante außen
 boden_d = 4;
 rueck_d = 4;
 luft = 0.3;              // Spiel zwischen gefügten Teilen je Seite
 
-/* [Rahmen ums Deck] */
-spiel = 1;               // Abstand Deck zum Rahmen je Seite
+/* [Deck-Bett] */
+spiel = 0.5;             // Abstand Deck zum Rand je Seite
 rahmen_b = 5;
-rahmen_hoehe = 10;       // bleibt unter der Deck-Front, Bedienelemente frei
+rahmen_hoehe = 10;       // Rand über der Rückplatte, Bedienelemente bleiben frei
+bett_d = 6;              // Boden des Betts unter der Rückplatte
+bett_luft = 0.3;         // Rückplatte liegt so viel über dem Boden, die Schrauben ziehen auf die Sitze
+haken_x = 35;            // zwei Haken am Tastenrand gegen Aufhebeln, ± von der Mitte
+haken_b = 24;
+haken_ueber = 2.5;       // Überstand auf den Rand; Tasten enden 9 mm davor [CAD]
+haken_d = 3.5;
+haken_luft = 0.3;
 
 /* [Befestigung] */
 einsatz_m3_d = 4.0;      // Gewindeeinsatz M3 × 5,7, Bohrung laut Hersteller des Einsatzes prüfen
@@ -110,24 +125,28 @@ $fn = 48;
 eps = 0.01;
 
 // abgeleitete Maße
-s0 = rand_vorn + rahmen_b + spiel;                        // unterer Deck-Rand auf der Platte
+s0 = rand_vorn + rahmen_b + spiel;                        // Reglerrand des Decks auf der Platte
 laenge = s0 + deck_h + spiel + rahmen_b + rand_hinten;    // Plattenlänge
 tiefe = laenge * cos(neigung);
 h_hinten = h_vorn + laenge * sin(neigung);
 cx = b / 2;
-s_usb = s0 + deck_h - usb_von_oben;
 function z_unten(y) = h_vorn + y * tan(neigung) - platte / cos(neigung);
 leiste_y = tiefe - rueck_d - leiste_d;
 x0 = wand + luft;                                         // Boden/Rückwand von links
 x1 = b - wand - luft;
 pi_z = boden_d + pi_abstand;
 
-assert(schraube_l - platte_rest <= gewinde_tiefe,
-       "Schraube ginge tiefer als das Gewinde im Deck");
-assert(rahmen_hoehe < deck_t - 5, "Rahmen zu hoch, Bedienung wäre behindert");
+assert(schraube_l - sitz <= loch_tiefe - 0.3, "Schraube ginge bis auf den Grund des Sacklochs");
+assert(rahmen_hoehe < deck_rand_z - 5, "Rand zu hoch, Bedienung wäre behindert");
 
 // Montageplatte als Koordinatensystem: x, s entlang der Platte, Normale nach außen.
 module auf_platte() { translate([0, 0, h_vorn]) rotate([neigung, 0, 0]) children(); }
+
+// Koordinaten am Deck, Ursprung: Mitte des Reglerrands auf Höhe der Rückplatte
+module im_deck() { auf_platte() translate([cx, s0, bett_d]) children(); }
+
+// Am Dom: Ursprung auf der Stirnfläche, z zeigt ins Deck
+module am_dom(sx) { translate([sx * loch_abstand / 2, loch_s, loch_z]) rotate([-loch_kippung, 0, 0]) children(); }
 
 module profil(x_a, x_b) {
     translate([x_a, 0, 0]) rotate([90, 0, 90]) linear_extrude(x_b - x_a) children();
@@ -135,11 +154,9 @@ module profil(x_a, x_b) {
 
 function aussen_punkte() = [[0, 0], [0, h_vorn], [tiefe, h_hinten], [tiefe, 0]];
 
-// Rahmenlaschen auf der Platte, links und rechts außen am Rahmen
-function laschen() = [for (sx = [-1, 1], ds = [-40, 40])
+// Laschen des Betts, links und rechts außen. Plattenkoordinaten
+function laschen() = [for (sx = [-1, 1], ds = [-45, 45])
     [cx + sx * (deck_b / 2 + spiel + rahmen_b + 4.5), s0 + deck_h / 2 + ds]];
-
-function deck_loecher() = [for (sx = [-1, 1]) [cx + sx * loch_abstand / 2, s0 + loch_s]];
 
 // ---------------- Korpus ----------------
 
@@ -191,20 +208,13 @@ module korpus() {
         for (x = ls_x(), z = hinten_z)
             translate([x, tiefe - rueck_d + eps, z]) rotate([90, 0, 0]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
         auf_platte() {
-            // Deck: Langlöcher, Kopf sitzt innen
-            for (p = deck_loecher()) {
-                hull() for (ds = [-langloch, langloch]) translate([p[0], p[1] + ds, -platte - 1])
-                    cylinder(d = m3_frei, h = platte + 2);
-                hull() for (ds = [-langloch, langloch]) translate([p[0], p[1] + ds, -platte - 1])
-                    cylinder(d = 6.5, h = platte - platte_rest + 1);
-            }
-            // Rahmen: Schraube von innen
+            // Bett: Schraube von innen
             for (p = laschen()) {
                 translate([p[0], p[1], -platte - 1]) cylinder(d = m3_frei, h = platte + 2);
             }
-            // Durchlass USB
-            translate([cx - fenster_b / 2, s_usb - fenster_h / 2, -platte - 1])
-                linear_extrude(platte + 2) offset(r = 4) offset(delta = -4) square([fenster_b, fenster_h]);
+            // Öffnung unter dem Bett: Schraubenzugang und USB
+            translate([cx - 52, s0 - 2, -platte - 1])
+                linear_extrude(platte + 2) offset(r = 4) offset(delta = -4) square([104, 128]);
         }
         // Lüftergitter rechts, passt für 40-mm-Lüfter (Lochabstand 32 mm)
         translate([b - wand - 1, luefter_y, luefter_z]) rotate([0, 90, 0]) {
@@ -312,22 +322,56 @@ function fuesse() = [[24, 18], [b - 24, 18], [24, tiefe - 14], [b - 24, tiefe - 
 
 // ---------------- Kleine Teile, montiert liegend ----------------
 
-module rahmen() {
-    r_x = deck_b + 2 * spiel;
-    r_s = deck_h + 2 * spiel;
-    auf_platte() difference() {
+// Bett in Deck-Koordinaten. Trägt das Deck: schräge Sitze auf den Domen, Haken am Tastenrand.
+module bett_lokal() {
+    aussen_x = deck_b / 2 + spiel + rahmen_b;
+    s_a = -spiel - rahmen_b;
+    s_b = deck_h + spiel + rahmen_b;
+    difference() {
         union() {
-            translate([cx - r_x / 2 - rahmen_b, s0 - spiel - rahmen_b, 0])
-                hull() {
-                    linear_extrude(rahmen_hoehe - 1.5) offset(r = 3) offset(delta = -3) square([r_x + 2 * rahmen_b, r_s + 2 * rahmen_b]);
-                    translate([1.5, 1.5, 0]) linear_extrude(rahmen_hoehe) offset(r = 2) offset(delta = -2) square([r_x + 2 * rahmen_b - 3, r_s + 2 * rahmen_b - 3]);
+            difference() {
+                union() {
+                    // Boden mit Rampe unter dem Reglerrand
+                    translate([-aussen_x, 0, 0]) rotate([90, 0, 90]) linear_extrude(2 * aussen_x)
+                        polygon([[s_a, -bett_d], [s_b, -bett_d], [s_b, -bett_luft], [41, -bett_luft],
+                                 [18, 1.6], [s_a, 1.6]]);
+                    // Rand
+                    difference() {
+                        translate([-aussen_x, s_a, -bett_d]) linear_extrude(rahmen_hoehe + bett_d)
+                            offset(r = 3) offset(delta = -3) square([2 * aussen_x, s_b - s_a]);
+                        translate([-deck_b / 2 - spiel, -spiel, -bett_d - 1]) linear_extrude(rahmen_hoehe + bett_d + 2)
+                            offset(r = 2) offset(delta = -2) square([deck_b + 2 * spiel, deck_h + 2 * spiel]);
+                    }
+                    // Haken
+                    for (sx = [-1, 1]) translate([sx * haken_x - haken_b / 2, 0, 0]) {
+                        translate([0, deck_h + spiel, -bett_d]) cube([haken_b, rahmen_b, deck_rand_z + haken_luft + haken_d + bett_d]);
+                        translate([0, deck_h + spiel - haken_ueber, deck_rand_z + haken_luft]) cube([haken_b, haken_ueber + 0.1, haken_d]);
+                    }
+                    // Laschen
+                    for (sx = [-1, 1], ds = [-45, 45]) translate([sx * (aussen_x + 4.5 - 0.1) - 5.5, deck_h / 2 + ds - 6.5, -bett_d])
+                        cube([11, 13, bett_d + 3]);
+                    // Sitze: voller Querschnitt bis zur Stirnfläche
+                    for (sx = [-1, 1]) am_dom(sx) translate([0, 0, -8]) cylinder(d = dom_d - 0.4, h = 8);
                 }
-            for (p = laschen()) translate([p[0] - 5.5, p[1] - 6.5, 0]) cube([11, 13, rahmen_hoehe - 1.5]);
+                // Platz für den Dom und alles davor im Deck
+                for (sx = [-1, 1]) am_dom(sx) cylinder(d = dom_d + 0.8, h = 20);
+                // Boden unter dem Bett plan
+                translate([-200, -50, -bett_d - 50]) cube([400, 400, 50]);
+            }
         }
-        translate([cx - r_x / 2, s0 - spiel, -1]) linear_extrude(rahmen_hoehe + 2) offset(r = 3) offset(delta = -3) square([r_x, r_s]);
-        for (p = laschen()) translate([p[0], p[1], -eps]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
+        for (sx = [-1, 1]) am_dom(sx) {
+            translate([0, 0, -20]) cylinder(d = m3_frei, h = 25);
+            translate([0, 0, -sitz - 25]) cylinder(d = 6.5, h = 25);   // Kopf und Schraubendreher
+        }
+        // USB
+        translate([-usb_b / 2, usb_s - usb_h / 2, -bett_d - 1]) linear_extrude(rahmen_hoehe)
+            offset(r = 3) offset(delta = -3) square([usb_b, usb_h]);
+        // Einsätze in den Laschen, von unten
+        for (sx = [-1, 1], ds = [-45, 45]) translate([sx * (aussen_x + 4.5), deck_h / 2 + ds, -bett_d - 0.01]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
     }
 }
+
+module bett() { im_deck() bett_lokal(); }
 
 module einsatz_grund() {
     difference() {
@@ -391,39 +435,23 @@ module haube() {
     }
 }
 
-// Probedruck: Lochbild, Durchlass und Rahmenmaß flach, gleiche Dicke unter dem Kopf wie im Korpus.
-module schablone() {
-    r_x = deck_b + 2 * spiel;
-    r_s = deck_h + 2 * spiel;
-    difference() {
-        union() {
-            translate([cx - r_x / 2 - 3, s0 - spiel - 3, 0]) cube([r_x + 6, r_s + 6, 2]);
-            for (p = deck_loecher()) hull() for (ds = [-langloch - 3, langloch + 3]) translate([p[0], p[1] + ds, 0]) cylinder(d = 14, h = platte_rest);
-            difference() {
-                translate([cx - r_x / 2 - 3, s0 - spiel - 3, 0]) cube([r_x + 6, r_s + 6, 6]);
-                translate([cx - r_x / 2, s0 - spiel, -1]) cube([r_x, r_s, 8]);
-            }
-        }
-        for (p = deck_loecher()) hull() for (ds = [-langloch, langloch]) translate([p[0], p[1] + ds, -1]) cylinder(d = m3_frei, h = 8);
-        translate([cx - fenster_b / 2, s_usb - fenster_h / 2, -1]) cube([fenster_b, fenster_h, 8]);
-        // Material sparen
-        translate([cx - 20, s0 + 8, -1]) cube([40, s_usb - fenster_h / 2 - s0 - 14, 4]);
-        for (sx = [-1, 1]) translate([cx + sx * 58 - 8, s0 + 8, -1]) cube([16, deck_h - 16, 4]);
-    }
-}
-
 // ---------------- Gerät und Stecker (nur Prüfung und Ansicht) ----------------
 
 module m_deck() {
-    auf_platte() translate([cx - deck_b / 2, s0, 0]) {
-        difference() {
-            cube([deck_b, deck_h, deck_t]);
-            translate([deck_b / 2 - 6, deck_h - usb_von_oben - 4, -1]) cube([12, 8, 10]);
+    im_deck() difference() {
+        union() {
+            translate([-deck_b / 2, 0, 0]) rotate([90, 0, 90]) linear_extrude(deck_b) polygon(deck_profil);
+            for (sx = [-1, 1]) am_dom(sx) cylinder(d = dom_d, h = 8);
         }
+        for (sx = [-1, 1]) am_dom(sx) translate([0, 0, -20]) cylinder(d = auge_d, h = 20);
     }
 }
+// Echtes Elgato-Modell, nur lokal (siehe deck_aus_stp.py)
+module m_deck_echt() {
+    im_deck() translate([0, 32.1912, 21.98]) rotate([40.32, 0, 0]) import("lokal/deck.stl");
+}
 module m_deck_usb() {
-    auf_platte() translate([cx - 7, s_usb - 4.5, -usb_stecker_l]) cube([14, 9, usb_stecker_l]);
+    im_deck() translate([-7, usb_s - 4.5, usb_z - usb_stecker_l]) cube([14, 9, usb_stecker_l]);
 }
 module m_pi() {
     translate([pi_x, pi_y_hinten - pi_b, pi_z]) {
@@ -466,7 +494,8 @@ module m_luefter() {
 module montiert(name) {
     if (name == "korpus") korpus();
     if (name == "boden") boden();
-    if (name == "rahmen") rahmen();
+    if (name == "bett") bett();
+    if (name == "deck_echt") m_deck_echt();
     if (name == "einsatz_ethernet") an_bucht(bucht_x_ethernet) einsatz_d();
     if (name == "einsatz_rs485") an_bucht(bucht_x_rs485) einsatz_blind();
     if (name == "zugentlastung") translate([zug_x, zug_y + 6, zug_z]) zugentlastung();
@@ -489,16 +518,14 @@ module montiert(name) {
 module drucklage(name) {
     if (name == "korpus") translate([0, laenge, 0]) rotate([180, 0, 0]) rotate([-neigung, 0, 0]) translate([0, 0, -h_vorn]) korpus();
     if (name == "boden") boden();
-    if (name == "rahmen") rahmen_flach();
+    if (name == "bett") translate([0, 0, bett_d]) bett_lokal();
     if (name == "einsatz_d") einsatz_d();
     if (name == "einsatz_blind") einsatz_blind();
     if (name == "zugentlastung") translate([0, 0, 6]) rotate([180, 0, 0]) zugentlastung();
     if (name == "ballastdeckel") ballastdeckel();
     if (name == "haube") translate([0, 0, tiefe + haube_tiefe]) rotate([-90, 0, 0]) haube();
-    if (name == "schablone") schablone();
 }
 
-module rahmen_flach() { rotate([-neigung, 0, 0]) translate([0, 0, -h_vorn]) rahmen(); }
 
 // ---------------- Ansichten ----------------
 
@@ -510,7 +537,7 @@ farbe_klein = "#7f8c99";
 module teile_farbig(ex = 0) {
     // ex = 0 zusammengebaut, 1 Explosion
     color(farbe_korpus) translate([0, 0, ex * 70]) montiert("korpus");
-    color(farbe_rahmen) translate([0, ex * -35, ex * 130]) montiert("rahmen");
+    color(farbe_rahmen) translate([0, ex * -35, ex * 130]) montiert("bett");
     color("#111418") translate([0, ex * -55, ex * 185]) montiert("deck");
     color("#c9a227") translate([0, ex * -22, ex * 105]) montiert("deck_usb");
     color(farbe_boden) montiert("boden");
@@ -525,10 +552,12 @@ module teile_farbig(ex = 0) {
 
 // Bedienelemente nur als Ansicht, Lage geschätzt
 module m_bedienung() {
-    auf_platte() translate([cx, s0, deck_t]) {
-        for (i = [0:3], j = [0:1]) translate([(i - 1.5) * 28 - 10, 62 + j * 27, 0]) color("#27c4d9") cube([20, 20, 0.6]);
-        translate([-54, 40, 0]) color("#e04fd0") cube([108, 14, 0.6]);
-        for (i = [0:3]) translate([(i - 1.5) * 28, 22, 0]) color("#b8bec6") cylinder(d = 15, h = 10);
+    im_deck() translate([0, 0, deck_rand_z]) {
+        for (x = [-44.25, -14.75, 14.75, 44.25]) {
+            translate([x, 28.82, -1]) color("#b8bec6") cylinder(d = 14.5, h = 13);
+            for (s = [92, 114]) translate([x - 10, s - 10, 0]) color("#27c4d9") cube([20, 20, 0.6]);
+        }
+        translate([-54, 48, 0]) color("#e04fd0") cube([108, 14, 0.6]);
     }
 }
 

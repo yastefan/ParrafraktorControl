@@ -19,15 +19,17 @@ import numpy as np
 HIER = pathlib.Path(__file__).resolve().parent
 SCAD = HIER / "gehaeuse.scad"
 BAURAUM = np.array([300.0, 300.0, 330.0])  # Prusa CORE One L, Händlerangaben
-DRUCKTEILE = ["korpus", "boden", "rahmen", "einsatz_d", "einsatz_blind",
-              "zugentlastung", "ballastdeckel", "haube", "schablone"]
-GEHAEUSE = ["korpus", "boden", "rahmen", "einsatz_ethernet", "einsatz_rs485",
+DRUCKTEILE = ["korpus", "boden", "bett", "einsatz_d", "einsatz_blind",
+              "zugentlastung", "ballastdeckel", "haube"]
+GEHAEUSE = ["korpus", "boden", "bett", "einsatz_ethernet", "einsatz_rs485",
             "zugentlastung", "ballastdeckel", "haube"]
 PLATZHALTER = ["deck", "deck_usb", "pi", "usb_a", "rj45", "strom", "d_ethernet",
                "d_rs485", "rs485", "ballast", "luefter"]
 # Diese Paare berühren oder durchdringen sich gewollt
 ERLAUBT = {
     frozenset(["deck", "deck_usb"]),   # Stecker sitzt in der Buchse
+    frozenset(["deck", "deck_echt"]),
+    frozenset(["deck_echt", "deck_usb"]),
     frozenset(["pi", "usb_a"]),        # Stecker steckt im Port
     frozenset(["pi", "rj45"]),
     frozenset(["pi", "strom"]),
@@ -81,6 +83,43 @@ def ueberhang(t):
     return float(fl[(nz < -0.7072) & ~unten].sum())
 
 
+def punkte_im_koerper(punkte, t):
+    """Welche Punkte liegen im geschlossenen Netz t? Strahl nach oben, Dreiecke nach Raster vorsortiert."""
+    lo, hi = t.reshape(-1, 3).min(0), t.reshape(-1, 3).max(0)
+    pk = punkte[((punkte >= lo) & (punkte <= hi)).all(axis=1)]
+    if not len(pk):
+        return pk
+    raster = 4.0
+    fach = {}
+    txy = t[:, :, :2]
+    a = np.floor((txy.min(axis=1) - lo[:2]) / raster).astype(int)
+    b = np.floor((txy.max(axis=1) - lo[:2]) / raster).astype(int)
+    for i in range(len(t)):
+        for u in range(a[i, 0], b[i, 0] + 1):
+            for v in range(a[i, 1], b[i, 1] + 1):
+                fach.setdefault((u, v), []).append(i)
+    innen = []
+    ij = np.floor((pk[:, :2] - lo[:2]) / raster).astype(int)
+    for p, k in zip(pk, map(tuple, ij)):
+        idx = fach.get(k)
+        if not idx:
+            continue
+        d = t[idx]
+        v0, v1, v2 = d[:, 0], d[:, 1], d[:, 2]
+        e = (p[0] + 1.3e-4, p[1] + 2.7e-4)   # weg von Kanten
+        n = (v1[:, 0] - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - (v1[:, 1] - v0[:, 1]) * (v2[:, 0] - v0[:, 0])
+        ok = np.abs(n) > 1e-12
+        w1 = ((e[0] - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - (e[1] - v0[:, 1]) * (v2[:, 0] - v0[:, 0]))
+        w2 = ((v1[:, 0] - v0[:, 0]) * (e[1] - v0[:, 1]) - (v1[:, 1] - v0[:, 1]) * (e[0] - v0[:, 0]))
+        with np.errstate(divide="ignore", invalid="ignore"):
+            u_, v_ = w1 / n, w2 / n
+        tr = ok & (u_ >= 0) & (v_ >= 0) & (u_ + v_ <= 1)
+        z = v0[tr, 2] + u_[tr] * (v1[tr, 2] - v0[tr, 2]) + v_[tr] * (v2[tr, 2] - v0[tr, 2])
+        if (z > p[2]).sum() % 2 == 1:
+            innen.append(p)
+    return np.array(innen).reshape(-1, 3)
+
+
 def main():
     zeilen = []
     def aus(s=""):
@@ -116,7 +155,10 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         tmp = pathlib.Path(tmp)
         boxen, netze = {}, {}
-        for name in GEHAEUSE + PLATZHALTER:
+        echt = (HIER / "lokal" / "deck.stl").exists()
+        namen_alle = GEHAEUSE + PLATZHALTER + (["deck_echt"] if echt else [])
+        # Das Elgato-Netz ist nicht geschlossen, deshalb punktweise statt mit Boolean-Schnitt
+        for name in namen_alle:
             ziel = tmp / f"{name}.stl"
             r = openscad(ziel, f'teil="{name}"', 'lage="montiert"')
             if r.returncode:
@@ -130,10 +172,12 @@ def main():
         aus("")
         aus("Überschneidungen in Einbaulage (Volumen > 1 mm³):")
         namen = sorted(boxen)
+        aus("  Deck: " + ("zusätzlich echtes Elgato-Modell (lokal/deck.stl)" if echt else
+                          "nur Platzhalter, lokal/deck.stl fehlt (siehe deck_aus_stp.py)"))
         gefunden = 0
         geprueft = 0
         for a, b in itertools.combinations(namen, 2):
-            if frozenset([a, b]) in ERLAUBT:
+            if frozenset([a, b]) in ERLAUBT or "deck_echt" in (a, b):
                 continue
             (amin, amax), (bmin, bmax) = boxen[a], boxen[b]
             if (amin >= bmax).any() or (bmin >= amax).any():
@@ -145,7 +189,11 @@ def main():
             ziel.unlink(missing_ok=True)
             r = subprocess.run(["openscad", "--backend=Manifold", "--export-format=binstl",
                                 "-o", str(ziel), str(q)], capture_output=True, text=True)
-            if r.returncode or not ziel.exists() or ziel.stat().st_size < 134:
+            if "ERROR" in r.stderr or (r.returncode and "empty" not in r.stderr):
+                aus(f"  {a} ∩ {b}: SCHNITT FEHLGESCHLAGEN")
+                fehler += 1
+                continue
+            if not ziel.exists() or ziel.stat().st_size < 134:
                 continue
             s = lies_stl(ziel)
             vol, _ = volumen_schwerpunkt(s)
@@ -156,6 +204,21 @@ def main():
         aus(f"  {gefunden} Überschneidungen, {geprueft} Paare mit überlappender Hülle geprüft, "
             f"{len(list(itertools.combinations(namen, 2)))} Paare insgesamt.")
         fehler += gefunden
+
+        if echt:
+            aus("")
+            aus("Echtes Deck gegen Gehäuseteile (Eck- und Flächenpunkte des Elgato-Netzes im Teil):")
+            d = netze["deck_echt"]
+            punkte = np.unique(np.round(np.vstack([d.reshape(-1, 3), d.mean(axis=1)]), 3), axis=0)
+            aus(f"  {len(punkte)} Punkte")
+            for name in GEHAEUSE:
+                innen = punkte_im_koerper(punkte, netze[name])
+                if len(innen):
+                    lo, hi = innen.min(0), innen.max(0)
+                    aus(f"  {name}: {len(innen)} Punkte im Teil, x {lo[0]:.1f}–{hi[0]:.1f}, y {lo[1]:.1f}–{hi[1]:.1f}, z {lo[2]:.1f}–{hi[2]:.1f}")
+                    fehler += 1
+                else:
+                    aus(f"  {name}: frei")
 
         # Standfestigkeit: Schwerpunkt aus Volumen, Geräte mit Herstellergewicht
         mg = []
