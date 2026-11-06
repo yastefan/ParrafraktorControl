@@ -5,8 +5,9 @@
 //   reihe           Draufsicht: die Elemente nebeneinander, jeder Spiegel als Strich
 //   hintereinander  Vorderansicht wie "Classic" in der Simulation: die drei Elemente deckungsgleich
 //                   hintereinander, jedes in seiner Ebene gedreht. Dazu rechts jedes Element einzeln.
-//                   Modus "spiegel" zeigt die Spiegel, Modus "licht" nur das Licht, das von hinten
-//                   durch alle drei Lagen kommt – das Muster, das das Publikum sieht.
+//                   Modus "spiegel" zeigt die Spiegel, "buehne" nur das Licht, das von hinten durch
+//                   alle drei Lagen kommt, hart in Schwarz und Weiß. "waerme" zeigt dasselbe Licht
+//                   unscharf in Falschfarben: die Form, die man aus der Entfernung wahrnimmt.
 // Dazu, unabhängig vom Aufbau, die Ansicht "phaser" wie der Phaser-Editor der grandMA3:
 // ein Diagramm mit jedem Spiegel als Punkt (waagrecht seine Lage, senkrecht sein Winkel),
 // dahinter die Spur der letzten Bewegung; unter jedem Element klein seine Vorderansicht.
@@ -21,7 +22,7 @@ import {
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
 import { NebelBild, NEBEL_LAMPE_VORGABE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
 
-export type VorderModus = "spiegel" | "licht";
+export type VorderModus = "spiegel" | "buehne" | "waerme";
 export type Ansicht = "bild" | "phaser" | "reflexion";
 
 export interface VorschauDaten {
@@ -49,7 +50,11 @@ const ELEMENT_B = 1.8;
 const RASTER = ELEMENT_B / SPIEGEL_N;   // 0,15 m Achsabstand
 const SPIEGEL_B = RASTER - 0.012;       // Spiegel etwas schmaler als das Raster
 const ABSTAND = 0.25;                   // Lücke zwischen den Elementen (Draufsicht)
-const SICHT_VORN = 2.75;                // sichtbare Breite der Vorderansicht: Raute 1,8 × √2 plus Rand
+const SICHT_VORN = 2.75;                // sichtbare Breite eines einzelnen Elements: Raute 1,8 × √2 plus Rand
+const SICHT_GESAMT = 2.04;              // Gesamtbild: näher dran, die Spitzen der Raute dürfen abgeschnitten sein
+const WAERME_MASS = 0.35;               // Wärmebild: Pixel je CSS-Pixel; es ist unscharf, das spart viel
+const WAERME_UNSCHAERFE_M = 0.07;       // Radius der Unschärfe im Raum; geschätzt, nicht an einen Abstand gekoppelt
+const WAERME_VERSTAERKUNG = 1.4;
 
 const FARBE = {
   grund: "#0b0a0f",
@@ -171,12 +176,43 @@ const PHASER = {
   text: "rgba(140,136,168,0.9)",
 };
 
+// Falschfarben fürs Wärmebild: 256 RGB-Stufen von Schwarz über Violett und Magenta nach Hellgelb
+const WAERME_FARBEN = (() => {
+  const stufen = [[0, 0, 0], [66, 12, 110], [176, 40, 120], [250, 130, 70], [255, 250, 200]];
+  const f = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const x = (i / 255) * (stufen.length - 1), n = Math.min(stufen.length - 2, Math.floor(x)), t = x - n;
+    for (let k = 0; k < 3; k++) f[i * 3 + k] = stufen[n]![k]! + (stufen[n + 1]![k]! - stufen[n]![k]!) * t;
+  }
+  return f;
+})();
+
+// Kastenfilter in eine Richtung: `zeilen` Zeilen der Länge `laenge`, Schritt je Pixel und je Zeile
+function kastenUnschaerfe(
+  von: Float32Array, nach: Float32Array, laenge: number, zeilen: number, r: number, schritt: number, zeilenSchritt: number,
+): void {
+  for (let z = 0; z < zeilen; z++) {
+    const start = z * zeilenSchritt;
+    let summe = 0, n = 0;
+    for (let i = 0; i <= Math.min(r, laenge - 1); i++) { summe += von[start + i * schritt]!; n++; }
+    for (let i = 0; i < laenge; i++) {
+      nach[start + i * schritt] = summe / n;
+      if (i + r + 1 < laenge) { summe += von[start + (i + r + 1) * schritt]!; n++; }
+      if (i - r >= 0) { summe -= von[start + (i - r) * schritt]!; n--; }
+    }
+  }
+}
+
 export class Vorschau {
   private engine = new Engine();
   private drehung = new Float64Array(ELEMENTE * SPIEGEL_N);   // Winkel bei Rotation (TiltRotate)
   private letzte = performance.now();
   private bild = 0;
   private lichtCanvas = document.createElement("canvas");
+  private waermeCanvas = document.createElement("canvas");
+  private waermeA = new Float32Array(0);
+  private waermeB = new Float32Array(0);
+  private waermeBild: ImageData | null = null;
   // Überblendung zu einem Preset: Ausgangsstellung und eigener, flüssig weiterlaufender Anteil
   private letzteWinkel: number[] = [];
   private blende: { id: number; von: number[]; anteil: number } | null = null;
@@ -556,13 +592,19 @@ export class Vorschau {
     // Rechts eine Spalte mit den Elementen einzeln, links das Gesamtbild
     const spalte = Math.min(hoehe / ELEMENTE, breite * 0.22);
     const hauptB = breite - spalte - 8;
-    const s = Math.min(hauptB, hoehe) / SICHT_VORN;
+    const s = Math.min(hauptB, hoehe) / SICHT_GESAMT;
     const mx = hauptB / 2, my = hoehe / 2;
 
-    ctx.fillStyle = FARBE.grund;
+    ctx.fillStyle = d.modus === "spiegel" ? FARBE.grund : "#000";
     ctx.fillRect(0, 0, hauptB, hoehe);
-    if (d.modus === "licht") this.durchlicht(ctx, hauptB, hoehe, dpr, mx, my, s, d, winkel);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, hauptB, hoehe);
+    ctx.clip();
+    if (d.modus === "buehne") this.buehne(ctx, hauptB, hoehe, dpr, mx, my, s, d, winkel);
+    else if (d.modus === "waerme") this.waerme(ctx, hauptB, hoehe, mx, my, s, d, winkel);
     else this.spiegelVorn(ctx, mx, my, s, d, winkel);
+    ctx.restore();
 
     for (let k = 0; k < ELEMENTE; k++) {
       const y0 = k * spalte;
@@ -623,28 +665,21 @@ export class Vorschau {
     ctx.restore();
   }
 
-  // Licht durch alle drei Lagen: helle Fläche, aus der die Spiegel aller Elemente ausgestanzt werden.
-  // Außerhalb der Rahmen bleibt es dunkel, damit nur das Muster der Elemente zu sehen ist.
-  private durchlicht(
-    ctx: CanvasRenderingContext2D, breite: number, hoehe: number, dpr: number,
-    mx: number, my: number, s: number, d: VorschauDaten, winkel: number[],
+  // Licht durch alle drei Lagen als Maske: Innerhalb der Rahmen ist es hell, jeder Spiegel stanzt
+  // seinen Streifen aus. Mit `mass` Pixel je CSS-Pixel; außerhalb der Rahmen bleibt es dunkel.
+  private lichtMaske(
+    c: HTMLCanvasElement, lc: CanvasRenderingContext2D, breite: number, hoehe: number, mass: number,
+    mx: number, my: number, s: number, d: VorschauDaten, winkel: number[], farbe: string,
   ): void {
-    const l = this.lichtCanvas;
-    if (l.width !== Math.round(breite * dpr) || l.height !== Math.round(hoehe * dpr)) {
-      l.width = Math.round(breite * dpr);
-      l.height = Math.round(hoehe * dpr);
+    if (c.width !== Math.round(breite * mass) || c.height !== Math.round(hoehe * mass)) {
+      c.width = Math.round(breite * mass);
+      c.height = Math.round(hoehe * mass);
     }
-    const lc = l.getContext("2d");
-    if (!lc) return;
-    lc.setTransform(dpr, 0, 0, dpr, 0, 0);
+    lc.setTransform(mass, 0, 0, mass, 0, 0);
     lc.globalCompositeOperation = "source-over";
     lc.clearRect(0, 0, breite, hoehe);
-    this.gegenlicht(lc, mx, my, s, d.live, 1);
-
     const halb = (ELEMENT_B / 2) * s;
-    // nur innerhalb der Rahmen
-    lc.globalCompositeOperation = "destination-in";
-    lc.fillStyle = "#000";
+    lc.fillStyle = farbe;
     lc.beginPath();
     for (let k = 0; k < ELEMENTE; k++) {
       const r = grad(d.aufbau.drehung[k] ?? 0);
@@ -660,6 +695,7 @@ export class Vorschau {
 
     // Spiegel aller Lagen ausstanzen
     lc.globalCompositeOperation = "destination-out";
+    lc.fillStyle = "#000";
     for (let k = 0; k < ELEMENTE; k++) {
       lc.save();
       lc.translate(mx, my);
@@ -672,18 +708,57 @@ export class Vorschau {
       }
       lc.restore();
     }
+    lc.globalCompositeOperation = "source-over";
+  }
 
+  // Bühne: reines Schwarz und volles Licht, ohne Verlauf und Rahmen. Warm, solange Output an ist.
+  private buehne(
+    ctx: CanvasRenderingContext2D, breite: number, hoehe: number, dpr: number,
+    mx: number, my: number, s: number, d: VorschauDaten, winkel: number[],
+  ): void {
+    const l = this.lichtCanvas, lc = l.getContext("2d");
+    if (!lc) return;
+    this.lichtMaske(l, lc, breite, hoehe, dpr, mx, my, s, d, winkel, d.live ? `rgb(${FARBE.lichtLive})` : "#fff");
     ctx.drawImage(l, 0, 0, breite, hoehe);
-    // Rahmen dünn darüber, damit man die Lage der Elemente erkennt
-    for (let k = 0; k < ELEMENTE; k++) {
-      ctx.save();
-      ctx.translate(mx, my);
-      ctx.rotate(grad(d.aufbau.drehung[k] ?? 0));
-      ctx.strokeStyle = "rgba(255,255,255,0.18)";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(-halb, -halb, 2 * halb, 2 * halb);
-      ctx.restore();
+  }
+
+  // Wärmebild: dieselbe Maske klein gerechnet, unscharf und in Falschfarben.
+  // Unschärfe von Hand, weil Safari ctx.filter nicht kann.
+  private waerme(
+    ctx: CanvasRenderingContext2D, breite: number, hoehe: number,
+    mx: number, my: number, s: number, d: VorschauDaten, winkel: number[],
+  ): void {
+    const c = this.waermeCanvas, lc = c.getContext("2d", { willReadFrequently: true });
+    if (!lc) return;
+    this.lichtMaske(c, lc, breite, hoehe, WAERME_MASS, mx, my, s, d, winkel, "#fff");
+    const w = c.width, h = c.height;
+    if (!w || !h) return;
+    if (this.waermeA.length !== w * h) {
+      this.waermeA = new Float32Array(w * h);
+      this.waermeB = new Float32Array(w * h);
+      this.waermeBild = null;
     }
+    lc.setTransform(1, 0, 0, 1, 0, 0);
+    const roh = lc.getImageData(0, 0, w, h).data;
+    const a = this.waermeA, b = this.waermeB;
+    for (let i = 0; i < a.length; i++) a[i] = roh[i * 4 + 3]! / 255;
+    const r = Math.max(1, Math.round(WAERME_UNSCHAERFE_M * s * WAERME_MASS));
+    for (let lauf = 0; lauf < 3; lauf++) {
+      kastenUnschaerfe(a, b, w, h, r, 1, w);
+      kastenUnschaerfe(b, a, h, w, r, w, 1);
+    }
+    this.waermeBild ??= lc.createImageData(w, h);
+    const bild = this.waermeBild.data;
+    for (let i = 0, o = 0; i < a.length; i++, o += 4) {
+      const f = Math.min(255, Math.round(a[i]! * WAERME_VERSTAERKUNG * 255)) * 3;
+      bild[o] = WAERME_FARBEN[f]!;
+      bild[o + 1] = WAERME_FARBEN[f + 1]!;
+      bild[o + 2] = WAERME_FARBEN[f + 2]!;
+      bild[o + 3] = 255;
+    }
+    lc.putImageData(this.waermeBild, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(c, 0, 0, breite, hoehe);
   }
 
   private gegenlicht(ctx: CanvasRenderingContext2D, mx: number, my: number, s: number, live: boolean, staerke: number): void {

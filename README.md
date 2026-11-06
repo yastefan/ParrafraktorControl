@@ -183,7 +183,7 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben wählt man die **Art**, ausgelöst wird auf dem **Streifen** (Touchstreifen am Stream Deck, Streifen im Client): **Tippen** startet den Impuls an dieser Stelle, **Wischen** lässt ihn vom Rand in Wischrichtung durchlaufen. Danach läuft die Hüllkurve von selbst ab.
 
 - **Flash auf / Flash zu**: Spiegel auf einen festen Tilt. „Auf“ für Licht von hinten, „Zu“ für Licht von außen.
-- **Loch**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Öffnung: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Licht zu sehen.
+- **Loch**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Öffnung: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Bühne zu sehen.
 - **Iris**: wie Loch, wächst aber mit der Hüllkurve aus einem Punkt und schrumpft wieder.
 - Winkel unter Einstellungen → Impulse: Flash auf/zu (Platzhalter 90° und 0°).
 - **Hüllkurve**: Attack (hin), Sustain (bleiben), Release (zurück), Stärke. Im Client die Punkte ziehen: oben links = Attack und Stärke, oben rechts = Ende des Sustain, unten = Ende des Release. Während eines Impulses läuft ein Punkt auf der Kurve mit.
@@ -207,7 +207,7 @@ Der Client passt ab etwa 1000 × 620 Punkten ohne Scrollen auf eine Fläche, dar
 Die Vorschau im Client rechnet mit derselben Engine wie der Server. Wie sie aussieht, hängt vom Aufbau ab (Einstellungen → Aufbau):
 
 - **nebeneinander**: Draufsicht, jeder Spiegel als Strich.
-- **hintereinander, gedreht** (wie „Classic“ in der Simulation, Vorgabe vorn 0°, Mitte 45°, hinten 90°): Vorderansicht durch alle drei Elemente, rechts jedes Element einzeln. Unten links schaltet man zwischen **Spiegel** (die Spiegel mit Gegenlicht) und **Licht** um: Dann zeigt die Vorschau nur das Licht, das von hinten durch alle drei Lagen kommt. Die Wahl merkt sich jedes Gerät selbst.
+- **hintereinander, gedreht** (wie „Classic“ in der Simulation, Vorgabe vorn 0°, Mitte 45°, hinten 90°): Vorderansicht durch alle drei Elemente, rechts jedes Element einzeln. Die Spitzen des gedrehten Elements dürfen dabei über den Bildrand ragen. Unten links schaltet man um: **Spiegel** zeigt die Spiegel mit Gegenlicht, **Bühne** hart in Schwarz und Weiß nur das Licht, das von hinten durch alle drei Lagen kommt, **Wärmebild** dasselbe Licht unscharf in Falschfarben, also die Form, die man aus der Entfernung wahrnimmt. Die Wahl merkt sich jedes Gerät selbst.
 
 Der Aufbau betrifft nur die Vorschau, nicht die Ausgabe an die Spiegel.
 
