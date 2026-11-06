@@ -85,6 +85,12 @@ function leseLampe(): { x: number; y: number } {
   } catch { /* Vorgabe */ }
   return { ...LAMPE_VORGABE };
 }
+// "licht" hieß früher der Modus, den jetzt Bühne ersetzt
+function leseModus(): VorderModus {
+  const m = lese(MODUS_SCHLUESSEL);
+  return m === "licht" || m === "buehne" ? "buehne" : m === "waerme" ? "waerme" : "spiegel";
+}
+const MODUS_NAME: Record<VorderModus, string> = { spiegel: "Spiegel", buehne: "Bühne", waerme: "Wärmebild" };
 function lese(schluessel: string): string | null {
   try {
     return localStorage.getItem(schluessel);
@@ -99,7 +105,7 @@ function merke(schluessel: string, wert: string): void {
 function VorschauFlaeche() {
   const l = useLaden();
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [modus, setModus] = useState<VorderModus>(() => (lese(MODUS_SCHLUESSEL) === "licht" ? "licht" : "spiegel"));
+  const [modus, setModus] = useState<VorderModus>(leseModus);
   const [ansicht, setAnsicht] = useState<Ansicht>(() => {
     const a = lese(ANSICHT_SCHLUESSEL);
     return a === "phaser" || a === "reflexion" ? a : "bild";
@@ -183,7 +189,7 @@ function VorschauFlaeche() {
       ))}
     </>
   );
-  const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? (nebel ? "Nebel" : "Reflexion") : vorn && modus === "licht" ? "Licht" : "Simple";
+  const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? (nebel ? "Nebel" : "Reflexion") : vorn && modus !== "spiegel" ? MODUS_NAME[modus] : "Simple";
   return (
     <Modul titel={`Live // ${titel}`} klasse="m-vorschau" aktionen={umschalter}>
     <div class={`vorschau-rahmen ${vorn ? "vorn" : ""} ${ansicht} ${ansicht === "reflexion" && nebel ? "nebel" : ""}`}>
@@ -267,9 +273,9 @@ function VorschauFlaeche() {
       )}
       {vorn && (
         <div class="umschalter vorschau-modus">
-          {(["spiegel", "licht"] as const).map((m) => (
+          {(["spiegel", "buehne", "waerme"] as const).map((m) => (
             <button type="button" key={m} class={modus === m ? "aktiv" : ""} onClick={() => waehle(m)}>
-              {m === "spiegel" ? "Spiegel" : "Licht"}
+              {MODUS_NAME[m]}
             </button>
           ))}
         </div>
