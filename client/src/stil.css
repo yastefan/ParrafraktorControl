@@ -169,12 +169,25 @@ button { border-radius: 0; }
   background: var(--akzent);
   opacity: 0.75;
   pointer-events: none;
+  --r: 1px;
   clip-path: polygon(
     0 0, calc(100% - var(--ecke)) 0, 100% var(--ecke), 100% 100%, var(--ecke) 100%, 0 calc(100% - var(--ecke)), 0 0,
-    1px 1px, 1px calc(100% - var(--ecke) - 0.5px), calc(var(--ecke) + 0.5px) calc(100% - 1px),
-    calc(100% - 1px) calc(100% - 1px), calc(100% - 1px) calc(var(--ecke) + 0.5px), calc(100% - var(--ecke) - 0.5px) 1px, 1px 1px
+    var(--r) var(--r), var(--r) calc(100% - var(--ecke) - var(--r) * 0.5), calc(var(--ecke) + var(--r) * 0.5) calc(100% - var(--r)),
+    calc(100% - var(--r)) calc(100% - var(--r)), calc(100% - var(--r)) calc(var(--ecke) + var(--r) * 0.5), calc(100% - var(--ecke) - var(--r) * 0.5) var(--r), var(--r) var(--r)
   );
 }
+/* Auto läuft: dicker, leuchtender Rahmen, der langsam atmet */
+.modul.auto-an::before { --r: 3px; opacity: 1; z-index: 2; }
+.modul.auto-an::after {
+  content: "";
+  position: absolute; inset: 0; z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 22px 2px var(--akzent);
+  animation: auto-atmen 2.4s ease-in-out infinite;
+}
+@keyframes auto-atmen { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.9; } }
+@media (prefers-reduced-motion: reduce) { .modul.auto-an::after { animation: none; opacity: 0.6; } }
+.auto-hinweis { color: var(--akzent); font-weight: 700; }
 .modul-kopf { display: flex; align-items: flex-start; flex: none; min-height: 25px; }
 .modul-kopf h2 {
   margin: 0;
@@ -284,6 +297,15 @@ button { border-radius: 0; }
   transform-origin: left;
 }
 .halt-preset.haelt::before { transform: scaleX(1); transition: transform var(--dauer) linear; }
+/* Auswahl für Auto: Marke oben rechts, nicht ausgewählte treten zurück */
+.preset.gewaehlt::after {
+  content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px;
+  background: var(--akzent);
+}
+.preset.gewaehlt.aktiv::after { background: var(--grund); }
+.preset.abgewaehlt { opacity: 0.4; }
+.auto-regler { flex: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 5px; }
+.auto-regler .band-regler { --akzent: var(--gruen); grid-template-columns: 70px minmax(0, 1fr) 50px; }
 .preset.bearbeiten { padding: 0; cursor: default; flex-direction: row; }
 .preset-name {
   flex: 1; min-width: 0; align-self: stretch; border: none; background: transparent; text-align: left;
