@@ -140,6 +140,10 @@ def main():
             aus(f"{name}: Export fehlgeschlagen\n{r.stderr}")
             fehler += 1
             continue
+        for zeile in r.stderr.splitlines():
+            if "WARNING" in zeile:
+                aus(f"{name}: {zeile}")
+                fehler += 1
         t = lies_stl(ziel)
         groesse = t.reshape(-1, 3).max(0) - t.reshape(-1, 3).min(0)
         vol, _ = volumen_schwerpunkt(t)
@@ -226,7 +230,7 @@ def main():
             if name in netze:
                 v, c = volumen_schwerpunkt(netze[name])
                 mg.append((name, v / 1000 * DICHTE * FUELLANTEIL, c))
-        for name, m in [("deck", 465), ("pi", 60), ("ballast", 306)]:
+        for name, m in [("deck", 465), ("pi", 60), ("ballast", 165)]:
             _, c = volumen_schwerpunkt(netze[name])
             mg.append((name, m, c))
         def bericht(titel, liste):
@@ -238,7 +242,7 @@ def main():
             fuss_v, fuss_h = 18 - 6, netze["boden"][:, :, 1].max() - 14 + 6
             hinten = m * 0.00981 * (fuss_h - c[1]) / h
             vorn = m * 0.00981 * (c[1] - fuss_v) / h
-            seite = m * 0.00981 * (min(c[0], 180 - c[0]) - 18) / h
+            seite = m * 0.00981 * (min(c[0], netze["korpus"][:, :, 0].max() - c[0]) - 18) / h
             aus(f"  {titel}: Masse {m:.0f} g, Schwerpunkt y {c[1]:.0f} z {c[2]+5:.0f} mm über Tisch")
             aus(f"    Kippkraft waagerecht an der Deck-Oberkante ({h:.0f} mm hoch, Füße y {fuss_v:.0f}…{fuss_h:.0f}):"
                 f" nach hinten {hinten:.1f} N, nach vorn {vorn:.1f} N, zur Seite {seite:.1f} N")
