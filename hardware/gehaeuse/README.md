@@ -1,6 +1,6 @@
 # Tischgehäuse Stream Deck + und Raspberry Pi 4
 
-Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand, von innen hält es ein Bett an den schrägen Originalgewinden. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Hinten schließt ein flacher Kasten an, in dessen Rückwand drei Neutrik-Buchsen in D-Norm sitzen: USB-C für Strom, XLR für DMX und etherCON. Außenmaße mit Füßen 156 × 167 × 122 mm, der Kasten ist 51 mm hoch; Kanten 4 mm gerundet.
+Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand, von innen hält es ein Bett an den schrägen Originalgewinden. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Hinten schließt ein flacher Kasten an, in dessen Rückwand drei Neutrik-Buchsen in D-Norm sitzen, von hinten gesehen links USB-C für Strom, in der Mitte XLR für DMX, rechts etherCON. Außenmaße mit Füßen 156 × 167 × 122 mm, der Kasten ist 51 mm hoch; Kanten 4 mm gerundet.
 
 **Stand: nur am Modell geprüft, nichts gedruckt und nichts an echter Hardware anprobiert.** Die Maße des Decks stammen aus Elgatos CAD-Modell. Zuerst nur `bett.stl` drucken und das Deck einsetzen.
 
@@ -116,9 +116,9 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 
 1. Einsätze mit dem Lötkolben setzen. Pi-Säulen und Fußtaschen ansehen, ob Grate stören.
 2. Füße kleben. Ballast in die Wanne, Deckel drauf.
-3. Pi mit Kühlkörper auf den Boden schrauben. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
+3. Pi mit Kühlkörper auf den Boden schrauben: Bauteilseite oben, USB-C hinten zur Rückwand, USB und Ethernet nach links, SD-Karte rechts. Zum Tauschen der SD-Karte vorher das RS485-Modul aus seinem Halter nehmen. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
 4. Neutrik-Buchsen von außen in die Rückwand des Kastens schrauben, Flansch außen, ohne Gewindeeinsätze: etherCON und vermutlich auch USB-C schrauben laut Neutrik-Zeichnung durch Flansch und Wand in ihr eigenes Gehäuse hinter der Wand; die XLR-Buchse bekommt M3-Schrauben mit Mutter innen. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
-5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe in der hinteren linken Ecke zum Pi führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
+5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe über dem USB-C-Stecker des Pi hinten rechts führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
 8. Fuß vom Deck abschrauben. Deck auf das Bett legen, die zwei Originalschrauben von unten durch die schrägen Kanäle eindrehen. Nur handfest, das Gewinde sitzt im Deck.

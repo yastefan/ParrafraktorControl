@@ -24,4 +24,4 @@ Standfestigkeit überschlägig, ohne Reibung und ohne Tischbefestigung:
   mit Ballast: Masse 1141 g, Schwerpunkt y 70 z 47 mm über Tisch
     Kippkraft waagerecht an der Deck-Oberkante (114 mm hoch, Füße y 12…156): nach hinten 8.4 N, nach vorn 5.7 N, zur Seite 5.8 N
   ohne Ballast: Masse 976 g, Schwerpunkt y 78 z 53 mm über Tisch
-    Kippkraft waagerecht an der Deck-Oberkante (114 mm hoch, Füße y 12…156): nach hinten 6.5 N, nach vorn 5.5 N, zur Seite 5.0 N
+    Kippkraft waagerecht an der Deck-Oberkante (114 mm hoch, Füße y 12…156): nach hinten 6.5 N, nach vorn 5.5 N, zur Seite 4.9 N

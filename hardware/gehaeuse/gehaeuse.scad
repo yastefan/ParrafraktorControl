@@ -74,8 +74,10 @@ leiste_d = 9;
 schraube_x = wand + 6.3;
 
 /* [Raspberry Pi 4, offizielle Zeichnung] */
-pi_x = 14;               // Lage der Platine, Rand zur SD-Karte
-pi_y_hinten = 101;       // Kante mit USB-C: Netzstecker endet an der Rückwand
+// Pi liegt mit der Bauteilseite oben, SD-Kante rechts, USB/Ethernet links, USB-C-Kante hinten.
+// Koordinaten wie in der Zeichnung: u von der SD-Kante, v von der USB-C-Kante.
+pi_x_rechts = 136.5;     // SD-Kante; links bleibt Platz für die Stecker
+pi_y_hinten = 101;       // USB-C-Kante
 pi_abstand = 5;          // Abstandshalter
 pi_l = 85;               // [RPi]
 pi_b = 56;               // [RPi]
@@ -94,9 +96,9 @@ kasten_h = 46;           // Oberkante des Deckels
 kasten_wand = 3;         // Rückwand: XLR-D-Buchsen 1–3 mm (Händlerangabe), etherCON bis 4 mm [Neutrik]
 kasten_deckel = 3;
 buchse_z = 22;           // Mitte der Buchsen
-buchse_x_usb = 30;       // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen
+buchse_x_usb = 120;      // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen, nah am USB-C des Pi
 buchse_x_xlr = 75;       // Neutrik NC3FD-L-1, DMX
-buchse_x_eth = 120;      // Neutrik NE8FDP, etherCON
+buchse_x_eth = 30;       // Neutrik NE8FDP, etherCON, nah an der Ethernet-Buchse des Pi
 tiefe_usb = 30;          // [Neutrik] 29,4 mm ab Flanschfront
 tiefe_xlr = 32;          // [ANNAHME] samt Lötkelchen und Litzen
 tiefe_eth = 60;          // [Neutrik] 30 mm Buchse, dazu RJ45-Stecker [ANNAHME]
@@ -286,8 +288,12 @@ module korpus() {
 
 // ---------------- Boden ----------------
 
+// Lage auf dem Boden: um 180° gedreht, nicht gespiegelt
+function pi_pos(u, v) = [pi_x_rechts - u, pi_y_hinten - v];
+module im_pi() { translate([pi_x_rechts, pi_y_hinten, pi_z]) rotate([0, 0, 180]) children(); }
+
 module pi_saeule(p) {
-    translate([pi_x + p[0], pi_y_hinten - p[1], 0]) cylinder(d = 7, h = pi_z);
+    translate(pi_pos(p[0], p[1])) cylinder(d = 7, h = pi_z);
 }
 
 module kabelbinder_oese(x, y) {
@@ -338,10 +344,10 @@ module boden() {
             translate([p[0], p[1], -1]) cylinder(d = 6.5, h = 3);   // Köpfe versenkt
         }
         // Pi
-        for (p = pi_loecher) translate([pi_x + p[0], pi_y_hinten - p[1], pi_z - einsatz_m25_t + eps]) cylinder(d = einsatz_m25_d, h = einsatz_m25_t);
+        for (p = pi_loecher) translate(concat(pi_pos(p[0], p[1]), [pi_z - einsatz_m25_t + eps])) cylinder(d = einsatz_m25_d, h = einsatz_m25_t);
         // Zuluft unter dem Pi und neben den Steckern
-        for (x = [24:6:94]) translate([x, 54, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 36, 0]) cylinder(d = 3, h = boden_d + 2); }
-        for (x = [108:6:134]) translate([x, 58, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 22, 0]) cylinder(d = 3, h = boden_d + 2); }
+        for (x = [pi_x_rechts - 78:6:pi_x_rechts - 8]) translate([x, 54, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 36, 0]) cylinder(d = 3, h = boden_d + 2); }
+        for (x = [20:6:44]) translate([x, 58, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 22, 0]) cylinder(d = 3, h = boden_d + 2); }
         // Befestigung am Tisch, Durchgang M5
         for (p = [[105, 45], [100, gesamt - 20]]) translate([p[0], p[1], -1]) cylinder(d = 5.5, h = boden_d + 2);
         // Gummifüße, 1 mm eingelassen
@@ -465,24 +471,26 @@ module m_deck_usb() {
     }
 }
 module m_pi() {
-    translate([pi_x, pi_y_hinten - pi_b, pi_z]) {
+    im_pi() {
         cube([pi_l, pi_b, pi_d]);
-        // Buchsen laut Zeichnung: v von der USB-C-Kante, Höhe ab Platine
-        for (v = [9, 27]) translate([69, pi_b - v - 7.25, pi_d]) cube([19, 14.5, 16]);
-        translate([66, pi_b - 45.75 - 8, pi_d]) cube([22, 16, 13.5]);
-        translate([11.2 - 4.5, pi_b - 7, pi_d]) cube([9, 8, 3.2]);
-        translate([29 - 20, pi_b - 32.5 - 15, pi_d]) cube([40, 30, kuehler_h]);
-        translate([7, 2, pi_d]) cube([50, 5, 8.5]);
+        // Buchsen laut Zeichnung, Höhe ab Platine
+        for (v = [9, 27]) translate([69, v - 7.25, pi_d]) cube([19, 14.5, 16]);      // USB-A
+        translate([66, 45.75 - 8, pi_d]) cube([22, 16, 13.5]);                       // Ethernet
+        translate([11.2 - 4.5, -1, pi_d]) cube([9, 8, 3.2]);                          // USB-C
+        for (u = [26, 39.5]) translate([u - 4, -1, pi_d]) cube([8, 8, 3]);            // Micro-HDMI
+        translate([29 - 20, 32.5 - 15, pi_d]) cube([40, 30, kuehler_h]);             // Kühlkörper
+        translate([7, 49, pi_d]) cube([50, 5, 8.5]);                                  // Stiftleiste
+        translate([-2.5, 22, -1.5]) cube([4, 12, 1.5]);                               // SD-Karte, unten
     }
 }
 module m_usb_a() { // Deck-Kabel am oberen USB-Port
-    translate([pi_x + 88, pi_y_hinten - 27 - 7, pi_z + pi_d + 7]) cube([stecker_usb_a_l, 14, 9]);
+    im_pi() translate([88, 27 - 7, pi_d + 7]) cube([stecker_usb_a_l, 14, 9]);
 }
 module m_rj45() {
-    translate([pi_x + 88, pi_y_hinten - 45.75 - 7, pi_z + pi_d + 1]) cube([stecker_rj45_l, 14, 12]);
+    im_pi() translate([88, 45.75 - 7, pi_d + 1]) cube([stecker_rj45_l, 14, 12]);
 }
 module m_strom() {
-    translate([pi_x + 11.2 - 7, pi_y_hinten, pi_z + pi_d - 3]) cube([14, stecker_strom_l, 10]);
+    im_pi() translate([11.2 - 7, -stecker_strom_l, pi_d - 3]) cube([14, stecker_strom_l, 10]);
 }
 module m_buchse(x, t) {
     translate([x - 13, gesamt - kasten_wand - t, buchse_z - 14]) cube([26, t - 0.01, 28]);
