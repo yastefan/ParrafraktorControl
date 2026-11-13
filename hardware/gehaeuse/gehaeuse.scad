@@ -211,8 +211,8 @@ module gesamt_aussen() { union() { korpus_aussen(); kasten_aussen(); } }
 module korpus_innenraum() {
     profil(wand, b - wand)
         polygon([[wand, -1], [wand, z_unten(wand)], [tiefe - rueck_d, z_unten(tiefe - rueck_d)], [tiefe - rueck_d, -1]]);
-    // unter dem Kastendeckel offen nach hinten
-    translate([wand, wand, -1]) cube([b - 2 * wand, tiefe + 1 - wand, kasten_h + 1]);
+    // unter dem Kastendeckel offen nach hinten (nur die Rückwand, sonst schnitte es vorn durch die Oberseite)
+    translate([wand, tiefe - rueck_d - 1, -1]) cube([b - 2 * wand, rueck_d + 2, kasten_h + 1]);
 }
 
 module saeule(x, y) {
@@ -225,8 +225,11 @@ module innen_verstaerkung() {
         union() {
             for (x = [wand + 4.5, b - wand - 4.5]) saeule(x, wand + 4.5);
             // Leisten enden unter dem Bett
-            for (x = [wand - eps, b - wand - leiste_b + eps])
-                translate([x, leiste_y, boden_d + luft]) cube([leiste_b, leiste_d, leiste_oben - boden_d - luft]);
+            // oben zur Seitenwand hin abgeschrägt, druckt ohne Stütze
+            for (x = [wand - eps, b - wand - leiste_b + eps]) hull() {
+                translate([x, leiste_y, boden_d + luft]) cube([leiste_b, leiste_d, leiste_oben - leiste_b - boden_d - luft]);
+                translate([x < cx ? x : x + leiste_b - 1, leiste_y, boden_d + luft]) cube([1, leiste_d, leiste_oben - boden_d - luft]);
+            }
         }
     }
 }

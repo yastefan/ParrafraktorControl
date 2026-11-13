@@ -2,7 +2,7 @@ Prüfung am Modell (nicht gedruckt)
 
 Druckteile: Maße in mm, Bauraum 300 × 300 × 330, Überhang = Fläche steiler 45°
 Teil                  X      Y      Z  Vol cm³  ca. g  Überhang mm²  dicht
-korpus            156.0  174.0  103.9    181.9    196          3715  ja
+korpus            156.0  174.0  103.9    182.8    197          2819  ja
 boden             149.0  160.3   16.0     97.4    105           786  ja
 bett              149.0  133.8   14.0     81.8     88           146  ja
 kasten            156.0   36.0   46.0     48.9     53           626  ja
@@ -21,7 +21,7 @@ Echtes Deck gegen Gehäuseteile (Eck- und Flächenpunkte des Elgato-Netzes im Te
   ballastdeckel: frei
 
 Standfestigkeit überschlägig, ohne Reibung und ohne Tischbefestigung:
-  mit Ballast: Masse 1140 g, Schwerpunkt y 70 z 47 mm über Tisch
+  mit Ballast: Masse 1141 g, Schwerpunkt y 70 z 47 mm über Tisch
     Kippkraft waagerecht an der Deck-Oberkante (114 mm hoch, Füße y 12…156): nach hinten 8.4 N, nach vorn 5.7 N, zur Seite 5.8 N
-  ohne Ballast: Masse 975 g, Schwerpunkt y 78 z 53 mm über Tisch
+  ohne Ballast: Masse 976 g, Schwerpunkt y 78 z 53 mm über Tisch
     Kippkraft waagerecht an der Deck-Oberkante (114 mm hoch, Füße y 12…156): nach hinten 6.5 N, nach vorn 5.5 N, zur Seite 5.0 N
