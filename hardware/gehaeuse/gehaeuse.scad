@@ -10,9 +10,8 @@
 //   [ANNAHME]   nicht belegt, vor dem Druck am Gerät messen!
 
 /* [Ausgabe] */
-teil = "alles";          // korpus, boden, bett, einsatz_d, einsatz_blind, zugentlastung, ballastdeckel, haube, alles, explosion, innen
+teil = "alles";          // korpus, boden, bett, kasten, ballastdeckel, alles, explosion, innen
 lage = "druck";          // druck = Drucklage, montiert = Einbaulage
-mit_haube = true;        // nur für die Gesamtansicht
 
 /* [Stream Deck +] */
 // Koordinaten am Deck: x quer, s vom Reglerrand zum Tastenrand, z ab Rückplatte zur Front.
@@ -87,42 +86,34 @@ pi_loecher = [[3.5,3.5],[61.5,3.5],[3.5,52.5],[61.5,52.5]];  // [RPi] u von SD-K
 /* [Stecker im Gehäuse] */
 stecker_usb_a_l = 35;    // Händlerbild: 12 Metall, 16 Gehäuse, Knickschutz geschätzt
 stecker_rj45_l = 45;     // [ANNAHME]
-stecker_strom_l = 30;    // [ANNAHME] USB-C des Netzteils
-kabel_d = 5;             // [ANNAHME] Netzkabel, messen
-klemmung = 0.5;          // so viel drückt die Zugentlastung das Kabel zusammen
-tuelle_d = 14;           // Durchgang für den USB-C-Stecker
-d_tiefe = 47;            // [ANNAHME] Panel-Buchse samt kurzem Stecker hinter der Wand
+stecker_strom_l = 30;    // [ANNAHME] USB-C-Stecker am Kabel der Neutrik-Buchse
 
-/* [Einsatzplatten] */
-bucht_l = 34;            // Öffnung in der Rückwand
-einsatz_b = 50;          // Platte
-einsatz_d_t = 3;
-einsatz_loch = 21;       // Schrauben der Platte, ± von der Mitte
-bucht_z = 33;
-bucht_x_rs485 = 60;
-bucht_x_ethernet = 116;
-neutrik_d = 24;          // Neutrik RRE8F-Z-Zeichnung: ≥ Ø24, Ø3,2, 19 × 24; für NE8FDP noch prüfen
+/* [Kasten hinten mit Neutrik-Buchsen, D-Norm, Flansch außen] */
+kasten_t = 32;           // Tiefe hinter dem Keil
+kasten_h = 46;           // Oberkante des Deckels
+kasten_wand = 3;         // Rückwand: XLR-D-Buchsen 1–3 mm (Händlerangabe), etherCON bis 4 mm [Neutrik]
+kasten_deckel = 3;
+buchse_z = 22;           // Mitte der Buchsen
+buchse_x_usb = 30;       // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen
+buchse_x_xlr = 75;       // Neutrik NC3FD-L-1, DMX
+buchse_x_eth = 120;      // Neutrik NE8FDP, etherCON
+tiefe_usb = 30;          // [Neutrik] 29,4 mm ab Flanschfront
+tiefe_xlr = 32;          // [ANNAHME] samt Lötkelchen und Litzen
+tiefe_eth = 60;          // [Neutrik] 30 mm Buchse, dazu RJ45-Stecker [ANNAHME]
+neutrik_d = 24;          // [Neutrik] Ausschnitt ≥ Ø24, Löcher ≥ Ø3,2 im Abstand 19 × 24 (diagonal)
 neutrik_loch_x = 19;
 neutrik_loch_y = 24;
 neutrik_loch_d = 3.2;
+neutrik_flansch = [26, 31];
 
-/* [RS485-Platz] */
-rs485_platz = [103, 84, 31, 40, 10];   // x, y, Breite, Tiefe, Höhe des freien Raums im Modell
-rs485_boehnchen = [[106,88],[130,88],[106,120],[130,120]];
-
-/* [Haube für Publikum] */
-haube_tiefe = 65;         // RJ45/etherCON samt Knick, Stecker vorher nachmessen
-haube_innen_z = 66;
-haube_wand = 2.5;
+/* [RS485: M5Stack Unit RS485-ISO (U094), 56 × 24 × 10,2 mm, stehend an der rechten Wand] */
+rs485_modul = [10.2, 56, 24];
+rs485_y = 63;           // zwischen Ethernet-Stecker des Pi und Schraubleiste
 
 /* [Ballast] */
 ballast = [105, 30, 6];  // Flachstahl, etwa 148 g
 wanne = [16, 3.5, b - 32, 35.5, 7]; // x, y, Länge, Tiefe, Höhe ohne Boden; flach unter dem Bett
 wannendeckel = 1.6;
-
-/* [Lüfter im Korpus, rechts] */
-luefter_y = 100;
-luefter_z = 24;
 
 $fn = 48;
 eps = 0.01;
@@ -138,8 +129,8 @@ schacht_unten = deck_lage + rahmen_hoehe;
 bett_x = b / 2 - wand - luft;                             // halbe Breite des Betts
 lasche_x = 70;                                            // Schrauben des Betts, ± von der Mitte
 lasche_s = [30, 112];
-zug_x = pi_x + 11;                                        // Strom
-zug_z = 36;
+gesamt = tiefe + kasten_t;                                // Tiefe außen
+function buchsen() = [[buchse_x_usb, tiefe_usb], [buchse_x_xlr, tiefe_xlr], [buchse_x_eth, tiefe_eth]];
 function z_unten(y) = h_vorn + y * tan(neigung) - platte / cos(neigung);
 leiste_y = tiefe - rueck_d - leiste_d;
 x0 = wand + luft;                                         // Boden/Rückwand von links
@@ -187,15 +178,35 @@ module schacht_laschen() {
 
 module korpus_aussen() {
     r = rundung;
-    hull() for (x = [r, b - r], y = [r, tiefe - r]) {
-        translate([x, y, 0]) cylinder(r = r, h = 0.01);
-        translate([x, y, oben_z(y) - r / cos(neigung)]) sphere(r = r);
+    hull() {
+        for (x = [r, b - r]) {
+            translate([x, r, 0]) cylinder(r = r, h = 0.01);
+            translate([x, r, oben_z(r) - r / cos(neigung)]) sphere(r = r);
+            translate([x, tiefe - r, oben_z(tiefe - r) - r / cos(neigung)]) sphere(r = r);
+        }
+        // hinten unten eckig, dort schließt der Kasten an
+        translate([0, tiefe - 0.01, 0]) cube([b, 0.01, kasten_h]);
     }
 }
 
+module kasten_aussen() {
+    r = rundung;
+    hull() {
+        translate([0, tiefe, 0]) cube([b, 0.01, kasten_h]);
+        for (x = [r, b - r]) {
+            translate([x, gesamt - r, 0]) cylinder(r = r, h = kasten_h - r);
+            translate([x, gesamt - r, kasten_h - r]) sphere(r = r);
+        }
+    }
+}
+
+module gesamt_aussen() { union() { korpus_aussen(); kasten_aussen(); } }
+
 module korpus_innenraum() {
     profil(wand, b - wand)
-        polygon([[wand, -1], [wand, z_unten(wand)], [tiefe + 1, z_unten(tiefe + 1)], [tiefe + 1, -1]]);
+        polygon([[wand, -1], [wand, z_unten(wand)], [tiefe - rueck_d, z_unten(tiefe - rueck_d)], [tiefe - rueck_d, -1]]);
+    // unter dem Kastendeckel offen nach hinten
+    translate([wand, wand, -1]) cube([b - 2 * wand, tiefe + 1 - wand, kasten_h + 1]);
 }
 
 module saeule(x, y) {
@@ -210,9 +221,6 @@ module innen_verstaerkung() {
             // Leisten enden unter dem Bett
             for (x = [wand - eps, b - wand - leiste_b + eps])
                 translate([x, leiste_y, boden_d + luft]) cube([leiste_b, leiste_d, leiste_oben - boden_d - luft]);
-            // Rippe hält die Oberkante der Rückwand
-            translate([30, tiefe - rueck_d - luft - 2, oben_z(tiefe - rueck_d - luft) - platte / cos(neigung) - 5])
-                cube([b - 60, 2, 20]);
         }
     }
 }
@@ -225,7 +233,6 @@ function ls_x() = [schraube_x, b - schraube_x];
 function boden_schrauben() = [
     [wand + 4.5, wand + 4.5], [b - wand - 4.5, wand + 4.5],
     [schraube_x, leiste_y + leiste_d / 2], [b - schraube_x, leiste_y + leiste_d / 2]];
-hinten_z = [18, 58];       // Schrauben Rückwand/Haube in die Leisten
 leiste_oben = 66;
 
 module korpus() {
@@ -252,34 +259,17 @@ module korpus() {
             intersection() { korpus_aussen(); im_deck() schacht_laschen(); }
         }
         for (p = boden_schrauben()) einsatz_von_unten(p[0], p[1]);
-        // Einsätze von hinten in die Leisten
-        for (x = ls_x(), z = hinten_z)
-            translate([x, tiefe - rueck_d + eps, z]) rotate([90, 0, 0]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
+        // Abluft oben in der Rückwand über dem Kasten
+        for (x = [30:6:b - 30]) translate([x, tiefe + 1, kasten_h + 8]) rotate([90, 0, 0]) hull() {
+            cylinder(d = 3, h = rueck_d + 2);
+            translate([0, 34, 0]) cylinder(d = 3, h = rueck_d + 2);
+        }
         // Einsätze für das Bett, von unten
         im_deck() for (sx = [-1, 1], ss = lasche_s) translate([sx * lasche_x, ss, rahmen_hoehe - 0.01]) cylinder(d = einsatz_m3_d, h = 6);
-        // Lüftergitter rechts, passt für 40-mm-Lüfter (Lochabstand 32 mm)
-        translate([b - wand - 1, luefter_y, luefter_z]) rotate([0, 90, 0]) {
-            for (u = [-15:6:15], v = [-15:6:15]) if (norm([u, v]) < 18.5)
-                translate([u, v, 0]) cylinder(d = 4, h = wand + 2);
-            for (u = [-16, 16], v = [-16, 16]) translate([u, v, 0]) cylinder(d = m3_frei, h = wand + 2);
-        }
     }
 }
 
-// ---------------- Boden mit Rückwand (ein Teil) ----------------
-
-module rueckwand_platte() {
-    z_o = z_unten(tiefe) - luft;
-    z_i = z_unten(tiefe - rueck_d) - luft;
-    profil(x0, x1) polygon([[tiefe - rueck_d, 0], [tiefe, 0], [tiefe, z_o], [tiefe - rueck_d, z_i]]);
-}
-
-module bucht_boss(x, z) {
-    // 45° nach unten, damit stehend ohne Stütze druckbar
-    translate([x - 4, 0, 0]) rotate([90, 0, 90]) linear_extrude(8)
-        polygon([[tiefe - rueck_d + eps, z + 4], [tiefe - rueck_d - 6, z + 4],
-                 [tiefe - rueck_d - 6, z - 4], [tiefe - rueck_d + eps, z - 10.5]]);
-}
+// ---------------- Boden ----------------
 
 module pi_saeule(p) {
     translate([pi_x + p[0], pi_y_hinten - p[1], 0]) cylinder(d = 7, h = pi_z);
@@ -301,57 +291,86 @@ module wanne() {
     }
 }
 
+function kasten_schrauben() = [for (x = [wand + 4.5, b - wand - 4.5], y = [tiefe + 4.5, gesamt - kasten_wand - 4.5]) [x, y]];
+rs485_x = x1 - 0.2 - rs485_modul[0];
+
+// Halter für das RS485-Modul, stehend an der rechten Wand, mit Kabelbinder gesichert
+module rs485_tasche() {
+    difference() {
+        translate([rs485_x - 2.4, rs485_y - 0.4, 0]) cube([x1 - rs485_x + 2.4, rs485_modul[1] + 0.8, boden_d + 12]);
+        translate([rs485_x - 0.3, rs485_y - 1, boden_d]) cube([rs485_modul[0] + 1, rs485_modul[1] + 2, 20]);
+        // Schlitz für einen Kabelbinder um Modul und Wand
+        translate([rs485_x - 3, rs485_y + rs485_modul[1] / 2 - 2, boden_d + 6]) cube([4, 4, 3]);
+    }
+}
+
 module boden() {
     difference() {
         intersection() {
-            korpus_aussen();
+            gesamt_aussen();
             union() {
-                translate([x0, wand + luft, 0]) cube([x1 - x0, tiefe - wand - luft, boden_d]);
-                rueckwand_platte();
+                translate([x0, wand + luft, 0]) cube([x1 - x0, gesamt - kasten_wand - 2 * luft - wand, boden_d]);
                 for (p = pi_loecher) pi_saeule(p);
                 wanne();
                 kabelbinder_oese(92, 118);
                 kabelbinder_oese(70, 118);
-                for (p = rs485_boehnchen) translate([p[0], p[1], 0]) cylinder(d = 7, h = pi_z);
-                for (x = [bucht_x_rs485, bucht_x_ethernet], dx = [-einsatz_loch, einsatz_loch], dz = [-einsatz_loch, einsatz_loch])
-                    bucht_boss(x + dx, bucht_z + dz);
-                for (dx = [-6, 6]) bucht_boss(zug_x + dx, zug_z);
+                rs485_tasche();
             }
         }
-        // Schrauben von unten in den Korpus
-        for (p = boden_schrauben()) translate([p[0], p[1], -1]) cylinder(d = m3_frei, h = boden_d + 2);
-        // Köpfe versenkt, damit sie nicht auf dem Tisch aufliegen
-        for (p = boden_schrauben()) translate([p[0], p[1], -1]) cylinder(d = 6.5, h = 3);
+        // Schrauben von unten in Korpus und Kasten
+        for (p = concat(boden_schrauben(), kasten_schrauben())) {
+            translate([p[0], p[1], -1]) cylinder(d = m3_frei, h = boden_d + 2);
+            translate([p[0], p[1], -1]) cylinder(d = 6.5, h = 3);   // Köpfe versenkt
+        }
         // Pi
         for (p = pi_loecher) translate([pi_x + p[0], pi_y_hinten - p[1], pi_z - einsatz_m25_t + eps]) cylinder(d = einsatz_m25_d, h = einsatz_m25_t);
-        for (p = rs485_boehnchen) translate([p[0], p[1], pi_z - einsatz_m3_t + eps]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
         // Zuluft unter dem Pi und neben den Steckern
         for (x = [24:6:94]) translate([x, 54, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 36, 0]) cylinder(d = 3, h = boden_d + 2); }
-        for (x = [108:6:140]) translate([x, 58, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 22, 0]) cylinder(d = 3, h = boden_d + 2); }
+        for (x = [108:6:134]) translate([x, 58, -1]) hull() { cylinder(d = 3, h = boden_d + 2); translate([0, 22, 0]) cylinder(d = 3, h = boden_d + 2); }
         // Befestigung am Tisch, Durchgang M5
-        for (p = [[105, 45], [116, 124]]) translate([p[0], p[1], -1]) cylinder(d = 5.5, h = boden_d + 2);
+        for (p = [[105, 45], [100, gesamt - 20]]) translate([p[0], p[1], -1]) cylinder(d = 5.5, h = boden_d + 2);
         // Gummifüße, 1 mm eingelassen
         for (p = fuesse()) translate([p[0], p[1], -1]) cylinder(d = 12.5, h = 2);
-        // Rückwand: Buchten
-        for (x = [bucht_x_rs485, bucht_x_ethernet]) {
-            translate([x - bucht_l / 2, tiefe - rueck_d - 8, bucht_z - bucht_l / 2]) cube([bucht_l, rueck_d + 9, bucht_l]);
-            for (dx = [-einsatz_loch, einsatz_loch], dz = [-einsatz_loch, einsatz_loch])
-                translate([x + dx, tiefe + eps, bucht_z + dz]) rotate([90, 0, 0]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t + 1);
-        }
-        // Durchgang Strom, der Stecker endet hier; Klemme außen darüber
-        translate([zug_x, tiefe + 1, strom_z]) rotate([90, 0, 0]) cylinder(d = tuelle_d, h = rueck_d + 2);
-        for (dx = [-6, 6]) translate([zug_x + dx, tiefe + eps, zug_z]) rotate([90, 0, 0]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t + 1);
-        // Schrauben in die Leisten
-        for (x = ls_x(), z = hinten_z) translate([x, tiefe + 1, z]) rotate([90, 0, 0]) cylinder(d = m3_frei, h = rueck_d + 2);
-        // Abluft oben, senkrechte Schlitze
-        for (x = [30:6:126]) translate([x, tiefe + 1, 72]) rotate([90, 0, 0]) hull() {
-            cylinder(d = 3, h = rueck_d + 2);
-            translate([0, 22, 0]) cylinder(d = 3, h = rueck_d + 2);
-        }
     }
 }
 
-function fuesse() = [[24, 18], [b - 24, 18], [24, tiefe - 14], [b - 24, tiefe - 14]];
+function fuesse() = [[24, 18], [b - 24, 18], [24, gesamt - 14], [b - 24, gesamt - 14]];
+
+// ---------------- Kasten hinten ----------------
+
+// Ausschnitt für eine Neutrik-Buchse in D-Norm. Unten spitz, damit der Kasten mit dem Deckel nach unten
+// ohne Stütze druckt; die Spitze liegt unter dem Flansch. Lokale z-Achse durch die Wand.
+module neutrik_ausschnitt(h) {
+    linear_extrude(h) intersection() {
+        hull() { circle(d = neutrik_d); polygon([[-8.5, -8.5], [8.5, -8.5], [0, -17]]); }
+        translate([-20, -neutrik_flansch[1] / 2 + 2, 0]) square([40, 40]);
+    }
+    for (sx = [-1, 1], sy = [-1, 1]) translate([sx * neutrik_loch_x / 2, sy * neutrik_loch_y / 2, 0])
+        cylinder(d = neutrik_loch_d, h = h);
+}
+
+module kasten() {
+    innen_z = kasten_h - kasten_deckel;
+    difference() {
+        union() {
+            difference() {
+                union() {
+                    kasten_aussen();
+                    // Zunge unter der Rückwand des Korpus
+                    translate([x0, tiefe - rueck_d, innen_z]) cube([x1 - x0, rueck_d + 0.01, kasten_deckel]);
+                }
+                translate([wand, tiefe - rueck_d - 1, -1]) cube([b - 2 * wand, kasten_t - kasten_wand + rueck_d + 1, innen_z + 1]);
+            }
+            // Säulen für die Schrauben von unten
+            intersection() {
+                translate([wand, tiefe, 0]) cube([b - 2 * wand, kasten_t - kasten_wand + 0.01, innen_z + 0.01]);
+                for (p = kasten_schrauben()) translate([p[0], p[1], boden_d + luft]) cylinder(d = 9, h = kasten_h);
+            }
+        }
+        for (p = kasten_schrauben()) translate([p[0], p[1], boden_d + luft - eps]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
+        for (p = buchsen()) translate([p[0], gesamt + 1, buchse_z]) rotate([90, 0, 0]) neutrik_ausschnitt(kasten_wand + 2);
+    }
+}
 
 // ---------------- Kleine Teile, montiert liegend ----------------
 
@@ -393,69 +412,10 @@ module bett_lokal() {
 
 module bett() { im_deck() bett_lokal(); }
 
-module einsatz_grund() {
-    difference() {
-        translate([-einsatz_b / 2, -einsatz_b / 2, 0]) cube([einsatz_b, einsatz_b, einsatz_d_t]);
-        for (dx = [-einsatz_loch, einsatz_loch], dy = [-einsatz_loch, einsatz_loch])
-            translate([dx, dy, -1]) cylinder(d = m3_frei, h = einsatz_d_t + 2);
-    }
-}
-
-module einsatz_blind() { einsatz_grund(); }
-
-module einsatz_d() {
-    difference() {
-        einsatz_grund();
-        translate([0, 0, -1]) cylinder(d = neutrik_d, h = einsatz_d_t + 2);
-        for (sx = [-1, 1], sy = [-1, 1]) translate([sx * neutrik_loch_x / 2, sy * neutrik_loch_y / 2, -1])
-            cylinder(d = neutrik_loch_d, h = einsatz_d_t + 2);
-    }
-}
-
-// Einbaulage: Platte außen an der Rückwand, Oberseite zeigt nach hinten
-module an_bucht(x) { translate([x, tiefe, bucht_z]) rotate([-90, 0, 0]) children(); }
-
-// Klemme außen an der Rückwand, Kabel läuft aus dem Durchgang nach oben durch die Nut
-module zugentlastung() {
-    difference() {
-        translate([-8.5, -6, 0]) cube([17, 12, 7]);
-        translate([0, -7, kabel_d / 2 - klemmung]) rotate([-90, 0, 0]) cylinder(d = kabel_d, h = 14);
-        for (sx = [-6, 6]) translate([sx, 0, -1]) cylinder(d = m3_frei, h = 9);
-    }
-}
-
 module ballastdeckel() {
     difference() {
         cube([wanne[2], wanne[3], wannendeckel]);
         for (x = [4, wanne[2] - 4]) translate([x, wanne[3] / 2, -1]) cylinder(d = m3_frei, h = 5);
-    }
-}
-
-// Haube in Einbaulage, deckt Stecker und Schrauben ab. Kabel laufen unten heraus.
-module haube() {
-    hb = x1 - x0;
-    difference() {
-        union() {
-            difference() {
-                translate([x0, tiefe - 5, 0]) intersection() {
-                    translate([0, 5, 0]) cube([hb, haube_tiefe, haube_innen_z + haube_wand]);
-                    linear_extrude(haube_innen_z + haube_wand) offset(r = rundung) offset(delta = -rundung) square([hb, haube_tiefe + 5]);
-                }
-                translate([x0 + haube_wand, tiefe - 1, -1]) cube([hb - 2 * haube_wand, haube_tiefe - haube_wand + 1, haube_innen_z + 1]);
-            }
-            for (x = ls_x(), z = hinten_z) if (z < haube_innen_z) {
-                richtung = x < cx ? 1 : -1;
-                seite = x < cx ? x0 + haube_wand - eps : x1 - haube_wand + eps;
-                innen = x + richtung * 5;
-                translate([0, 0, z - 6]) linear_extrude(12) polygon([
-                    [seite, tiefe], [innen, tiefe], [innen, tiefe + 6],
-                    [seite, tiefe + 6 + abs(innen - seite)]]);
-            }
-        }
-        for (x = ls_x(), z = hinten_z) if (z < haube_innen_z) {
-            translate([x, tiefe - 1, z]) rotate([-90, 0, 0]) cylinder(d = m3_frei, h = 8);
-            translate([x, tiefe + 5, z]) rotate([-90, 0, 0]) cylinder(d = 6.5, h = haube_tiefe);
-        }
     }
 }
 
@@ -509,42 +469,35 @@ module m_rj45() {
 module m_strom() {
     translate([pi_x + 11.2 - 7, pi_y_hinten, pi_z + pi_d - 3]) cube([14, stecker_strom_l, 10]);
 }
-module m_d_innen(x) {
-    translate([x - 13, tiefe - rueck_d - d_tiefe, bucht_z - 13]) cube([26, d_tiefe + rueck_d - 0.1, 26]);
+module m_buchse(x, t) {
+    translate([x - 13, gesamt - kasten_wand - t, buchse_z - 14]) cube([26, t - 0.01, 28]);
 }
 module m_rs485() {
-    translate([rs485_platz[0], rs485_platz[1], pi_z]) cube([rs485_platz[2], rs485_platz[3], rs485_platz[4]]);
+    translate([rs485_x, rs485_y, boden_d]) cube(rs485_modul);
 }
 module m_ballast() {
     translate([wanne[0] + 9, wanne[1] + 2.75, boden_d]) cube(ballast);
 }
-module m_luefter() {
-    translate([b - wand - 10.5, luefter_y - 20, luefter_z - 20]) cube([10, 40, 40]);
-}
-
 // ---------------- Einbaulage ----------------
 
 module montiert(name) {
     if (name == "korpus") korpus();
     if (name == "boden") boden();
     if (name == "bett") bett();
+    if (name == "kasten") kasten();
     if (name == "deck_echt") m_deck_echt();
-    if (name == "einsatz_ethernet") an_bucht(bucht_x_ethernet) einsatz_d();
-    if (name == "einsatz_rs485") an_bucht(bucht_x_rs485) einsatz_blind();
-    if (name == "zugentlastung") translate([zug_x, tiefe, zug_z]) rotate([-90, 0, 0]) zugentlastung();
     if (name == "ballastdeckel") translate([wanne[0], wanne[1], boden_d + wanne[4]]) ballastdeckel();
-    if (name == "haube") haube();
     if (name == "deck") m_deck();
     if (name == "deck_usb") m_deck_usb();
     if (name == "pi") m_pi();
     if (name == "usb_a") m_usb_a();
     if (name == "rj45") m_rj45();
     if (name == "strom") m_strom();
-    if (name == "d_ethernet") m_d_innen(bucht_x_ethernet);
-    if (name == "d_rs485") m_d_innen(bucht_x_rs485);
+    if (name == "buchse_usb") m_buchse(buchse_x_usb, tiefe_usb);
+    if (name == "buchse_xlr") m_buchse(buchse_x_xlr, tiefe_xlr);
+    if (name == "buchse_eth") m_buchse(buchse_x_eth, tiefe_eth);
     if (name == "rs485") m_rs485();
     if (name == "ballast") m_ballast();
-    if (name == "luefter") m_luefter();
 }
 
 // Drucklage
@@ -552,13 +505,9 @@ module drucklage(name) {
     if (name == "korpus") translate([0, laenge, 0]) rotate([180, 0, 0]) rotate([-neigung, 0, 0]) translate([0, 0, -h_vorn]) korpus();
     if (name == "boden") boden();
     if (name == "bett") translate([0, 0, bett_d]) bett_lokal();
-    if (name == "einsatz_d") einsatz_d();
-    if (name == "einsatz_blind") einsatz_blind();
-    if (name == "zugentlastung") translate([0, 0, 7]) rotate([180, 0, 0]) zugentlastung();
+    if (name == "kasten") translate([0, 0, kasten_h]) rotate([180, 0, 0]) kasten();
     if (name == "ballastdeckel") ballastdeckel();
-    if (name == "haube") translate([0, 0, tiefe + haube_tiefe]) rotate([-90, 0, 0]) haube();
 }
-
 
 // ---------------- Ansichten ----------------
 
@@ -573,13 +522,12 @@ module teile_farbig(ex = 0) {
     color(farbe_rahmen) translate([0, ex * -6, ex * 80]) montiert("bett");
     color("#111418") translate([0, ex * -30, ex * 165]) montiert("deck");
     color(farbe_boden) montiert("boden");
+    color(farbe_korpus) translate([0, ex * 70, ex * 30]) montiert("kasten");
     color("#2f7d4f") translate([0, 0, ex * 22]) montiert("pi");
     color(farbe_klein) translate([0, 0, ex * 45]) montiert("ballastdeckel");
     color("#9aa3ad") translate([0, 0, ex * 22]) montiert("ballast");
-    color(farbe_klein) translate([0, ex * 30, 0]) montiert("zugentlastung");
-    color("#d08a2b") translate([0, ex * 30, 0]) montiert("einsatz_ethernet");
-    color("#d08a2b") translate([0, ex * 30, 0]) montiert("einsatz_rs485");
-    if (mit_haube) color(farbe_rahmen) translate([0, ex * 95, 0]) montiert("haube");
+    color("#a05cc8") translate([0, 0, ex * 22]) montiert("rs485");
+    for (n = ["buchse_usb", "buchse_xlr", "buchse_eth"]) color("#c9ccd1") translate([0, ex * 70, ex * 30]) montiert(n);
 }
 
 // Bedienelemente nur als Ansicht, Lage geschätzt
@@ -597,17 +545,15 @@ module innenleben() {
     color(farbe_boden) montiert("boden");
     color("#2f7d4f") montiert("pi");
     color(farbe_klein) montiert("ballastdeckel");
-    color(farbe_klein) montiert("zugentlastung");
-    color("#d08a2b") montiert("einsatz_ethernet");
-    color("#d08a2b") montiert("einsatz_rs485");
     color("#c9a227") montiert("usb_a");
     color("#c9a227") montiert("deck_usb");
     color("#2d6cdf") montiert("rj45");
     color("#c0392b") montiert("strom");
-    color("#2d6cdf", 0.45) montiert("d_ethernet");
-    color("#a05cc8", 0.45) montiert("d_rs485");
-    color("#a05cc8", 0.6) montiert("rs485");
-    color("#555555", 0.5) montiert("luefter");
+    color("#c0392b", 0.6) montiert("buchse_usb");
+    color("#a05cc8", 0.6) montiert("buchse_xlr");
+    color("#2d6cdf", 0.6) montiert("buchse_eth");
+    color("#a05cc8") montiert("rs485");
+    color(farbe_korpus, 0.35) montiert("kasten");
 }
 
 if (teil == "alles") { teile_farbig(0); m_bedienung(); }

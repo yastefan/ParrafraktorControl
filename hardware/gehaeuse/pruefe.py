@@ -19,12 +19,10 @@ import numpy as np
 HIER = pathlib.Path(__file__).resolve().parent
 SCAD = HIER / "gehaeuse.scad"
 BAURAUM = np.array([300.0, 300.0, 330.0])  # Prusa CORE One L, Händlerangaben
-DRUCKTEILE = ["korpus", "boden", "bett", "einsatz_d", "einsatz_blind",
-              "zugentlastung", "ballastdeckel", "haube"]
-GEHAEUSE = ["korpus", "boden", "bett", "einsatz_ethernet", "einsatz_rs485",
-            "zugentlastung", "ballastdeckel", "haube"]
-PLATZHALTER = ["deck", "deck_usb", "pi", "usb_a", "rj45", "strom", "d_ethernet",
-               "d_rs485", "rs485", "ballast", "luefter"]
+DRUCKTEILE = ["korpus", "boden", "bett", "kasten", "ballastdeckel"]
+GEHAEUSE = ["korpus", "boden", "bett", "kasten", "ballastdeckel"]
+PLATZHALTER = ["deck", "deck_usb", "pi", "usb_a", "rj45", "strom", "buchse_usb",
+               "buchse_xlr", "buchse_eth", "rs485", "ballast"]
 # Diese Paare berühren oder durchdringen sich gewollt
 ERLAUBT = {
     frozenset(["deck", "deck_usb"]),   # Stecker sitzt in der Buchse
@@ -248,7 +246,7 @@ def main():
                 f" nach hinten {hinten:.1f} N, nach vorn {vorn:.1f} N, zur Seite {seite:.1f} N")
         aus("")
         aus("Standfestigkeit überschlägig, ohne Reibung und ohne Tischbefestigung:")
-        bericht("mit Ballast und Haube", mg)
+        bericht("mit Ballast", mg)
         bericht("ohne Ballast", [x for x in mg if x[0] not in ("ballast",)])
 
     (HIER / "pruefbericht.txt").write_text("\n".join(zeilen) + "\n")
