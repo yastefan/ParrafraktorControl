@@ -80,7 +80,7 @@ Kaufteile:
 | 2 | Originalschrauben des Deck-Fußes, dazu Kreuzschlitz-Dreher |
 | 4 | M3 × 10, Bett in den Schacht, von unten |
 | 8 | Sicherheits-Torx M3 × 10: Boden in Korpus und Kasten |
-| 6 | M3 × 8 mit Mutter für die Neutrik-Buchsen, falls nicht beiliegend |
+| 2 | M3 × 8 mit Mutter für die XLR-Buchse; etherCON und USB-C bringen ihre Schrauben mit |
 | 2 | M3 × 5, Ballastdeckel |
 | 4 | M2,5 × 6 für den Pi |
 | 1 | Neutrik NAUSBC-5G-FL10, USB-C mit 10 cm Kabel und USB-C-Stecker innen, für Strom |
@@ -96,6 +96,7 @@ Kaufteile:
 | 4 | Gummifuß Ø12, 6 mm hoch (1 mm eingelassen) |
 | 2 | M5-Schraube, Scheibe, Mutter für den Tisch (beim Publikum Pflicht) |
 | 4 | Kabelbinder |
+| optional | Lüfter 40 × 40 × 10 mm 5 V, 4 × M3 × 16 mit Mutter |
 
 ## Drucken
 
@@ -115,8 +116,8 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 
 1. Einsätze mit dem Lötkolben setzen. Pi-Säulen und Fußtaschen ansehen, ob Grate stören.
 2. Füße kleben. Ballast in die Wanne, Deckel drauf.
-3. Pi mit Kühlkörper auf den Boden schrauben. RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
-4. Neutrik-Buchsen von außen in die Rückwand des Kastens schrauben, Flansch außen. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
+3. Pi mit Kühlkörper auf den Boden schrauben. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
+4. Neutrik-Buchsen von außen in die Rückwand des Kastens schrauben, Flansch außen, ohne Gewindeeinsätze: etherCON und vermutlich auch USB-C schrauben laut Neutrik-Zeichnung durch Flansch und Wand in ihr eigenes Gehäuse hinter der Wand; die XLR-Buchse bekommt M3-Schrauben mit Mutter innen. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
 5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe in der hinteren linken Ecke zum Pi führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
@@ -131,9 +132,9 @@ Für die SD-Karte muss der Korpus ab (Boden bleibt verschraubt), das ist gewollt
 - **Neigung 30°:** flach genug für den Griff von oben im Stehen, am FoH sitzend noch lesbar. Parameter `neigung`; ändern verschiebt die Höhe. Nur am Modell beurteilt.
 - **Bündiges Deck, schmal und flach:** Wunsch des Users. Seitlich sind es außen 10,5 mm bis zur Sichtöffnung, die Bett-Schrauben sitzen dort, wo sich die Rückseite des Decks zur Seite wegschrägt. Vorderkante 42 mm, damit die Ethernet-Buchse des Pi unter das Bett passt. Hinten ein flacher Kasten statt eines längeren Keils: mehr Standfläche nach hinten, Gesamthöhe bleibt.
 - **Keine Abdichtung:** laut User nur außerhalb der Regie. PETG reicht dort; es wird ab etwa 70 °C weich, deshalb nicht in die Sonne stellen. Das Deck selbst ist nicht wetterfest.
-- **Buchsen statt Kabeldurchführung und Haube:** Wunsch des Users. Neutrik-Stecker verriegeln selbst, Kabel werden außen am Tisch gesichert. Die Flanschschrauben der Buchsen sind von außen erreichbar, das Innere nur nach Lösen der Schrauben von unten.
+- **Buchsen statt Kabeldurchführung und Haube:** Wunsch des Users. Neutrik-Stecker verriegeln selbst, Kabel werden außen am Tisch gesichert. Keine Gewindeeinsätze in der 3-mm-Wand: dafür wäre sie zu dünn, und hinter den Löchern sitzt bei etherCON das Gehäuse der Buchse, das selbst das Gegengewinde trägt. Die Flanschschrauben sind von außen erreichbar, das Innere nur nach Lösen der Schrauben von unten.
 - **DMX über RS485 am UART:** M5Stack Unit RS485-ISO, isoliert, 56 × 24 × 10,2 mm ([M5Stack](https://docs.m5stack.com/en/unit/Unit_RS485-ISO)). Laut Schaltplan liegt der Sendereingang DI fest auf Masse, die Richtung schaltet das Signal vom Pi: Bit 0 treibt die Leitung aktiv, Bit 1 und Ruhe halten nur Widerstände. Mit 120-Ω-Abschluss ist das ein kleiner Pegel; ob die Empfänger der Spiegel-Elemente das sicher als 1 lesen, nur im Test mit einem Element und voller Kabellänge prüfbar. Am Pi: PL011 auf GPIO 14 mit `dtoverlay=disable-bt`, serielle Konsole aus, 250 000 Baud 8N2; der Treiber in `server/src/ausgabe/rs485.ts` fehlt noch.
-- **Lüftung:** Zuluft durch Schlitze im Boden (Füße heben 5 mm an), Abluft durch 17 Schlitze in der Rückwand über dem Kasten. Ein Lüfter ist nicht mehr vorgesehen, an der Seitenwand steht jetzt das RS485-Modul. **Kühlung nicht gemessen.** Im Dauerbetrieb prüfen:
+- **Lüftung:** Zuluft durch Schlitze im Boden (Füße heben 5 mm an) und das Gitter links, Abluft durch 17 Schlitze in der Rückwand über dem Kasten. Optional ein 40-mm-Lüfter innen am Gitter links, er bläst quer über den Pi. **Kühlung nicht gemessen.** Im Dauerbetrieb prüfen:
 
 ```bash
 vcgencmd measure_temp
@@ -143,11 +144,11 @@ vcgencmd measure_temp
 vcgencmd get_throttled
 ```
 
-  Bleibt der Pi unter 70 °C und `get_throttled` meldet `0x0`, reicht es. Sonst einen flacheren Kühlkörper mit Lüfter auf dem Pi.
+  Bleibt der Pi unter 70 °C und `get_throttled` meldet `0x0`, reicht es. Sonst den Lüfter einbauen.
 
 ## Geprüft am Modell
 
-Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die drei Neutrik-Buchsen und das RS485-Modul. Die Kabelschlaufen innen sind nicht modelliert.
+Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die drei Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert.
 
 Das echte Elgato-Modell wird punktweise gegen die Teile geprüft, weil sein Netz nicht geschlossen ist. Auch der Gegentest war positiv: Schon 0,25 mm Versatz des Betts meldet Berührung; Sitze und Bohrungen fluchten im Schnitt mit den Domen. Die Prüfung läuft nur, wenn `lokal/deck.stl` vorhanden ist:
 

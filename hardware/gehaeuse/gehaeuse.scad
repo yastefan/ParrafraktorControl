@@ -106,6 +106,12 @@ neutrik_loch_y = 24;
 neutrik_loch_d = 3.2;
 neutrik_flansch = [26, 31];
 
+/* [Lüfter, optional: 40 × 40 × 10 mm, linke Seitenwand neben dem Pi, saugt an] */
+luefter = [40, 10];      // Kantenlänge, Dicke
+luefter_y = 100;
+luefter_z = 25;
+luefter_loch = 32;       // Lochabstand der Befestigung
+
 /* [RS485: M5Stack Unit RS485-ISO (U094), 56 × 24 × 10,2 mm, stehend an der rechten Wand] */
 rs485_modul = [10.2, 56, 24];
 rs485_y = 63;           // zwischen Ethernet-Stecker des Pi und Schraubleiste
@@ -259,6 +265,12 @@ module korpus() {
             intersection() { korpus_aussen(); im_deck() schacht_laschen(); }
         }
         for (p = boden_schrauben()) einsatz_von_unten(p[0], p[1]);
+        // Lüftergitter links, auch ohne Lüfter als Zuluft
+        translate([-1, luefter_y, luefter_z]) rotate([0, 90, 0]) {
+            for (u = [-15:6:15], v = [-15:6:15]) if (norm([u, v]) < 18.5)
+                translate([u, v, 0]) cylinder(d = 4, h = wand + 2);
+            for (u = [-1, 1], v = [-1, 1]) translate([u * luefter_loch / 2, v * luefter_loch / 2, 0]) cylinder(d = m3_frei, h = wand + 2);
+        }
         // Abluft oben in der Rückwand über dem Kasten
         for (x = [30:6:b - 30]) translate([x, tiefe + 1, kasten_h + 8]) rotate([90, 0, 0]) hull() {
             cylinder(d = 3, h = rueck_d + 2);
@@ -472,6 +484,9 @@ module m_strom() {
 module m_buchse(x, t) {
     translate([x - 13, gesamt - kasten_wand - t, buchse_z - 14]) cube([26, t - 0.01, 28]);
 }
+module m_luefter() {
+    translate([wand + 0.2, luefter_y - luefter[0] / 2, luefter_z - luefter[0] / 2]) cube([luefter[1], luefter[0], luefter[0]]);
+}
 module m_rs485() {
     translate([rs485_x, rs485_y, boden_d]) cube(rs485_modul);
 }
@@ -497,6 +512,7 @@ module montiert(name) {
     if (name == "buchse_xlr") m_buchse(buchse_x_xlr, tiefe_xlr);
     if (name == "buchse_eth") m_buchse(buchse_x_eth, tiefe_eth);
     if (name == "rs485") m_rs485();
+    if (name == "luefter") m_luefter();
     if (name == "ballast") m_ballast();
 }
 
@@ -554,6 +570,7 @@ module innenleben() {
     color("#2d6cdf", 0.6) montiert("buchse_eth");
     color("#a05cc8") montiert("rs485");
     color(farbe_korpus, 0.35) montiert("kasten");
+    color("#555555", 0.6) montiert("luefter");
 }
 
 if (teil == "alles") { teile_farbig(0); m_bedienung(); }

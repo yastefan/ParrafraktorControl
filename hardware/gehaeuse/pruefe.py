@@ -22,7 +22,7 @@ BAURAUM = np.array([300.0, 300.0, 330.0])  # Prusa CORE One L, Händlerangaben
 DRUCKTEILE = ["korpus", "boden", "bett", "kasten", "ballastdeckel"]
 GEHAEUSE = ["korpus", "boden", "bett", "kasten", "ballastdeckel"]
 PLATZHALTER = ["deck", "deck_usb", "pi", "usb_a", "rj45", "strom", "buchse_usb",
-               "buchse_xlr", "buchse_eth", "rs485", "ballast"]
+               "buchse_xlr", "buchse_eth", "rs485", "luefter", "ballast"]
 # Diese Paare berühren oder durchdringen sich gewollt
 ERLAUBT = {
     frozenset(["deck", "deck_usb"]),   # Stecker sitzt in der Buchse
