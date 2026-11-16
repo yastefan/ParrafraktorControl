@@ -1,6 +1,6 @@
 # Tischgehäuse Stream Deck + und Raspberry Pi 4
 
-Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand, von innen hält es ein Bett an den schrägen Originalgewinden. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Hinten schließt ein flacher Kasten an, in dessen Rückwand drei Neutrik-Buchsen in D-Norm sitzen, von hinten gesehen links USB-C für Strom, in der Mitte XLR für DMX, rechts etherCON. Außenmaße mit Füßen 156 × 167 × 122 mm, der Kasten ist 51 mm hoch; Kanten 4 mm gerundet.
+Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand, von innen hält es ein Bett an den schrägen Originalgewinden. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Hinten schließt ein flacher Kasten an, in dessen Rückwand Neutrik-Buchsen in D-Norm sitzen, von hinten gesehen von links: USB-C für Strom, XLR für DMX, etherCON und optional USB 3.0 nach außen (`usb3_buchse`). Außenmaße mit Füßen 156 × 167 × 122 mm, der Kasten ist 51 mm hoch; Kanten 4 mm gerundet.
 
 **Stand: nur am Modell geprüft, nichts gedruckt und nichts an echter Hardware anprobiert.** Die Maße des Decks stammen aus Elgatos CAD-Modell. Zuerst nur `bett.stl` drucken und das Deck einsetzen.
 
@@ -41,7 +41,7 @@ Noch offen, in `gehaeuse.scad`:
 |---|---|---|---|
 | USB-Winkelstecker am Deck | `usb_gehaeuse`, `usb_hals_l` | Gehäuse 18 × 8 mm, Abgang quer | **Nach Händlerbild.** Hals muss höchstens 8,5 mm dick sein, sonst passt er nicht in die Mulde. Am gekauften Kabel messen und einmal ans Deck stecken |
 | Stecker am Pi | `stecker_*` | USB-A 35 mm, RJ45 45 mm, USB-C 30 mm | **Annahme** |
-| Buchsen samt Stecker innen | `tiefe_usb`, `tiefe_xlr`, `tiefe_eth` | 30 / 32 / 60 mm | USB-C und etherCON-Gehäuse aus Neutrik-Zeichnungen, XLR und RJ45-Stecker **Annahme** |
+| Buchsen samt Stecker innen | `tiefe_usb`, `tiefe_xlr`, `tiefe_eth`, `tiefe_usb3` | 30 / 32 / 60 / 73 mm | USB 3.0: 40 mm gemessen, USB-B-Stecker 33 mm Annahme; USB-C und etherCON-Gehäuse aus Neutrik-Zeichnungen, XLR und RJ45-Stecker **Annahme** |
 | Kühlkörper Pi | `kuehler_h` | 15 mm | **Annahme**, Kühler noch offen |
 | Neutrik-Ausschnitt | `neutrik_*` | Ø24, Löcher Ø3,2 im Abstand 19 × 24 | [Neutrik-Zeichnungen](https://www.neutrik.com/en/product/ne8fdp) zu NE8FDP und NAUSBC-5G. Rückwand 3 mm: NC3FD-L-1 laut Händler 1–3 mm, NE8FDP bis 4 mm [Neutrik]; für NAUSBC nicht angegeben |
 | Gewindeeinsätze | `einsatz_*_d` | Ø4,0 / Ø3,5 | **Annahme**, Bohrung des gekauften Einsatzes nehmen |
@@ -68,7 +68,7 @@ Druckteile (PETG, zusammen etwa 450 g, laut `pruefbericht.txt` überschlägig):
 | `korpus` | Keil mit Blende, Schacht fürs Deck und Rückwand über dem Kasten |
 | `boden` | Boden unter Keil und Kasten, trägt Pi, Ballast und RS485-Modul |
 | `bett` | trägt das Deck von innen: schräge Sitze, Laschen. Einzeln nachdruckbar |
-| `kasten` | flacher Kasten hinten mit den drei Buchsen-Ausschnitten |
+| `kasten` | flacher Kasten hinten mit den Buchsen-Ausschnitten |
 | `ballastdeckel` | hält den Ballast |
 
 Kaufteile:
@@ -86,6 +86,7 @@ Kaufteile:
 | 1 | Neutrik NAUSBC-5G-FL10, USB-C mit 10 cm Kabel und USB-C-Stecker innen, für Strom |
 | 1 | Neutrik NC3FD-L-1, XLR 3-polig female, DMX-Ausgang |
 | 1 | Neutrik NE8FDP, etherCON |
+| optional | D-Buchse USB 3.0, außen USB-A, innen USB-B (vom User vorhanden, 40 mm hinter der Wand), dazu Kabel USB-B auf USB-A gewinkelt, etwa 0,3 m |
 | 1 | M5Stack Unit RS485-ISO (U094), dazu Litze verdrillt zur XLR-Buchse |
 | 1 | Grove-Kabel auf Dupont-Buchsen, gewinkelt oder angelötet (über der Stiftleiste sind nur etwa 8 mm Platz) |
 | 1 | RJ45-Patchkabel 0,25 m mit kurzem oder gewinkeltem Stecker, innen |
@@ -118,7 +119,7 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 2. Füße kleben. Ballast in die Wanne, Deckel drauf.
 3. Pi mit Kühlkörper auf den Boden schrauben: Bauteilseite oben, USB-C hinten zur Rückwand, USB und Ethernet nach links, SD-Karte rechts. Zum Tauschen der SD-Karte vorher das RS485-Modul aus seinem Halter nehmen. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
 4. Neutrik-Buchsen von außen in die Rückwand des Kastens schrauben, Flansch außen, ohne Gewindeeinsätze: etherCON und vermutlich auch USB-C schrauben laut Neutrik-Zeichnung durch Flansch und Wand in ihr eigenes Gehäuse hinter der Wand; die XLR-Buchse bekommt M3-Schrauben mit Mutter innen. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
-5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe über dem USB-C-Stecker des Pi hinten rechts führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
+5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Optional das USB-3-Kabel von der USB-Buchse mit dem gewinkelten Stecker in den hinteren USB-Port des Pi; der vordere ist für das Deck-Kabel mit geradem Stecker, der hätte hinten keinen Platz neben der Buchse. Für USB 3.0 muss der hintere Port einer der blauen sein, sonst die Kabel tauschen und nachmessen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe über dem USB-C-Stecker des Pi hinten rechts führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
 8. Fuß vom Deck abschrauben. Deck auf das Bett legen, die zwei Originalschrauben von unten durch die schrägen Kanäle eindrehen. Nur handfest, das Gewinde sitzt im Deck.

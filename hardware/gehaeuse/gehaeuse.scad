@@ -96,11 +96,15 @@ kasten_h = 46;           // Oberkante des Deckels
 kasten_wand = 3;         // Rückwand: XLR-D-Buchsen 1–3 mm (Händlerangabe), etherCON bis 4 mm [Neutrik]
 kasten_deckel = 3;
 buchse_z = 22;           // Mitte der Buchsen
-buchse_x_usb = 120;      // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen, nah am USB-C des Pi
-buchse_x_xlr = 75;       // Neutrik NC3FD-L-1, DMX
-buchse_x_eth = 30;       // Neutrik NE8FDP, etherCON, nah an der Ethernet-Buchse des Pi
+// Teilung 34,5 mm zwischen den Schraubsäulen des Kastens; von hinten gesehen gespiegelt
+usb3_buchse = true;      // optional: USB 3.0, außen USB-A, innen USB-B
+buchse_x_usb3 = 27.3;
+buchse_x_eth = 61.8;     // Neutrik NE8FDP, etherCON
+buchse_x_xlr = 96.3;     // Neutrik NC3FD-L-1, DMX
+buchse_x_usb = 130.8;    // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen, nah am USB-C des Pi
 tiefe_usb = 30;          // [Neutrik] 29,4 mm ab Flanschfront
 tiefe_xlr = 32;          // [ANNAHME] samt Lötkelchen und Litzen
+tiefe_usb3 = 73;         // vom User gemessen 40 mm hinter der Wand, dazu USB-B-Stecker 33 mm [ANNAHME]
 tiefe_eth = 60;          // [Neutrik] 30 mm Buchse, dazu RJ45-Stecker [ANNAHME]
 neutrik_d = 24;          // [Neutrik] Ausschnitt ≥ Ø24, Löcher ≥ Ø3,2 im Abstand 19 × 24 (diagonal)
 neutrik_loch_x = 19;
@@ -138,7 +142,8 @@ bett_x = b / 2 - wand - luft;                             // halbe Breite des Be
 lasche_x = 70;                                            // Schrauben des Betts, ± von der Mitte
 lasche_s = [30, 112];
 gesamt = tiefe + kasten_t;                                // Tiefe außen
-function buchsen() = [[buchse_x_usb, tiefe_usb], [buchse_x_xlr, tiefe_xlr], [buchse_x_eth, tiefe_eth]];
+function buchsen() = concat([[buchse_x_usb, tiefe_usb], [buchse_x_xlr, tiefe_xlr], [buchse_x_eth, tiefe_eth]],
+    usb3_buchse ? [[buchse_x_usb3, tiefe_usb3]] : []);
 function z_unten(y) = h_vorn + y * tan(neigung) - platte / cos(neigung);
 leiste_y = tiefe - rueck_d - leiste_d;
 x0 = wand + luft;                                         // Boden/Rückwand von links
@@ -333,8 +338,8 @@ module boden() {
                 translate([x0, wand + luft, 0]) cube([x1 - x0, gesamt - kasten_wand - 2 * luft - wand, boden_d]);
                 for (p = pi_loecher) pi_saeule(p);
                 wanne();
-                kabelbinder_oese(92, 118);
-                kabelbinder_oese(70, 118);
+                kabelbinder_oese(84, 112);
+                kabelbinder_oese(102, 112);
                 rs485_tasche();
             }
         }
@@ -522,6 +527,7 @@ module montiert(name) {
     if (name == "buchse_usb") m_buchse(buchse_x_usb, tiefe_usb);
     if (name == "buchse_xlr") m_buchse(buchse_x_xlr, tiefe_xlr);
     if (name == "buchse_eth") m_buchse(buchse_x_eth, tiefe_eth);
+    if (name == "buchse_usb3" && usb3_buchse) m_buchse(buchse_x_usb3, tiefe_usb3);
     if (name == "rs485") m_rs485();
     if (name == "luefter") m_luefter();
     if (name == "ballast") m_ballast();
@@ -554,7 +560,7 @@ module teile_farbig(ex = 0) {
     color(farbe_klein) translate([0, 0, ex * 45]) montiert("ballastdeckel");
     color("#9aa3ad") translate([0, 0, ex * 22]) montiert("ballast");
     color("#a05cc8") translate([0, 0, ex * 22]) montiert("rs485");
-    for (n = ["buchse_usb", "buchse_xlr", "buchse_eth"]) color("#c9ccd1") translate([0, ex * 70, ex * 30]) montiert(n);
+    for (n = ["buchse_usb", "buchse_xlr", "buchse_eth", "buchse_usb3"]) color("#c9ccd1") translate([0, ex * 70, ex * 30]) montiert(n);
 }
 
 // Bedienelemente nur als Ansicht, Lage geschätzt
@@ -579,6 +585,7 @@ module innenleben() {
     color("#c0392b", 0.6) montiert("buchse_usb");
     color("#a05cc8", 0.6) montiert("buchse_xlr");
     color("#2d6cdf", 0.6) montiert("buchse_eth");
+    color("#c9a227", 0.6) montiert("buchse_usb3");
     color("#a05cc8") montiert("rs485");
     color(farbe_korpus, 0.35) montiert("kasten");
     color("#555555", 0.6) montiert("luefter");
