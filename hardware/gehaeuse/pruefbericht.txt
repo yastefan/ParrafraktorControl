@@ -10,7 +10,7 @@ ballastdeckel     124.0   35.5    1.6      7.0      8             0  ja
 
 Überschneidungen in Einbaulage (Volumen > 1 mm³):
   Deck: zusätzlich echtes Elgato-Modell (lokal/deck.stl)
-  0 Überschneidungen, 50 Paare mit überlappender Hülle geprüft, 171 Paare insgesamt.
+  0 Überschneidungen, 54 Paare mit überlappender Hülle geprüft, 171 Paare insgesamt.
 
 Echtes Deck gegen Gehäuseteile (Eck- und Flächenpunkte des Elgato-Netzes im Teil):
   338290 Punkte

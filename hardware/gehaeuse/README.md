@@ -35,7 +35,8 @@ bash hardware/gehaeuse/ansichten.sh
 
 **Zuerst `bett.stl` drucken.** Es enthält die Sitze, trägt also das, was am Deck passen muss. Gewindeeinsätze noch nicht nötig: Deck auflegen, Originalschrauben von unten von Hand eindrehen. Passt das, die übrigen Teile drucken; ob die Blende passt, zeigt dann der Korpus.
 
-**Offen: Strom am Pi.** Der gerade USB-C-Stecker der NAUSBC-5G-FL* (laut Neutrik-Zeichnung etwa 36 mm samt Knickschutz, Kabel Ø5,3) endet am Pi nur knapp 4 mm vor dem Gehäuse der USB-C-Buchse in der Rückwand; das Kabel kann dort nicht umknicken. Das gilt für alle Kabellängen. Lösung noch nicht im Modell, Vorschlag: gewinkelter USB-C-Adapter (90°, seitlich nach links) am Pi.
+**Strom am Pi über Winkeladapter.** Der gerade USB-C-Stecker der NAUSBC-5G-FL* (laut Neutrik-Zeichnung 24,3 × 12 × 5,7 mm, Knickschutz 11,5 mm, Kabel Ø5,3) würde am Pi 4 mm vor dem Gehäuse der USB-C-Buchse in der Rückwand enden, das Kabel könnte nicht umknicken. Deshalb steckt im Pi ein 90°-Winkeladapter USB-C (Stecker auf Buchse), dessen Buchse seitlich zu den Micro-HDMI-Ports zeigt; der Neutrik-Stecker liegt dann quer an der Kante des Pi. Nach oben ist kein Platz (Bett und Deck). Maße des Adapters sind **Annahme** (`winkel_adapter`): Buchse höchstens 20 mm neben der Achse des Steckers, höchstens 12 mm tief ab Port, 7 mm dick, Öffnung der Buchse flach (parallel zur Platine). Mit diesen Maßen bleiben zum RJ45-Stecker in der etherCON-Buchse nur etwa 0,7 mm; ein kürzerer Adapter ist besser.
+
 
 Noch offen, in `gehaeuse.scad`:
 
@@ -43,7 +44,8 @@ Noch offen, in `gehaeuse.scad`:
 |---|---|---|---|
 | USB-Winkelstecker am Deck | `usb_gehaeuse`, `usb_hals_l` | Gehäuse 18 × 8 mm, Abgang quer | **Nach Händlerbild.** Hals muss höchstens 8,5 mm dick sein, sonst passt er nicht in die Mulde. Am gekauften Kabel messen und einmal ans Deck stecken |
 | Stecker am Pi | `stecker_*` | USB-A 35 mm, RJ45 45 mm, USB-C 30 mm | **Annahme** |
-| Buchsen samt Stecker innen | `tiefe_usb`, `tiefe_xlr`, `tiefe_eth`, `tiefe_usb3` | 30 / 32 / 60 / 73 mm | USB 3.0: 40 mm gemessen, USB-B-Stecker 33 mm Annahme; USB-C und etherCON-Gehäuse aus Neutrik-Zeichnungen, XLR und RJ45-Stecker **Annahme** |
+| Buchsen samt Stecker innen | `tiefe_usb`, `tiefe_xlr`, `tiefe_eth`, `tiefe_usb3` | 48 / 32 / 60 / 73 mm | USB 3.0: 40 mm gemessen, USB-B-Stecker 33 mm Annahme; USB-C samt Tülle und etherCON-Gehäuse aus Neutrik-Zeichnungen, XLR und RJ45-Stecker **Annahme** |
+| Winkeladapter USB-C am Pi | `winkel_adapter` | 20 / 6,5 / 12 / 7 mm | **Annahme**, gekauften Adapter messen |
 | Kühlkörper Pi | `kuehler_h` | 15 mm | **Annahme**, Kühler noch offen |
 | Neutrik-Ausschnitt | `neutrik_*` | Ø24, zwei Löcher Ø3,2 im Abstand 19 × 24, von außen oben links und unten rechts | [Neutrik-Zeichnungen](https://www.neutrik.com/en/product/ne8fdx-p6) zu NE8FDX-P6 und NAUSBC-5G. Wand 3 mm, an den Löchern Dome auf 7 mm (`neutrik_dom`) für Gewindeeinsätze. Zwischen Einsatz und Ausschnitt bleiben etwa 1,3 mm |
 | Gewindeeinsätze | `einsatz_*_d` | Ø4,0 / Ø3,5 | **Annahme**, Bohrung des gekauften Einsatzes nehmen |
@@ -85,7 +87,8 @@ Kaufteile:
 | 8 | M3 × 10 für die Neutrik-Buchsen, von außen in die Einsätze (Länge an der Buchse prüfen: Flansch + 7 mm) |
 | 2 | M3 × 5, Ballastdeckel |
 | 4 | M2,5 × 6 für den Pi |
-| 1 | Neutrik NAUSBC-5G-FL10, USB-C mit 10 cm Kabel und USB-C-Stecker innen, für Strom |
+| 1 | Neutrik NAUSBC-5G-FL25, USB-C mit 25 cm Kabel und USB-C-Stecker innen, für Strom (Länge für die Schlaufe um den Adapter; kürzere nicht geprüft) |
+| 1 | USB-C-Winkeladapter 90°, Stecker auf Buchse, seitlich gewinkelt, mindestens 3 A, Maße siehe oben |
 | 1 | Neutrik NC3FD-L-1, XLR 3-polig female, DMX-Ausgang |
 | 1 | Neutrik NE8FDX-P6, etherCON, Durchführung, Metallflansch |
 | optional | D-Buchse USB 3.0, außen USB-A, innen USB-B (vom User vorhanden, 40 mm hinter der Wand), dazu Kabel USB-B auf USB-A gewinkelt, etwa 0,3 m |
@@ -121,7 +124,7 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 2. Füße kleben. Ballast in die Wanne, Deckel drauf.
 3. Pi mit Kühlkörper auf den Boden schrauben: Bauteilseite oben, USB-C hinten zur Rückwand, USB und Ethernet nach links, SD-Karte rechts. Zum Tauschen der SD-Karte vorher das RS485-Modul aus seinem Halter nehmen. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
 4. Acht Gewindeeinsätze von innen in die Dome der Rückwand drücken, langsam und gerade, damit sich der dünne Rand zum Ausschnitt nicht wölbt. Neutrik-Buchsen von außen einsetzen, Flansch außen, je zwei M3 × 10 von außen in die Einsätze. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
-5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Optional das USB-3-Kabel von der USB-Buchse mit dem gewinkelten Stecker in den hinteren USB-Port des Pi; der vordere ist für das Deck-Kabel mit geradem Stecker, der hätte hinten keinen Platz neben der Buchse. Für USB 3.0 muss der hintere Port einer der blauen sein, sonst die Kabel tauschen und nachmessen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe über dem USB-C-Stecker des Pi hinten rechts führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
+5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Optional das USB-3-Kabel von der USB-Buchse mit dem gewinkelten Stecker in den hinteren USB-Port des Pi; der vordere ist für das Deck-Kabel mit geradem Stecker, der hätte hinten keinen Platz neben der Buchse. Für USB 3.0 muss der hintere Port einer der blauen sein, sonst die Kabel tauschen und nachmessen. Patchkabel von der etherCON-Buchse zum Pi, Winkeladapter in den USB-C des Pi, Buchse zu den Micro-HDMI-Ports. Kabel der Neutrik-USB-C-Buchse vorn über den Adapter führen und als Schlaufe in den Adapter stecken, ohne Zug; die Schlaufe darf das Patchkabel kreuzen.
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
 8. Fuß vom Deck abschrauben. Deck auf das Bett legen, die zwei Originalschrauben von unten durch die schrägen Kanäle eindrehen. Nur handfest, das Gewinde sitzt im Deck.
@@ -151,7 +154,7 @@ vcgencmd get_throttled
 
 ## Geprüft am Modell
 
-Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die vier Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert.
+Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die vier Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert, nur Stecker, Tüllen und der Winkeladapter.
 
 Das echte Elgato-Modell wird punktweise gegen die Teile geprüft, weil sein Netz nicht geschlossen ist. Auch der Gegentest war positiv: Schon 0,25 mm Versatz des Betts meldet Berührung; Sitze und Bohrungen fluchten im Schnitt mit den Domen. Die Prüfung läuft nur, wenn `lokal/deck.stl` vorhanden ist:
 
