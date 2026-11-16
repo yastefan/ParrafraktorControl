@@ -93,24 +93,29 @@ stecker_strom_l = 30;    // [ANNAHME] USB-C-Stecker am Kabel der Neutrik-Buchse
 /* [Kasten hinten mit Neutrik-Buchsen, D-Norm, Flansch außen] */
 kasten_t = 32;           // Tiefe hinter dem Keil
 kasten_h = 46;           // Oberkante des Deckels
-kasten_wand = 3;         // Rückwand: XLR-D-Buchsen 1–3 mm (Händlerangabe), etherCON bis 4 mm [Neutrik]
+kasten_wand = 3;         // Rückwand um den Ausschnitt; an den Löchern Dome für Gewindeeinsätze
 kasten_deckel = 3;
 buchse_z = 22;           // Mitte der Buchsen
 // Teilung 34,5 mm zwischen den Schraubsäulen des Kastens; von hinten gesehen gespiegelt
 usb3_buchse = true;      // optional: USB 3.0, außen USB-A, innen USB-B
 buchse_x_usb3 = 27.3;
-buchse_x_eth = 61.8;     // Neutrik NE8FDP, etherCON
+buchse_x_eth = 61.8;     // Neutrik NE8FDX-P6, etherCON
 buchse_x_xlr = 96.3;     // Neutrik NC3FD-L-1, DMX
 buchse_x_usb = 130.8;    // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen, nah am USB-C des Pi
 tiefe_usb = 30;          // [Neutrik] 29,4 mm ab Flanschfront
 tiefe_xlr = 32;          // [ANNAHME] samt Lötkelchen und Litzen
 tiefe_usb3 = 73;         // vom User gemessen 40 mm hinter der Wand, dazu USB-B-Stecker 33 mm [ANNAHME]
-tiefe_eth = 60;          // [Neutrik] 30 mm Buchse, dazu RJ45-Stecker [ANNAHME]
+tiefe_eth = 60;          // [Neutrik] 29,5 mm hinter dem Flansch, dazu RJ45-Stecker [ANNAHME]
 neutrik_d = 24;          // [Neutrik] Ausschnitt ≥ Ø24, Löcher ≥ Ø3,2 im Abstand 19 × 24 (diagonal)
 neutrik_loch_x = 19;
 neutrik_loch_y = 24;
 neutrik_loch_d = 3.2;
 neutrik_flansch = [26, 31];
+// Zwei Löcher je Buchse, von außen gesehen oben links und unten rechts. Im Bezug des Ausschnitts
+// ist x die Weltachse x, von außen gesehen also gespiegelt: oben links liegt bei +x.
+neutrik_loecher = [[1, 1], [-1, -1]];
+neutrik_dom = 4;         // Dom innen für den Gewindeeinsatz, Wand + Dom = 7 mm
+neutrik_dom_d = 9;
 
 /* [Lüfter, optional: 40 × 40 × 10 mm, linke Seitenwand neben dem Pi, saugt an] */
 luefter = [40, 10];      // Kantenlänge, Dicke
@@ -371,9 +376,26 @@ module neutrik_ausschnitt(h) {
         hull() { circle(d = neutrik_d); polygon([[-8.5, -8.5], [8.5, -8.5], [0, -17]]); }
         translate([-20, -neutrik_flansch[1] / 2 + 2, 0]) square([40, 40]);
     }
-    for (sx = [-1, 1], sy = [-1, 1]) translate([sx * neutrik_loch_x / 2, sy * neutrik_loch_y / 2, 0])
+    for (l = neutrik_loecher) translate([l[0] * neutrik_loch_x / 2, l[1] * neutrik_loch_y / 2, 0])
         cylinder(d = neutrik_loch_d, h = h);
 }
+
+// Dome innen hinter den Löchern, im Bezug des Ausschnitts (z = 0 an der Innenseite der Wand, wächst nach innen).
+// Spitze nach +y (oben): der Kasten wird kopfüber gedruckt, die Spitze ist dann die 45°-Unterseite.
+module neutrik_dome() {
+    for (l = neutrik_loecher) translate([l[0] * neutrik_loch_x / 2, l[1] * neutrik_loch_y / 2, 0])
+        linear_extrude(neutrik_dom) hull() {
+            circle(d = neutrik_dom_d);
+            translate([0, neutrik_dom_d / 2 * sqrt(2)]) circle(d = 0.01);
+        }
+}
+module neutrik_einsaetze() {
+    for (l = neutrik_loecher) translate([l[0] * neutrik_loch_x / 2, l[1] * neutrik_loch_y / 2, neutrik_dom + eps])
+        mirror([0, 0, 1]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t - 0.5);
+}
+
+// Bezug an der Innenseite der Rückwand, z wächst nach innen, y nach oben
+module an_buchse(x) { translate([x, gesamt - kasten_wand, buchse_z]) rotate([90, 0, 0]) children(); }
 
 module kasten() {
     innen_z = kasten_h - kasten_deckel;
@@ -392,9 +414,11 @@ module kasten() {
                 translate([wand, tiefe, 0]) cube([b - 2 * wand, kasten_t - kasten_wand + 0.01, innen_z + 0.01]);
                 for (p = kasten_schrauben()) translate([p[0], p[1], boden_d + luft]) cylinder(d = 9, h = kasten_h);
             }
+            for (p = buchsen()) an_buchse(p[0]) neutrik_dome();
         }
         for (p = kasten_schrauben()) translate([p[0], p[1], boden_d + luft - eps]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
-        for (p = buchsen()) translate([p[0], gesamt + 1, buchse_z]) rotate([90, 0, 0]) neutrik_ausschnitt(kasten_wand + 2);
+        for (p = buchsen()) translate([p[0], gesamt + 1, buchse_z]) rotate([90, 0, 0]) neutrik_ausschnitt(kasten_wand + neutrik_dom + 2);
+        for (p = buchsen()) an_buchse(p[0]) neutrik_einsaetze();
     }
 }
 
@@ -498,7 +522,9 @@ module m_strom() {
     im_pi() translate([11.2 - 7, -stecker_strom_l, pi_d - 3]) cube([14, stecker_strom_l, 10]);
 }
 module m_buchse(x, t) {
-    translate([x - 13, gesamt - kasten_wand - t, buchse_z - 14]) cube([26, t - 0.01, 28]);
+    // Durch die Wand und an den Domen vorbei rund wie der Ausschnitt, dahinter als Quader
+    an_buchse(x) cylinder(d = neutrik_d - 0.2, h = neutrik_dom + 0.5);
+    translate([x - 13, gesamt - kasten_wand - t, buchse_z - 14]) cube([26, t - neutrik_dom - 0.5, 28]);
 }
 module m_luefter() {
     translate([wand + 0.2, luefter_y - luefter[0] / 2, luefter_z - luefter[0] / 2]) cube([luefter[1], luefter[0], luefter[0]]);

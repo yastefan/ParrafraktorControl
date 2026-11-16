@@ -43,7 +43,7 @@ Noch offen, in `gehaeuse.scad`:
 | Stecker am Pi | `stecker_*` | USB-A 35 mm, RJ45 45 mm, USB-C 30 mm | **Annahme** |
 | Buchsen samt Stecker innen | `tiefe_usb`, `tiefe_xlr`, `tiefe_eth`, `tiefe_usb3` | 30 / 32 / 60 / 73 mm | USB 3.0: 40 mm gemessen, USB-B-Stecker 33 mm Annahme; USB-C und etherCON-Gehäuse aus Neutrik-Zeichnungen, XLR und RJ45-Stecker **Annahme** |
 | Kühlkörper Pi | `kuehler_h` | 15 mm | **Annahme**, Kühler noch offen |
-| Neutrik-Ausschnitt | `neutrik_*` | Ø24, Löcher Ø3,2 im Abstand 19 × 24 | [Neutrik-Zeichnungen](https://www.neutrik.com/en/product/ne8fdp) zu NE8FDP und NAUSBC-5G. Rückwand 3 mm: NC3FD-L-1 laut Händler 1–3 mm, NE8FDP bis 4 mm [Neutrik]; für NAUSBC nicht angegeben |
+| Neutrik-Ausschnitt | `neutrik_*` | Ø24, zwei Löcher Ø3,2 im Abstand 19 × 24, von außen oben links und unten rechts | [Neutrik-Zeichnungen](https://www.neutrik.com/en/product/ne8fdx-p6) zu NE8FDX-P6 und NAUSBC-5G. Wand 3 mm, an den Löchern Dome auf 7 mm (`neutrik_dom`) für Gewindeeinsätze. Zwischen Einsatz und Ausschnitt bleiben etwa 1,3 mm |
 | Gewindeeinsätze | `einsatz_*_d` | Ø4,0 / Ø3,5 | **Annahme**, Bohrung des gekauften Einsatzes nehmen |
 | Gewindetiefe | `sitz`, `loch_tiefe` | 5 mm Schraube im Gewinde | CAD: Sackloch 6,3 mm. **Originalschrauben nutzen, nichts Längeres** |
 
@@ -57,7 +57,7 @@ Maße des Decks aus [Elgatos STP-Modell](https://marketplace.elgato.com/product/
 | Gewinde | Achse 49,7° zur Normalen der Rückplatte, Ø8-Dom, 21,24 mm vom Reglerrand | nicht messbar |
 | USB-C | mittig auf der Rückplatte, 106,55 mm vom Reglerrand, Stecker senkrecht | |
 
-Das CAD zeigt die Serie, nicht unbedingt dein Gerät; das Bett prüft es. Außerdem belegt: Gewicht 465 g und Schraube M3 × 0,5, 8 mm ([Elgato](https://help.elgato.com/hc/en-us/articles/10567379685901-Elgato-Stream-Deck-Technical-Specifications)), Lochbild und Buchsen des Pi 4 ([Raspberry Pi](https://datasheets.raspberrypi.com/rpi4/raspberry-pi-4-mechanical-drawing.pdf)), Bauraum 300 × 300 × 330 mm ([3DJake](https://www.3djake.com/prusa/core-one-l), Händlerangabe). Die Neutrik-Zeichnungen stehen auf den Produktseiten zu [NE8FDP](https://www.neutrik.com/en/product/ne8fdp) und [NAUSBC-5G](https://www.neutrik.com/en/product/nausbc-5g).
+Das CAD zeigt die Serie, nicht unbedingt dein Gerät; das Bett prüft es. Außerdem belegt: Gewicht 465 g und Schraube M3 × 0,5, 8 mm ([Elgato](https://help.elgato.com/hc/en-us/articles/10567379685901-Elgato-Stream-Deck-Technical-Specifications)), Lochbild und Buchsen des Pi 4 ([Raspberry Pi](https://datasheets.raspberrypi.com/rpi4/raspberry-pi-4-mechanical-drawing.pdf)), Bauraum 300 × 300 × 330 mm ([3DJake](https://www.3djake.com/prusa/core-one-l), Händlerangabe). Die Neutrik-Zeichnungen stehen auf den Produktseiten zu [NE8FDX-P6](https://www.neutrik.com/en/product/ne8fdx-p6) und [NAUSBC-5G](https://www.neutrik.com/en/product/nausbc-5g).
 
 ## Stückliste
 
@@ -75,17 +75,17 @@ Kaufteile:
 
 | Menge | Teil |
 |---|---|
-| 14 | Gewindeeinsatz M3 × 5,7 |
+| 22 | Gewindeeinsatz M3 × 5,7 (8 davon für die Neutrik-Buchsen) |
 | 4 | Gewindeeinsatz M2,5 |
 | 2 | Originalschrauben des Deck-Fußes, dazu Kreuzschlitz-Dreher |
 | 4 | M3 × 10, Bett in den Schacht, von unten |
 | 8 | Sicherheits-Torx M3 × 10: Boden in Korpus und Kasten |
-| 2 | M3 × 8 mit Mutter für die XLR-Buchse; etherCON und USB-C bringen ihre Schrauben mit |
+| 8 | M3 × 10 für die Neutrik-Buchsen, von außen in die Einsätze (Länge an der Buchse prüfen: Flansch + 7 mm) |
 | 2 | M3 × 5, Ballastdeckel |
 | 4 | M2,5 × 6 für den Pi |
 | 1 | Neutrik NAUSBC-5G-FL10, USB-C mit 10 cm Kabel und USB-C-Stecker innen, für Strom |
 | 1 | Neutrik NC3FD-L-1, XLR 3-polig female, DMX-Ausgang |
-| 1 | Neutrik NE8FDP, etherCON |
+| 1 | Neutrik NE8FDX-P6, etherCON, Durchführung, Metallflansch |
 | optional | D-Buchse USB 3.0, außen USB-A, innen USB-B (vom User vorhanden, 40 mm hinter der Wand), dazu Kabel USB-B auf USB-A gewinkelt, etwa 0,3 m |
 | 1 | M5Stack Unit RS485-ISO (U094), dazu Litze verdrillt zur XLR-Buchse |
 | 1 | Grove-Kabel auf Dupont-Buchsen, gewinkelt oder angelötet (über der Stiftleiste sind nur etwa 8 mm Platz) |
@@ -118,7 +118,7 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 1. Einsätze mit dem Lötkolben setzen. Pi-Säulen und Fußtaschen ansehen, ob Grate stören.
 2. Füße kleben. Ballast in die Wanne, Deckel drauf.
 3. Pi mit Kühlkörper auf den Boden schrauben: Bauteilseite oben, USB-C hinten zur Rückwand, USB und Ethernet nach links, SD-Karte rechts. Zum Tauschen der SD-Karte vorher das RS485-Modul aus seinem Halter nehmen. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
-4. Neutrik-Buchsen von außen in die Rückwand des Kastens schrauben, Flansch außen, ohne Gewindeeinsätze: etherCON und vermutlich auch USB-C schrauben laut Neutrik-Zeichnung durch Flansch und Wand in ihr eigenes Gehäuse hinter der Wand; die XLR-Buchse bekommt M3-Schrauben mit Mutter innen. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
+4. Acht Gewindeeinsätze von innen in die Dome der Rückwand drücken, langsam und gerade, damit sich der dünne Rand zum Ausschnitt nicht wölbt. Neutrik-Buchsen von außen einsetzen, Flansch außen, je zwei M3 × 10 von außen in die Einsätze. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
 5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Optional das USB-3-Kabel von der USB-Buchse mit dem gewinkelten Stecker in den hinteren USB-Port des Pi; der vordere ist für das Deck-Kabel mit geradem Stecker, der hätte hinten keinen Platz neben der Buchse. Für USB 3.0 muss der hintere Port einer der blauen sein, sonst die Kabel tauschen und nachmessen. Patchkabel von der etherCON-Buchse zum Pi, USB-C-Kabel der Neutrik-Buchse als Schlaufe über dem USB-C-Stecker des Pi hinten rechts führen (für einen geraden Weg ist zwischen Buchse und Pi kein Platz).
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
@@ -133,7 +133,7 @@ Für die SD-Karte muss der Korpus ab (Boden bleibt verschraubt), das ist gewollt
 - **Neigung 30°:** flach genug für den Griff von oben im Stehen, am FoH sitzend noch lesbar. Parameter `neigung`; ändern verschiebt die Höhe. Nur am Modell beurteilt.
 - **Bündiges Deck, schmal und flach:** Wunsch des Users. Seitlich sind es außen 10,5 mm bis zur Sichtöffnung, die Bett-Schrauben sitzen dort, wo sich die Rückseite des Decks zur Seite wegschrägt. Vorderkante 42 mm, damit die Ethernet-Buchse des Pi unter das Bett passt. Hinten ein flacher Kasten statt eines längeren Keils: mehr Standfläche nach hinten, Gesamthöhe bleibt.
 - **Keine Abdichtung:** laut User nur außerhalb der Regie. PETG reicht dort; es wird ab etwa 70 °C weich, deshalb nicht in die Sonne stellen. Das Deck selbst ist nicht wetterfest.
-- **Buchsen statt Kabeldurchführung und Haube:** Wunsch des Users. Neutrik-Stecker verriegeln selbst, Kabel werden außen am Tisch gesichert. Keine Gewindeeinsätze in der 3-mm-Wand: dafür wäre sie zu dünn, und hinter den Löchern sitzt bei etherCON das Gehäuse der Buchse, das selbst das Gegengewinde trägt. Die Flanschschrauben sind von außen erreichbar, das Innere nur nach Lösen der Schrauben von unten.
+- **Buchsen statt Kabeldurchführung und Haube:** Wunsch des Users. Neutrik-Stecker verriegeln selbst, Kabel werden außen am Tisch gesichert. Alle vier Buchsen (etherCON NE8FDX-P6 mit Metallflansch) haben glatte Löcher und hinter den Löchern nichts, deshalb Gewindeeinsätze in Domen innen; die Wand bleibt um den Ausschnitt 3 mm. Nur zwei Löcher je Buchse, wie an den Buchsen selbst. Die Flanschschrauben sind von außen erreichbar, das Innere nur nach Lösen der Schrauben von unten.
 - **DMX über RS485 am UART:** M5Stack Unit RS485-ISO, isoliert, 56 × 24 × 10,2 mm ([M5Stack](https://docs.m5stack.com/en/unit/Unit_RS485-ISO)). Laut Schaltplan liegt der Sendereingang DI fest auf Masse, die Richtung schaltet das Signal vom Pi: Bit 0 treibt die Leitung aktiv, Bit 1 und Ruhe halten nur Widerstände. Mit 120-Ω-Abschluss ist das ein kleiner Pegel; ob die Empfänger der Spiegel-Elemente das sicher als 1 lesen, nur im Test mit einem Element und voller Kabellänge prüfbar. Am Pi: PL011 auf GPIO 14 mit `dtoverlay=disable-bt`, serielle Konsole aus, 250 000 Baud 8N2; der Treiber in `server/src/ausgabe/rs485.ts` fehlt noch.
 - **Lüftung:** Zuluft durch Schlitze im Boden (Füße heben 5 mm an) und das Gitter links, Abluft durch 17 Schlitze in der Rückwand über dem Kasten. Optional ein 40-mm-Lüfter innen am Gitter links, er bläst quer über den Pi. **Kühlung nicht gemessen.** Im Dauerbetrieb prüfen:
 
@@ -149,7 +149,7 @@ vcgencmd get_throttled
 
 ## Geprüft am Modell
 
-Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die drei Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert.
+Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die vier Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert.
 
 Das echte Elgato-Modell wird punktweise gegen die Teile geprüft, weil sein Netz nicht geschlossen ist. Auch der Gegentest war positiv: Schon 0,25 mm Versatz des Betts meldet Berührung; Sitze und Bohrungen fluchten im Schnitt mit den Domen. Die Prüfung läuft nur, wenn `lokal/deck.stl` vorhanden ist:
 
