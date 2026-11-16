@@ -306,13 +306,6 @@ module pi_saeule(p) {
     translate(pi_pos(p[0], p[1])) cylinder(d = 7, h = pi_z);
 }
 
-module kabelbinder_oese(x, y) {
-    difference() {
-        translate([x - 6, y - 4, boden_d - eps]) cube([12, 8, 9]);
-        translate([x - 7, y - 2, boden_d + 3]) cube([14, 4, 3.5]);
-    }
-}
-
 module wanne() {
     translate([wanne[0], wanne[1], 0]) difference() {
         cube([wanne[2], wanne[3], boden_d + wanne[4]]);
@@ -343,8 +336,6 @@ module boden() {
                 translate([x0, wand + luft, 0]) cube([x1 - x0, gesamt - kasten_wand - 2 * luft - wand, boden_d]);
                 for (p = pi_loecher) pi_saeule(p);
                 wanne();
-                kabelbinder_oese(84, 112);
-                kabelbinder_oese(102, 112);
                 rs485_tasche();
             }
         }

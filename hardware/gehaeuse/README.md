@@ -35,6 +35,8 @@ bash hardware/gehaeuse/ansichten.sh
 
 **Zuerst `bett.stl` drucken.** Es enthält die Sitze, trägt also das, was am Deck passen muss. Gewindeeinsätze noch nicht nötig: Deck auflegen, Originalschrauben von unten von Hand eindrehen. Passt das, die übrigen Teile drucken; ob die Blende passt, zeigt dann der Korpus.
 
+**Offen: Strom am Pi.** Der gerade USB-C-Stecker der NAUSBC-5G-FL* (laut Neutrik-Zeichnung etwa 36 mm samt Knickschutz, Kabel Ø5,3) endet am Pi nur knapp 4 mm vor dem Gehäuse der USB-C-Buchse in der Rückwand; das Kabel kann dort nicht umknicken. Das gilt für alle Kabellängen. Lösung noch nicht im Modell, Vorschlag: gewinkelter USB-C-Adapter (90°, seitlich nach links) am Pi.
+
 Noch offen, in `gehaeuse.scad`:
 
 | Maß | Parameter | Wert jetzt | Stand |
@@ -96,7 +98,7 @@ Kaufteile:
 | 1 | Flachstahl 105 × 30 × 6 mm, etwa 148 g |
 | 4 | Gummifuß Ø12, 6 mm hoch (1 mm eingelassen) |
 | 2 | M5-Schraube, Scheibe, Mutter für den Tisch (beim Publikum Pflicht) |
-| 4 | Kabelbinder |
+| 1 | Kabelbinder für das RS485-Modul |
 | optional | Lüfter 40 × 40 × 10 mm 5 V, 4 × M3 × 16 mit Mutter |
 
 ## Drucken
@@ -123,7 +125,7 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
 8. Fuß vom Deck abschrauben. Deck auf das Bett legen, die zwei Originalschrauben von unten durch die schrägen Kanäle eindrehen. Nur handfest, das Gewinde sitzt im Deck.
-9. USB-Kabel ins Deck stecken. Deck mit Bett von unten in den Schacht des Korpus schieben, bis der Rand an der Blende liegt, und das Bett mit vier M3 × 10 von unten anschrauben. Kabel in den Pi stecken, mit Kabelbindern an den Ösen führen, Schlaufe lassen.
+9. USB-Kabel ins Deck stecken. Deck mit Bett von unten in den Schacht des Korpus schieben, bis der Rand an der Blende liegt, und das Bett mit vier M3 × 10 von unten anschrauben. Kabel in den Pi stecken, locker mit Schlaufe, nicht auf Zug.
 10. Korpus senkrecht über den Boden stülpen. Seine Rückwand setzt auf die Zunge des Kastendeckels auf. Von unten vier Schrauben.
 
 Für die SD-Karte muss der Korpus ab (Boden bleibt verschraubt), das ist gewollt.
