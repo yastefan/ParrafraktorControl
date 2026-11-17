@@ -74,6 +74,7 @@ export interface Parameter {
   ordnung: Ordnung;
   elementFolge: ElementFolge;
   gegenlauf: boolean;  // linke Hälfte jedes Elements gespiegelt
+  speedJeElement: boolean; // Speed von → bis über die Elemente statt über die Spiegel (Rang nach Element-Folge)
   pingpong: boolean;   // Muster läuft hin und wieder zurück
   laeuft: boolean;
 }
@@ -101,6 +102,7 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   ordnung: "links",
   elementFolge: "vorneHinten",
   gegenlauf: false,
+  speedJeElement: false,
   pingpong: false,
   laeuft: true,
 };
@@ -226,8 +228,12 @@ export function auswahl(p: Parameter, g: number): Auswahl {
   const lage = mitte ? (vonInnen + 0.5) / h : (platz + 0.5) / anzahl;
   // Groups: das Muster wiederholt sich alle "group" Spiegel
   if (p.group > 0) { platz %= p.group; anzahl = Math.min(anzahl, p.group); }
-  // anteil: Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis
-  const anteil = anzahl > 1 ? Math.min(1, platz / (anzahl - 1)) : 0;
+  // anteil: Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis. Mit Speed je Element
+  // zählt nur der Rang des Elements: alle Spiegel eines Elements gleich schnell, die Elemente gestaffelt
+  // (nacheinander: von, Mitte, bis; Mitte → außen: Mitte von, außen bis; zusammen: alle von).
+  const anteil = p.speedJeElement
+    ? (rang !== null && elementRaenge(p.elementFolge) > 1 ? rang / (elementRaenge(p.elementFolge) - 1) : 0)
+    : anzahl > 1 ? Math.min(1, platz / (anzahl - 1)) : 0;
   // Gegenlauf: linke Hälfte gespiegelt; im gespiegelten Element der ganze Winkel noch einmal
   const seite = p.gegenlauf ? (i < h ? -1 : 1) * (gespiegelt ? -1 : 1) : 1;
   return { platz, anzahl, anteil, lage, seite, versatz: (p.phase / 360) * (platz / anzahl) };
