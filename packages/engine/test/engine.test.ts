@@ -304,6 +304,22 @@ describe("Regler", () => {
     });
   });
 
+  it("Öffnung mit Puls: Größe schwankt zweimal je Umlauf und ist nach einem Umlauf wieder gleich", () => {
+    const p: Parameter = { ...PARAMETER_VORGABE, modus: "oeffnung", bahn: "kreis", wabern: 0, nachlauf: 0, kante: 0, groesse: 30, weite: 35, puls: 50, speedVon: 6 };
+    const offen = (e: Engine) => e.alle(p).filter((s) => s.tilt > 45).length;
+    const e = new Engine();
+    const anfang = e.alle(p).map((s) => s.tilt);
+    const zahlen: number[] = [];
+    for (let i = 0; i < 1000; i++) { e.weiter(p, 0.01); zahlen.push(offen(e)); }   // 10 s = ein Umlauf bei 6 BPM
+    e.alle(p).forEach((s, g) => expect(s.tilt).toBeCloseTo(anfang[g]!, 3));
+    // mal größer, mal kleiner: deutlich verschieden viele offene Spiegel
+    expect(Math.max(...zahlen) - Math.min(...zahlen)).toBeGreaterThan(4);
+    // ohne Puls bleibt die Zahl ungefähr gleich
+    const q = { ...p, puls: 0 }, f = new Engine(), ohne: number[] = [];
+    for (let i = 0; i < 1000; i++) { f.weiter(q, 0.01); ohne.push(f.alle(q).filter((s) => s.tilt > 45).length); }
+    expect(Math.max(...ohne) - Math.min(...ohne)).toBeLessThan(Math.max(...zahlen) - Math.min(...zahlen));
+  });
+
   it("Speed je Element: Elemente in sich gleich schnell, gestaffelt, nach (Ränge − 1) / (bis − von) min wieder deckungsgleich", () => {
     const p: Parameter = {
       ...PARAMETER_VORGABE, modus: "sinus", amplitude: 90, phase: 90, speedVon: 3, speedBis: 4,

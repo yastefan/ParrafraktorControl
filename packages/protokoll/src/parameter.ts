@@ -7,7 +7,7 @@ import {
 
 export type ZahlParameter =
   | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge"
-  | "groesse" | "weite" | "kante" | "wabern" | "nachlauf";
+  | "groesse" | "weite" | "kante" | "wabern" | "puls" | "nachlauf";
 
 export interface Bereich {
   name: string;
@@ -34,6 +34,7 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
   weite: { name: "Weite", kurz: "Weite", min: 0, max: 90, schritt: 1, einheit: " cm" },
   kante: { name: "Kante", kurz: "Kante", min: 0, max: 100, schritt: 1, einheit: " %" },
   wabern: { name: "Wabern", kurz: "Wabern", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  puls: { name: "Puls", kurz: "Puls", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
   nachlauf: { name: "Nachlauf", kurz: "Nachlauf", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
 };
 
@@ -60,7 +61,7 @@ const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement"],
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
-const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "nachlauf"];
+const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "puls", "nachlauf"];
 export const benutzt = (modus: Modus, name: Regler): boolean => {
   if (modus === "oeffnung") return NUR_OEFFNUNG.includes(name) || name === "speedVon";
   return !NUR_OEFFNUNG.includes(name) && !UNBENUTZT[modus]?.includes(name);
