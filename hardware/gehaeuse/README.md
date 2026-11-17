@@ -1,8 +1,8 @@
 # Tischgehäuse Stream Deck + und Raspberry Pi 4
 
-Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand, von innen hält es ein Bett an den schrägen Originalgewinden. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Hinten schließt ein flacher Kasten an, in dessen Rückwand Neutrik-Buchsen in D-Norm sitzen, von hinten gesehen von links: USB-C für Strom, XLR für DMX, etherCON und optional USB 3.0 nach außen (`usb3_buchse`). Außenmaße mit Füßen 156 × 167 × 122 mm, der Kasten ist 51 mm hoch; Kanten 4 mm gerundet.
+Keilförmiges Tischgehäuse für FoH und Ausstellung im Innenraum oder trocken und ohne pralle Sonne. Das Deck liegt 30° geneigt bündig im Korpus: Die Oberseite greift als Blende über seinen Rand. Das Deck ist an den schrägen Originalgewinden auf ein Bett geschraubt, das auf vier Stützen des Bodens steht; der Korpus wird zuletzt senkrecht darübergesetzt und von unten verschraubt. Von außen sind keine Schrauben zu sehen, und das Deck lässt sich nicht nach oben herausheben. Der Pi liegt darunter. Hinten schließt ein flacher Kasten an, in dessen Rückwand Neutrik-Buchsen in D-Norm sitzen, von hinten gesehen von links: USB-C für Strom, XLR für DMX, etherCON und optional USB 3.0 nach außen (`usb3_buchse`). Außenmaße mit Füßen 156 × 167 × 122 mm, der Kasten ist 51 mm hoch; Kanten 4 mm gerundet.
 
-**Stand: nur am Modell geprüft, nichts gedruckt und nichts an echter Hardware anprobiert.** Die Maße des Decks stammen aus Elgatos CAD-Modell. Zuerst nur `bett.stl` drucken und das Deck einsetzen.
+**Stand: nur am Modell geprüft.** Die erste gedruckte Fassung ließ sich nicht zusammenbauen: Das Deck kam nicht in den Korpus, weil Laschen im Schacht und die Rückwand im Weg waren; geprüft war nur die Endlage, nicht der Weg dorthin. Diese Fassung prüft den Einbauweg mit (siehe unten), ist aber noch nicht gedruckt. Aus der ersten Fassung passen `kasten` und `ballastdeckel` weiter; `korpus`, `bett` und `boden` neu drucken. Die Maße des Decks stammen aus Elgatos CAD-Modell.
 
 ![Zusammengebaut](bilder/montiert_vorn.png)
 ![Hinten mit Buchsen](bilder/montiert_hinten.png)
@@ -46,6 +46,8 @@ Noch offen, in `gehaeuse.scad`:
 | Stecker am Pi | `stecker_*` | USB-A 35 mm, RJ45 45 mm, USB-C 30 mm | **Annahme** |
 | Buchsen samt Stecker innen | `tiefe_usb`, `tiefe_xlr`, `tiefe_eth`, `tiefe_usb3` | 48 / 32 / 60 / 73 mm | USB 3.0: 40 mm gemessen, USB-B-Stecker 33 mm Annahme; USB-C samt Tülle und etherCON-Gehäuse aus Neutrik-Zeichnungen, XLR und RJ45-Stecker **Annahme** |
 | Winkeladapter USB-C am Pi | `winkel_adapter` | 20 / 6,5 / 12 / 7 mm | **Annahme**, gekauften Adapter messen |
+| Eckdome im Korpus | `ecke_vorn`, `ecke_hinten` | 1 mm Luft zur Grundfläche des Decks | aus dem Elgato-CAD; weicht das echte Deck ab, stößt der Korpus beim Aufsetzen an. Am ersten Druck: Korpus langsam absenken und in den Ecken schauen |
+| Stützen | `stuetzen` | vorn Ø6, hinten Ø8 bis 60 mm hoch | Lage um Pi, Wanne, RS485-Modul und Buchsen herum gewählt |
 | Kühlkörper Pi | `kuehler_h` | 15 mm | **Annahme**, Kühler noch offen |
 | Neutrik-Ausschnitt | `neutrik_*` | Ø24, zwei Löcher Ø3,2 im Abstand 19 × 24, von außen oben links und unten rechts | [Neutrik-Zeichnungen](https://www.neutrik.com/en/product/ne8fdx-p6) zu NE8FDX-P6 und NAUSBC-5G. Wand 3 mm, an den Löchern Dome auf 7 mm (`neutrik_dom`) für Gewindeeinsätze. Zwischen Einsatz und Ausschnitt bleiben etwa 1,3 mm |
 | Gewindeeinsätze | `einsatz_*_d` | Ø4,0 / Ø3,5 | **Annahme**, Bohrung des gekauften Einsatzes nehmen |
@@ -69,9 +71,9 @@ Druckteile (PETG, zusammen etwa 450 g, laut `pruefbericht.txt` überschlägig):
 
 | Teil | Zweck |
 |---|---|
-| `korpus` | Keil mit Blende, Schacht fürs Deck und Rückwand über dem Kasten |
-| `boden` | Boden unter Keil und Kasten, trägt Pi, Ballast und RS485-Modul |
-| `bett` | trägt das Deck von innen: schräge Sitze, Laschen. Einzeln nachdruckbar |
+| `korpus` | Keil mit Blende, Schacht fürs Deck (ohne Vorderwand), Eckdome für die Schrauben vom Boden, Rückwand über dem Kasten |
+| `boden` | Boden unter Keil und Kasten, trägt Pi, Ballast, RS485-Modul, Lüfter und die vier Stützen für das Bett |
+| `bett` | trägt das Deck: schräge Sitze, Löcher für die Stifte der Stützen. Einzeln nachdruckbar |
 | `kasten` | flacher Kasten hinten mit den Buchsen-Ausschnitten |
 | `ballastdeckel` | hält den Ballast |
 
@@ -79,11 +81,11 @@ Kaufteile:
 
 | Menge | Teil |
 |---|---|
-| 22 | Gewindeeinsatz M3 × 5,7 (8 davon für die Neutrik-Buchsen) |
-| 4 | Gewindeeinsatz M2,5 |
+| 16 | Gewindeeinsatz M3 × 5,7 (8 davon für die Neutrik-Buchsen) |
+| 6 | Gewindeeinsatz M2,5 (4 Pi, 2 hintere Eckdome des Korpus) |
 | 2 | Originalschrauben des Deck-Fußes, dazu Kreuzschlitz-Dreher |
-| 4 | M3 × 10, Bett in den Schacht, von unten |
-| 8 | Sicherheits-Torx M3 × 10: Boden in Korpus und Kasten |
+| 6 | Sicherheits-Torx M3 × 10: Boden in Korpus (vorn) und Kasten |
+| 2 | Sicherheits-Torx M2,5 × 6: Boden in Korpus (hinten), in den Ecken ist für M3 kein Platz |
 | 8 | M3 × 10 für die Neutrik-Buchsen, von außen in die Einsätze (Länge an der Buchse prüfen: Flansch + 7 mm) |
 | 2 | M3 × 5, Ballastdeckel |
 | 4 | M2,5 × 6 für den Pi |
@@ -102,7 +104,7 @@ Kaufteile:
 | 4 | Gummifuß Ø12, 6 mm hoch (1 mm eingelassen) |
 | 2 | M5-Schraube, Scheibe, Mutter für den Tisch (beim Publikum Pflicht) |
 | 1 | Kabelbinder für das RS485-Modul |
-| optional | Lüfter 40 × 40 × 10 mm 5 V, 4 × M3 × 16 mit Mutter |
+| optional | Lüfter 40 × 40 × 10 mm 5 V, steht im Halter auf dem Boden |
 
 ## Drucken
 
@@ -122,25 +124,26 @@ PETG, 0,4-mm-Düse, 0,2 mm Schicht, 5 Wände, 25 % Gyroid, keine Stützen. Klebe
 
 1. Einsätze mit dem Lötkolben setzen. Pi-Säulen und Fußtaschen ansehen, ob Grate stören.
 2. Füße kleben. Ballast in die Wanne, Deckel drauf.
-3. Pi mit Kühlkörper auf den Boden schrauben: Bauteilseite oben, USB-C hinten zur Rückwand, USB und Ethernet nach links, SD-Karte rechts. Zum Tauschen der SD-Karte vorher das RS485-Modul aus seinem Halter nehmen. Optional den Lüfter innen an die linke Seitenwand schrauben, saugend, Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
+3. Pi mit Kühlkörper auf den Boden schrauben: Bauteilseite oben, USB-C hinten zur Rückwand, USB und Ethernet nach links, SD-Karte rechts. Zum Tauschen der SD-Karte vorher das RS485-Modul aus seinem Halter nehmen. Optional den Lüfter von oben in den Halter links stellen, saugend (zieht durch das Gitter in der Seitenwand), Strom von Pin 4 (5 V) und Pin 14 (GND). RS485-Modul hochkant in den Halter an der rechten Wand stellen und mit einem Kabelbinder sichern.
 4. Acht Gewindeeinsätze von innen in die Dome der Rückwand drücken, langsam und gerade, damit sich der dünne Rand zum Ausschnitt nicht wölbt. Neutrik-Buchsen von außen einsetzen, Flansch außen, je zwei M3 × 10 von außen in die Einsätze. Zur XLR-Buchse drei Litzen vom Modul löten: Pin 1 Schirm, Pin 2 D−, Pin 3 D+. Am Modul laut Schaltplan: 4 = B (D−), 3 = A (D+), 1 = Schirm; am Aufkleber prüfen.
 5. Kasten von hinten über den Boden setzen, mit vier Schrauben von unten befestigen. Optional das USB-3-Kabel von der USB-Buchse mit dem gewinkelten Stecker in den hinteren USB-Port des Pi; der vordere ist für das Deck-Kabel mit geradem Stecker, der hätte hinten keinen Platz neben der Buchse. Für USB 3.0 muss der hintere Port einer der blauen sein, sonst die Kabel tauschen und nachmessen. Patchkabel von der etherCON-Buchse zum Pi, Winkeladapter in den USB-C des Pi, Buchse zu den Micro-HDMI-Ports. Kabel der Neutrik-USB-C-Buchse vorn über den Adapter führen und als Schlaufe in den Adapter stecken, ohne Zug; die Schlaufe darf das Patchkabel kreuzen.
 6. Grove-Kabel vom Modul zum Pi: rot an Pin 2 (5 V), schwarz an Pin 6 (GND), der Eingang des Moduls (laut Schaltplan IO1 „UART_Rx“, beim Grove-Kabel vermutlich gelb) an Pin 8 (GPIO 14, TX). Die Farbzuordnung am Aufkleber des Moduls prüfen.
 7. Beim Publikum: Boden mit den zwei M5-Schrauben auf den Tisch schrauben.
 8. Fuß vom Deck abschrauben. Deck auf das Bett legen, die zwei Originalschrauben von unten durch die schrägen Kanäle eindrehen. Nur handfest, das Gewinde sitzt im Deck.
-9. USB-Kabel ins Deck stecken. Deck mit Bett von unten in den Schacht des Korpus schieben, bis der Rand an der Blende liegt, und das Bett mit vier M3 × 10 von unten anschrauben. Kabel in den Pi stecken, locker mit Schlaufe, nicht auf Zug.
-10. Korpus senkrecht über den Boden stülpen. Seine Rückwand setzt auf die Zunge des Kastendeckels auf. Von unten vier Schrauben.
+9. USB-Kabel ins Deck stecken. Bett mit Deck senkrecht von oben auf die vier Stützen setzen, die Stifte greifen in die Löcher im Bett. Kabel in den Pi stecken, locker mit Schlaufe, nicht auf Zug.
+10. Korpus senkrecht von oben über alles setzen, gerade absenken, nicht kippen. Die Blende legt sich auf den Rand des Decks, die Rückwand auf die Zunge des Kastendeckels. Von unten vier Schrauben (vorn M3, hinten M2,5). Erst jetzt ist das Deck gehalten: Die Blende drückt es auf die Stützen.
 
 Für die SD-Karte muss der Korpus ab (Boden bleibt verschraubt), das ist gewollt.
 
 ## Entscheidungen
 
 - **Neigung 30°:** flach genug für den Griff von oben im Stehen, am FoH sitzend noch lesbar. Parameter `neigung`; ändern verschiebt die Höhe. Nur am Modell beurteilt.
-- **Bündiges Deck, schmal und flach:** Wunsch des Users. Seitlich sind es außen 10,5 mm bis zur Sichtöffnung, die Bett-Schrauben sitzen dort, wo sich die Rückseite des Decks zur Seite wegschrägt. Vorderkante 42 mm, damit die Ethernet-Buchse des Pi unter das Bett passt. Hinten ein flacher Kasten statt eines längeren Keils: mehr Standfläche nach hinten, Gesamthöhe bleibt.
+- **Bündiges Deck, schmal und flach:** Wunsch des Users. Seitlich sind es außen 10,5 mm bis zur Sichtöffnung. Vorderkante 42 mm, damit die Ethernet-Buchse des Pi unter das Bett passt. Hinten ein flacher Kasten statt eines längeren Keils: mehr Standfläche nach hinten, Gesamthöhe bleibt.
+- **Einbau senkrecht, Deck auf Stützen:** Das Deck sitzt im Schacht mit 0,5 mm Luft. Von unten einschieben ginge nur gerade entlang des Schachts, dabei liefe seine schräge Rückseite in die Rückwand; Laschen im Schacht stünden ihm ebenfalls im Weg (erste Fassung). Deshalb steht das Deck auf dem Bett auf vier Stützen am Boden, und der Korpus kommt zuletzt senkrecht darüber. Dafür darf am Korpus innen nichts in die Grundfläche des Decks ragen: kein Vorderteil am Schacht, Schraubdome nur in den Ecken, wo das Deck gerundet ist (1 mm Luft laut CAD), Lüfter auf dem Boden statt an der Seitenwand. Das Deck hat nach oben 0,3 mm Luft zur Blende; wer Klappern vermeiden will, legt dünnen Filz auf die Stützen.
 - **Keine Abdichtung:** laut User nur außerhalb der Regie. PETG reicht dort; es wird ab etwa 70 °C weich, deshalb nicht in die Sonne stellen. Das Deck selbst ist nicht wetterfest.
 - **Buchsen statt Kabeldurchführung und Haube:** Wunsch des Users. Neutrik-Stecker verriegeln selbst, Kabel werden außen am Tisch gesichert. Alle vier Buchsen (etherCON NE8FDX-P6 mit Metallflansch) haben glatte Löcher und hinter den Löchern nichts, deshalb Gewindeeinsätze in Domen innen; die Wand bleibt um den Ausschnitt 3 mm. Nur zwei Löcher je Buchse, wie an den Buchsen selbst. Die Flanschschrauben sind von außen erreichbar, das Innere nur nach Lösen der Schrauben von unten.
 - **DMX über RS485 am UART:** M5Stack Unit RS485-ISO, isoliert, 56 × 24 × 10,2 mm ([M5Stack](https://docs.m5stack.com/en/unit/Unit_RS485-ISO)). Laut Schaltplan liegt der Sendereingang DI fest auf Masse, die Richtung schaltet das Signal vom Pi: Bit 0 treibt die Leitung aktiv, Bit 1 und Ruhe halten nur Widerstände. Mit 120-Ω-Abschluss ist das ein kleiner Pegel; ob die Empfänger der Spiegel-Elemente das sicher als 1 lesen, nur im Test mit einem Element und voller Kabellänge prüfbar. Am Pi: PL011 auf GPIO 14 mit `dtoverlay=disable-bt`, serielle Konsole aus, 250 000 Baud 8N2; der Treiber in `server/src/ausgabe/rs485.ts` fehlt noch.
-- **Lüftung:** Zuluft durch Schlitze im Boden (Füße heben 5 mm an) und das Gitter links, Abluft durch 17 Schlitze in der Rückwand über dem Kasten. Optional ein 40-mm-Lüfter innen am Gitter links, er bläst quer über den Pi. **Kühlung nicht gemessen.** Im Dauerbetrieb prüfen:
+- **Lüftung:** Zuluft durch Schlitze im Boden (Füße heben 5 mm an) und das Gitter links, Abluft durch 17 Schlitze in der Rückwand über dem Kasten. Optional ein 40-mm-Lüfter im Halter am Gitter links, er bläst quer über den Pi. **Kühlung nicht gemessen.** Im Dauerbetrieb prüfen:
 
 ```bash
 vcgencmd measure_temp
@@ -154,7 +157,7 @@ vcgencmd get_throttled
 
 ## Geprüft am Modell
 
-Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die vier Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert, nur Stecker, Tüllen und der Winkeladapter.
+Siehe `pruefbericht.txt`: alle STL dicht, passen in den Bauraum, der Einbauweg ist frei (Bett mit Deck senkrecht auf die Stützen, dann der Korpus senkrecht über alles; geprüft mit senkrechten Strahlen im Raster 0,2 mm, mit dem echten Elgato-Modell; Gegenprobe: der Korpus der ersten Fassung fällt durch), keine Überschneidung zwischen Teilen und Platzhaltern für Deck, Pi, USB-, RJ45- und Netzstecker, die vier Neutrik-Buchsen, das RS485-Modul und den Lüfter. Die Kabelschlaufen innen sind nicht modelliert, nur Stecker, Tüllen und der Winkeladapter.
 
 Das echte Elgato-Modell wird punktweise gegen die Teile geprüft, weil sein Netz nicht geschlossen ist. Auch der Gegentest war positiv: Schon 0,25 mm Versatz des Betts meldet Berührung; Sitze und Bohrungen fluchten im Schnitt mit den Domen. Die Prüfung läuft nur, wenn `lokal/deck.stl` vorhanden ist:
 
