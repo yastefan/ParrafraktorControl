@@ -26,6 +26,7 @@ export const VORSCHAU_STIL = {
   bahn: false,                 // von vorn, bei Öffnung: feste Bahn, Spur der letzten Sekunden und das Loch als Linie
   bahnFarbe: "255,255,255",
   phaserAchse: 0,              // Phaser: feste Höhe der Achse in Grad (±), 0 = so hoch wie nötig
+  phaserAchseOffset: false,    // Phaser: Mitte der Achse folgt dem Offset (Bereich bleibt ± Achse)
 };
 export type VorschauStil = typeof VORSCHAU_STIL;
 export function setzeVorschauStil(stil: Partial<VorschauStil>): void {
