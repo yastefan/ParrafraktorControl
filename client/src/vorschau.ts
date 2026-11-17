@@ -372,7 +372,8 @@ export class Vorschau {
     const ph = hoehe - oben - unten;
     const py = (a: number) => oben + ph / 2 - (a / r) * (ph / 2);
     const px = (k: number, i: number) => links + k * (pb + luecke) + ((i + 0.5) / SPIEGEL_N) * pb;
-    const farbe = d.live ? PHASER.live : PHASER.punkt;
+    // Farbe der Punkte, auf Wunsch je Element eine eigene
+    const farbeVon = (k: number) => (d.live ? PHASER.live : (FARBE.punktElemente[k] ?? PHASER.punkt));
 
     ctx.fillStyle = FARBE.grund;
     ctx.fillRect(0, 0, breite, hoehe);
@@ -439,9 +440,9 @@ export class Vorschau {
     const n = this.spur.length;
     this.spur.forEach((bild, j) => {
       const alter = (j + 1) / n;
-      ctx.fillStyle = `rgba(${farbe},${0.25 * alter * alter})`;
       bild.forEach((a, g) => {
         const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
+        ctx.fillStyle = `rgba(${farbeVon(k)},${0.25 * alter * alter})`;
         ctx.beginPath();
         ctx.arc(px(k, i), py(a), 1.5 + 1.5 * alter, 0, 2 * Math.PI);
         ctx.fill();
@@ -449,10 +450,10 @@ export class Vorschau {
     });
 
     // Verlauf je Element, bei einem Umbruch (Rotation über ±180°) unterbrochen
-    ctx.strokeStyle = `rgba(${farbe},0.55)`;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = "round";
     for (let k = 0; k < ELEMENTE; k++) {
+      ctx.strokeStyle = `rgba(${farbeVon(k)},0.55)`;
       ctx.beginPath();
       for (let i = 0; i < SPIEGEL_N; i++) {
         const a = w[k * SPIEGEL_N + i]!;
@@ -466,7 +467,7 @@ export class Vorschau {
     // Die Spiegel selbst: Punkt mit Schein
     for (let g = 0; g < w.length; g++) {
       const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
-      const x = px(k, i), y = py(w[g]!);
+      const x = px(k, i), y = py(w[g]!), farbe = farbeVon(k);
       if (FARBE.schein) {
         ctx.fillStyle = `rgba(${farbe},0.25)`;
         ctx.beginPath();

@@ -16,6 +16,7 @@ export const VORSCHAU_STIL = {
   nebelGrund: "4,3,8",         // Nebel: Raum ohne Licht
   punkt: "0,229,255",          // Phaser: Neonfarben wie in der Oberfläche
   punktLive: "255,31,79",
+  punktElemente: [] as string[], // Phaser: je Element eine eigene Farbe (RGB-Tripel), leer = überall „punkt“
   achse: "140,136,168",        // Phaser: Raster, Nulllinie, Rahmen, Beschriftung
   text: "255,255,255",
   schrift: "600 10px -apple-system, sans-serif",   // Größe wird je Stelle ersetzt
