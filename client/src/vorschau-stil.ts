@@ -23,6 +23,8 @@ export const VORSCHAU_STIL = {
   schein: true,                // Schein um Punkte und Scheinwerfer
   hinweise: true,              // „Scheinwerfer ziehen“
   messwerte: true,             // Nebel: Strahlen, Rechenzeit, Bilder/s
+  bahn: false,                 // von vorn, bei Öffnung: Bahn des Lochs und das Loch selbst als Linie
+  bahnFarbe: "255,255,255",
   phaserAchse: 0,              // Phaser: feste Höhe der Achse in Grad (±), 0 = so hoch wie nötig
 };
 export type VorschauStil = typeof VORSCHAU_STIL;

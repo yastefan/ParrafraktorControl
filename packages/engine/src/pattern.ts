@@ -148,10 +148,10 @@ export const wind = (x: number, t: number): number =>
 // Halb offene Spiegel am Rand lassen es weich zwischen den Spiegelreihen gleiten.
 const RASTER_M = 1.8 / SPIEGEL_N;
 
-interface Loch { x: number; y: number; r: number }   // Meter, Bildmitte = 0, y nach unten
+export interface Loch { x: number; y: number; r: number }   // Meter, Bildmitte = 0, y nach unten
 
 // Lage des Lochs nach u Durchläufen
-function lochBei(p: Parameter, u: number): Loch {
+export function lochBei(p: Parameter, u: number): Loch {
   const w = p.weite / 100, t = 2 * Math.PI * u;
   let loch: Loch = { x: 0, y: 0, r: p.groesse / 100 };
   switch (p.bahn) {

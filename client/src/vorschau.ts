@@ -16,7 +16,7 @@
 // Spiegeln reflektiert und treffen auf die Wände. Umschaltbar auf den Nebel (nebel.ts): Strahlen
 // mit allen Reflexionen, von vorn leicht versetzt, die Elemente hintereinander wie im Aufbau.
 import {
-  ELEMENTE, Engine, SPIEGEL_N, weich, wendeImpulseAn,
+  ELEMENTE, Engine, SPIEGEL_N, lochBei, weich, wendeImpulseAn,
   type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
 } from "@parrafraktor/engine";
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
@@ -606,6 +606,7 @@ export class Vorschau {
     if (d.modus === "buehne") this.buehne(ctx, hauptB, hoehe, dpr, mx, my, s, d, winkel);
     else if (d.modus === "waerme") this.waerme(ctx, hauptB, hoehe, mx, my, s, d, winkel);
     else this.spiegelVorn(ctx, mx, my, s, d, winkel);
+    if (FARBE.bahn && d.parameter.modus === "oeffnung") this.bahnVorn(ctx, mx, my, s, d.parameter);
     ctx.restore();
 
     for (let k = 0; k < ELEMENTE; k++) {
@@ -626,6 +627,31 @@ export class Vorschau {
       const lage = k === 0 ? " vorn" : k === ELEMENTE - 1 ? " hinten" : "";
       ctx.fillText(`${k + 1}${lage} · ${d.aufbau.drehung[k] ?? 0}°`, x0 + 7, y0 + 6);
     }
+  }
+
+  // Öffnung von vorn: Bahn des Lochs gestrichelt, das Loch selbst (wie das erste Element es sieht) als Kreis
+  private bahnVorn(ctx: CanvasRenderingContext2D, mx: number, my: number, s: number, p: Parameter): void {
+    const w = (p.weite / 100) * s, r0 = (p.groesse / 100) * s;
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = `rgba(${FARBE.bahnFarbe},0.7)`;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    switch (p.bahn) {
+      case "kreis": ctx.arc(mx, my, w, 0, 2 * Math.PI); break;
+      case "linie": ctx.moveTo(mx - w, my); ctx.lineTo(mx + w, my); break;
+      case "iris": ctx.arc(mx, my, r0, 0, 2 * Math.PI); ctx.moveTo(mx + r0 + w, my); ctx.arc(mx, my, r0 + w, 0, 2 * Math.PI); break;
+      case "drift": ctx.arc(mx, my, w * 1.4, 0, 2 * Math.PI); break;   // ungefähr der Bereich, in dem es wandert
+    }
+    ctx.stroke();
+    const loch = lochBei(p, this.engine.umlaufVon);
+    ctx.setLineDash([]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgb(${FARBE.bahnFarbe})`;
+    ctx.beginPath();
+    ctx.arc(mx + loch.x * s, my + loch.y * s, Math.max(1, loch.r * s), 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // Spiegel von vorn: Gegenlicht dahinter, die Elemente von hinten nach vorn darüber
