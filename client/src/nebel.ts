@@ -3,6 +3,7 @@
 // Der Puffer klingt von Bild zu Bild ab und die Strahlen wechseln leicht die Lage, damit aus wenigen
 // Strahlen ein ruhiger Lichtschleier wird. Der Nebel ist überall gleich dicht.
 import { ELEMENTE, SPIEGEL_N } from "@parrafraktor/engine";
+import { VORSCHAU_STIL, schrift } from "./vorschau-stil.js";
 
 export type SpiegelSeite = "hinten" | "vorn" | "beide";   // wohin die Vorderseite bei Tilt 0 zeigt
 export interface NebelLampe { x: number; y: number; z: number }   // x: nach rechts, y: nach unten, z: nach vorn
@@ -316,6 +317,7 @@ export class NebelBild {
 
     // Puffer → Farbe. Heller, wenn das Bild größer ist; die Spuren werden dort ja länger.
     const [fr, fg, fb] = farbe.split(",").map(Number) as [number, number, number];
+    const [gr, gg, gb] = VORSCHAU_STIL.nebelGrund.split(",").map(Number) as [number, number, number];
     const s = (HELLIGKEIT * (1 - ABKLINGEN) * ((this.brenn * AUFLOESUNG) / 340)) / Math.max(1, anzahl);
     const d = this.pixel, dv = this.pixelVorn;
     if (d && dv) {
@@ -323,9 +325,9 @@ export class NebelBild {
       for (let i = 0, o = 0; i < p.length; i++, o += 4) {
         const v = p[i]! * s, vv = pv[i]! * s;
         const k = v < 0.002 ? v : 1 - Math.exp(-v), kv = vv < 0.002 ? vv : 1 - Math.exp(-vv);
-        data[o] = 4 + (fr - 4) * k;
-        data[o + 1] = 3 + (fg - 3) * k;
-        data[o + 2] = 8 + (fb - 8) * k;
+        data[o] = gr + (fr - gr) * k;
+        data[o + 1] = gg + (fg - gg) * k;
+        data[o + 2] = gb + (fb - gb) * k;
         data[o + 3] = 255;
         dataV[o] = fr * kv;
         dataV[o + 1] = fg * kv;
@@ -352,7 +354,7 @@ export class NebelBild {
   private deko(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, sp: Float64Array, lampe: NebelLampe, farbe: string, anzahl: number, lichtDavor: () => void): void {
     const X = this.sx, Y = this.sy;
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.strokeStyle = `rgba(${VORSCHAU_STIL.linie},0.12)`;
     ctx.beginPath();
     // Umriss des Bodens
     [[RAUM.x0, RAUM.z0], [RAUM.x1, RAUM.z0], [RAUM.x1, RAUM.z1], [RAUM.x0, RAUM.z1], [RAUM.x0, RAUM.z0]].forEach(([x, z], e) => {
@@ -362,11 +364,13 @@ export class NebelBild {
     ctx.stroke();
     const lx = X(lampe.x, lampe.z), ly = Y(lampe.x, lampe.y, lampe.z), r = 12;
     const lampeZeichnen = () => {
-      const glanz = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
-      glanz.addColorStop(0, `rgba(${farbe},0.9)`);
-      glanz.addColorStop(1, `rgba(${farbe},0)`);
-      ctx.fillStyle = glanz;
-      ctx.beginPath(); ctx.arc(lx, ly, r, 0, 2 * Math.PI); ctx.fill();
+      if (VORSCHAU_STIL.schein) {
+        const glanz = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+        glanz.addColorStop(0, `rgba(${farbe},0.9)`);
+        glanz.addColorStop(1, `rgba(${farbe},0)`);
+        ctx.fillStyle = glanz;
+        ctx.beginPath(); ctx.arc(lx, ly, r, 0, 2 * Math.PI); ctx.fill();
+      }
       ctx.fillStyle = `rgb(${farbe})`;
       ctx.beginPath(); ctx.arc(lx, ly, 3.5, 0, 2 * Math.PI); ctx.fill();
     };
@@ -377,7 +381,7 @@ export class NebelBild {
     for (const k of ordnung) {
       const l = LAGE + k * 4, c = sp[l]!, s = sp[l + 1]!, mx = sp[l + 2]!, mz = sp[l + 3]!, h = ELEMENT_B / 2;
       if (lampeFehlt && lampe.z < mz) { lampeZeichnen(); lampeFehlt = false; }
-      ctx.fillStyle = "rgba(6,5,10,0.88)";
+      ctx.fillStyle = `rgba(${VORSCHAU_STIL.scherenschnitt},0.88)`;
       for (let i = 0; i < SPIEGEL_N; i++) {
         const o = (k * SPIEGEL_N + i) * FELDER;
         ctx.beginPath();
@@ -391,7 +395,7 @@ export class NebelBild {
         ctx.fill();
       }
       // Rahmen: in seiner Ebene gedreht, sonst nichts
-      ctx.strokeStyle = "rgba(232,236,244,0.5)";
+      ctx.strokeStyle = `rgba(${VORSCHAU_STIL.spiegelKante},0.5)`;
       ctx.beginPath();
       for (let e = 0; e < 5; e++) {
         const a = e === 0 || e === 3 || e === 4 ? -h : h, b = e < 2 || e === 4 ? -h : h;
@@ -404,13 +408,13 @@ export class NebelBild {
     lichtDavor();
     if (lampeFehlt) lampeZeichnen();
 
-    ctx.font = "600 10px -apple-system, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.font = schrift(10);
+    ctx.fillStyle = `rgba(${VORSCHAU_STIL.text},0.5)`;
     ctx.textBaseline = "top";
     ctx.textAlign = "center";
     // am Boden über die Lampe, sonst ragt der Hinweis aus dem Bild
-    ctx.fillText("Scheinwerfer ziehen", Math.max(52, Math.min(breite - 52, lx)), ly + r + 12 > hoehe ? ly - r - 12 : ly + r);
+    if (VORSCHAU_STIL.hinweise) ctx.fillText("Scheinwerfer ziehen", Math.max(52, Math.min(breite - 52, lx)), ly + r + 12 > hoehe ? ly - r - 12 : ly + r);
     ctx.textAlign = "right";
-    ctx.fillText(`${anzahl} Strahlen · ${this.msRechnen.toFixed(1)} ms · ${Math.round(1000 / this.msBild)} Bilder/s`, breite - 8, 6);
+    if (VORSCHAU_STIL.messwerte) ctx.fillText(`${anzahl} Strahlen · ${this.msRechnen.toFixed(1)} ms · ${Math.round(1000 / this.msBild)} Bilder/s`, breite - 8, 6);
   }
 }
