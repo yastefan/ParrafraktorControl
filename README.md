@@ -116,7 +116,7 @@ Impulse (Live-Seite)
 | Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (Hülle: Attack, Sustain, Release, Stärke; Lauf: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
-| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf), **Fein** (Group, Ping-Pong). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
+| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf), **Fein** (Group, Ping-Pong, Speed je Element). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 
@@ -175,6 +175,7 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 | Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter), Mitte → außen (erst das mittlere, dann beide äußeren; das erste ist das Spiegelbild des dritten – mit Gegenlauf und Ordnung Mitte → außen ist die ganze Installation symmetrisch) |
 | Gegenlauf | linke Hälfte jedes Elements gespiegelt, auch der Offset (Offset 30° = links −30°, rechts +30°) |
 | Ping-Pong | Muster läuft hin und wieder zurück |
+| Speed je Element | Speed von → bis gilt für die Elemente statt für die Spiegel: alle Spiegel eines Elements gleich schnell, die Elemente nach der Element-Folge gestaffelt. Bei Phase 90° und 3 → 4 BPM sind alle nach 2 min wieder deckungsgleich |
 
 Ältere Dateien werden beim Laden umgewandelt: Symmetrie von innen/außen = Ordnung Mitte → außen bzw. außen → Mitte mit Gegenlauf, Richtung zurück = rechts → links, Reihenfolge „je Element“ = Elemente zusammen, „alle 36“ = vorn → hinten. Symmetrie über alle 36 Spiegel gibt es nicht mehr, die Mitte ist jetzt die Mitte jedes Elements. Dreieck und Rechteck sowie die früheren Formen Sägezahn, Puls, Flyout, Blinder und Funkeln werden zum Sinus (ein Flyout spielt man jetzt als Impuls mit Ausbreitung).
 

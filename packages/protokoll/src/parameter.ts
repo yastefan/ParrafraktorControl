@@ -47,17 +47,17 @@ export const STUFEN = {
 } as const;
 
 // Schalter (an/aus)
-export type SchalterParameter = "gegenlauf" | "pingpong";
-export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenlauf", pingpong: "Ping-Pong" };
+export type SchalterParameter = "gegenlauf" | "pingpong" | "speedJeElement";
+export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenlauf", pingpong: "Ping-Pong", speedJeElement: "Speed je Element" };
 
 // Welche Regler eine Grundbewegung nicht benutzt: werden im Client ausgeblendet
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
 const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   sinus: ["schwuenge", "wellenlaenge"],
-  pendelwelle: ["speedBis", "phase", "breite", "wellenlaenge", "pingpong"],
-  wind: ["speedBis", "phase", "breite", "schwuenge", "pingpong"],
+  pendelwelle: ["speedBis", "phase", "breite", "wellenlaenge", "pingpong", "speedJeElement"],
+  wind: ["speedBis", "phase", "breite", "schwuenge", "pingpong", "speedJeElement"],
   rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong"],
-  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong"],
+  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement"],
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
 const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "nachlauf"];
@@ -98,7 +98,7 @@ export function pruefeParameter(roh: unknown): Partial<Parameter> {
   if (istBahn(r.bahn)) teil.bahn = r.bahn;
   if (istOrdnung(r.ordnung)) teil.ordnung = r.ordnung;
   if (istElementFolge(r.elementFolge)) teil.elementFolge = r.elementFolge;
-  for (const name of ["gegenlauf", "pingpong", "offsetGetrennt", "laeuft"] as const) {
+  for (const name of ["gegenlauf", "pingpong", "speedJeElement", "offsetGetrennt", "laeuft"] as const) {
     if (typeof r[name] === "boolean") teil[name] = r[name];
   }
   if (Array.isArray(r.offsetElemente) && r.offsetElemente.length === ELEMENTE

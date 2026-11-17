@@ -55,7 +55,7 @@ const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name }
 const GRUPPEN: ReglerSeite[] = [
   { name: "Bewegung", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("kante"), zahl("wabern"), zahl("nachlauf")] },
   { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf")] },
-  { name: "Fein", ton: "fein", regler: [zahl("group"), schalter("pingpong")] },
+  { name: "Fein", ton: "fein", regler: [zahl("group"), schalter("pingpong"), schalter("speedJeElement")] },
 ];
 
 // Reglerseiten für eine Grundbewegung: höchstens vier Regler je Seite, leere fallen weg

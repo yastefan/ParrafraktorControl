@@ -304,6 +304,25 @@ describe("Regler", () => {
     });
   });
 
+  it("Speed je Element: Elemente in sich gleich schnell, gestaffelt, nach (Ränge − 1) / (bis − von) min wieder deckungsgleich", () => {
+    const p: Parameter = {
+      ...PARAMETER_VORGABE, modus: "sinus", amplitude: 90, phase: 90, speedVon: 3, speedBis: 4,
+      elementFolge: "vorneHinten", speedJeElement: true,
+    };
+    const e = new Engine();
+    const anfang = e.alle(p).map((s) => s.tilt);
+    for (let i = 0; i < 12000; i++) e.weiter(p, 0.01);   // 120 s = 2 / (4 − 3) min
+    const ende = e.alle(p).map((s) => s.tilt);
+    // Phasenlage aller Spiegel zueinander wie am Anfang
+    ende.forEach((w, g) => expect(w - ende[0]!).toBeCloseTo(anfang[g]! - anfang[0]!, 6));
+    // ohne den Schalter (Speed über die Spiegel) ist die Lage nach 2 min eine andere
+    const ohne = { ...p, speedJeElement: false };
+    const f = new Engine();
+    for (let i = 0; i < 12000; i++) f.weiter(ohne, 0.01);
+    const w = f.alle(ohne).map((s) => s.tilt);
+    expect(Math.max(...w.map((x, g) => Math.abs(x - w[0]! - (anfang[g]! - anfang[0]!))))).toBeGreaterThan(5);
+  });
+
   it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {
     const e = new Engine();
     const p: Parameter = { ...PARAMETER_VORGABE, modus: "wind", wellenlaenge: 12, phase: 0 };
