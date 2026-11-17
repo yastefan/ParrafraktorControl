@@ -70,6 +70,7 @@ const grad = (g: number): number => (g * Math.PI) / 180;
 const umbrechen = (a: number): number => ((((a + 180) % 360) + 360) % 360) - 180;
 
 const SPUR_N = 20;
+const LOCH_SPUR_N = 130;   // Öffnung von vorn: etwa 4 s Spur bei einem Eintrag je 30 ms
 
 // ---------- Reflexion: Raum, Scheinwerfer, Strahlen (wie die Website-Simulation, fest) ----------
 
@@ -223,6 +224,9 @@ export class Vorschau {
   nebelZoom: number = NEBEL_ZOOM_VORGABE;
   private nebelBild: NebelBild | null = null;
   private zeigtNebel = false;
+  // Öffnung von vorn: Spur der Lochmitte (Meter) und Zeit des letzten Eintrags
+  private lochSpur: { x: number; y: number }[] = [];
+  private lochSpurZeit = 0;
   // Wird je Bild mit den sichtbaren Winkeln (Grad) aufgerufen, z. B. für einen Verlauf über die Zeit
   beiBild: ((winkel: readonly number[]) => void) | null = null;
 
@@ -629,22 +633,45 @@ export class Vorschau {
     }
   }
 
-  // Öffnung von vorn: Bahn des Lochs gestrichelt, das Loch selbst (wie das erste Element es sieht) als Kreis
+  // Öffnung von vorn: feste Bahn des Lochs gestrichelt (nicht bei Drift, die hat keine), dazu die Spur der
+  // letzten Sekunden (zeigt Drift und Wabern, wie das Loch wirklich lief) und das Loch selbst als Kreis
+  // (Lage wie für das erste Element; mit Nachlauf laufen die anderen hinterher).
   private bahnVorn(ctx: CanvasRenderingContext2D, mx: number, my: number, s: number, p: Parameter): void {
     const w = (p.weite / 100) * s, r0 = (p.groesse / 100) * s;
+    const loch = lochBei(p, this.engine.umlaufVon);
+    const jetzt = performance.now();
+    if (jetzt - this.lochSpurZeit > 500) this.lochSpur = [];   // war eine Weile nicht zu sehen: neu beginnen
+    if (jetzt - this.lochSpurZeit > 30) {
+      this.lochSpurZeit = jetzt;
+      this.lochSpur.push({ x: loch.x, y: loch.y });
+      if (this.lochSpur.length > LOCH_SPUR_N) this.lochSpur.shift();
+    }
     ctx.save();
     ctx.lineWidth = 1.5;
-    ctx.strokeStyle = `rgba(${FARBE.bahnFarbe},0.7)`;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    switch (p.bahn) {
-      case "kreis": ctx.arc(mx, my, w, 0, 2 * Math.PI); break;
-      case "linie": ctx.moveTo(mx - w, my); ctx.lineTo(mx + w, my); break;
-      case "iris": ctx.arc(mx, my, r0, 0, 2 * Math.PI); ctx.moveTo(mx + r0 + w, my); ctx.arc(mx, my, r0 + w, 0, 2 * Math.PI); break;
-      case "drift": ctx.arc(mx, my, w * 1.4, 0, 2 * Math.PI); break;   // ungefähr der Bereich, in dem es wandert
+    if (p.bahn !== "drift") {
+      ctx.strokeStyle = `rgba(${FARBE.bahnFarbe},0.6)`;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      switch (p.bahn) {
+        case "kreis": ctx.arc(mx, my, w, 0, 2 * Math.PI); break;
+        case "linie": ctx.moveTo(mx - w, my); ctx.lineTo(mx + w, my); break;
+        case "iris": ctx.arc(mx, my, r0, 0, 2 * Math.PI); ctx.moveTo(mx + r0 + w, my); ctx.arc(mx, my, r0 + w, 0, 2 * Math.PI); break;
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
-    ctx.stroke();
-    const loch = lochBei(p, this.engine.umlaufVon);
+    // Spur: Mitte des Lochs, ältere Stücke blasser
+    const n = this.lochSpur.length;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    for (let j = 1; j < n; j++) {
+      const a = this.lochSpur[j - 1]!, b = this.lochSpur[j]!;
+      ctx.strokeStyle = `rgba(${FARBE.bahnFarbe},${(0.9 * j / n).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.moveTo(mx + a.x * s, my + a.y * s);
+      ctx.lineTo(mx + b.x * s, my + b.y * s);
+      ctx.stroke();
+    }
     ctx.setLineDash([]);
     ctx.lineWidth = 2;
     ctx.strokeStyle = `rgb(${FARBE.bahnFarbe})`;
