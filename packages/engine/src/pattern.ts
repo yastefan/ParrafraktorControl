@@ -70,6 +70,7 @@ export interface Parameter {
   weite: number;       // cm, wie weit es von der Mitte wandert (Iris: um so viel geht es auf)
   kante: number;       // %, von hart bis weich
   wabern: number;      // %, Atmen, Abdriften und Verformen
+  puls: number;        // %, die Größe schwankt im Takt der Bahn (zweimal je Umlauf), ± so viel vom Radius
   nachlauf: number;    // %, die Elemente laufen einander nach; 100 = je Element ¼ Durchlauf
   ordnung: Ordnung;
   elementFolge: ElementFolge;
@@ -98,6 +99,7 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   weite: 35,
   kante: 30,
   wabern: 30,
+  puls: 0,
   nachlauf: 10,
   ordnung: "links",
   elementFolge: "vorneHinten",
@@ -153,7 +155,8 @@ export interface Loch { x: number; y: number; r: number }   // Meter, Bildmitte 
 // Lage des Lochs nach u Durchläufen
 export function lochBei(p: Parameter, u: number): Loch {
   const w = p.weite / 100, t = 2 * Math.PI * u;
-  let loch: Loch = { x: 0, y: 0, r: p.groesse / 100 };
+  // Puls: Radius schwankt zweimal je Umlauf um ± puls %, im Gleichschritt mit der Bahn (bleibt periodisch)
+  let loch: Loch = { x: 0, y: 0, r: (p.groesse / 100) * (1 + (p.puls / 100) * Math.sin(4 * Math.PI * u)) };
   switch (p.bahn) {
     case "kreis": loch = { ...loch, x: w * Math.cos(t), y: w * Math.sin(t) }; break;
     case "linie": loch = { ...loch, x: w * Math.sin(t) }; break;

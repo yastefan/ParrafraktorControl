@@ -11,7 +11,7 @@ import { useLaden } from "../laden.js";
 import { Fader } from "./fader.js";
 import { Modul } from "./modul.js";
 
-const OEFFNUNG_FOLGE: ZahlParameter[] = ["groesse", "weite", "speedVon", "kante", "wabern", "nachlauf"];
+const OEFFNUNG_FOLGE: ZahlParameter[] = ["groesse", "weite", "speedVon", "kante", "wabern", "puls", "nachlauf"];
 
 export function Bewegung({ parameter: p }: { parameter: Parameter }) {
   const namen = p.modus === "oeffnung"
