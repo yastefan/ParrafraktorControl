@@ -223,6 +223,8 @@ export class Vorschau {
   nebelZoom: number = NEBEL_ZOOM_VORGABE;
   private nebelBild: NebelBild | null = null;
   private zeigtNebel = false;
+  // Wird je Bild mit den sichtbaren Winkeln (Grad) aufgerufen, z. B. für einen Verlauf über die Zeit
+  beiBild: ((winkel: readonly number[]) => void) | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -242,6 +244,7 @@ export class Vorschau {
         this.letzteWinkel = look;
         const winkel = this.mitImpulsen(d, look);
         this.zeichne(d, winkel);
+        this.beiBild?.(winkel);
       }
       this.bild = requestAnimationFrame(schleife);
     };
