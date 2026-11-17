@@ -215,6 +215,7 @@ export class Vorschau {
   private spur: number[][] = [];
   private spurZeit = 0;
   private bereich = 60;
+  private achsMitte = 0;   // Phaser: Mitte der Achse in Grad (mit phaserAchseOffset der Offset, weich nachgezogen)
   // Reflexion: Scheinwerfer (verschiebbar) und Maßstab des Raums beim letzten Zeichnen
   lampe: Punkt = { ...LAMPE_VORGABE };
   zoom: number = ZOOM.vorgabe;
@@ -369,12 +370,16 @@ export class Vorschau {
     const groesster = Math.max(...this.spur.flat().map(Math.abs), 1);
     const ziel = Math.min(180, Math.max(30, Math.ceil((groesster + 3) / 30) * 30));
     this.bereich = FARBE.phaserAchse > 0 ? FARBE.phaserAchse : this.bereich + (ziel - this.bereich) * 0.08;
+    const mitteZiel = FARBE.phaserAchseOffset && d.parameter.modus !== "oeffnung" ? d.parameter.offset : 0;
+    this.achsMitte += (mitteZiel - this.achsMitte) * 0.08;
+    if (Math.abs(mitteZiel - this.achsMitte) < 0.05) this.achsMitte = mitteZiel;
+    const m = this.achsMitte;
     const r = this.bereich;
 
     const links = 40, rechts = 8, oben = 10, unten = 50, luecke = 10;
     const pb = (breite - links - rechts - (ELEMENTE - 1) * luecke) / ELEMENTE;
     const ph = hoehe - oben - unten;
-    const py = (a: number) => oben + ph / 2 - (a / r) * (ph / 2);
+    const py = (a: number) => oben + ph / 2 - ((a - m) / r) * (ph / 2);
     const px = (k: number, i: number) => links + k * (pb + luecke) + ((i + 0.5) / SPIEGEL_N) * pb;
     // Farbe der Punkte, auf Wunsch je Element eine eigene
     const farbeVon = (k: number) => (d.live ? PHASER.live : (FARBE.punktElemente[k] ?? PHASER.punkt));
@@ -386,7 +391,7 @@ export class Vorschau {
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     const schritt = r > 120 ? 90 : r > 60 ? 45 : 15;
-    for (let a = -Math.floor(r / schritt) * schritt; a <= r + 0.01; a += schritt) {
+    for (let a = Math.ceil((m - r - 0.01) / schritt) * schritt; a <= m + r + 0.01; a += schritt) {
       const y = py(a);
       ctx.strokeStyle = a === 0 ? PHASER.null : PHASER.raster;
       ctx.lineWidth = 1;
