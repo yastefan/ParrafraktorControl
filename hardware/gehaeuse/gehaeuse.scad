@@ -88,7 +88,11 @@ pi_loecher = [[3.5,3.5],[61.5,3.5],[3.5,52.5],[61.5,52.5]];  // [RPi] u von SD-K
 /* [Stecker im Gehäuse] */
 stecker_usb_a_l = 35;    // Händlerbild: 12 Metall, 16 Gehäuse, Knickschutz geschätzt
 stecker_rj45_l = 45;     // [ANNAHME]
-stecker_strom_l = 30;    // [ANNAHME] USB-C-Stecker am Kabel der Neutrik-Buchse
+// Strom: gerader USB-C-Stecker am Kabel der NAUSBC-5G passt nicht gerade in den Pi (endet 4 mm vor der
+// Buchse in der Rückwand). Deshalb 90°-Winkeladapter am Pi, Buchse seitlich zu den Micro-HDMI-Ports.
+stecker_c = [24.3, 12, 5.7];   // [Neutrik] Körper des USB-C-Steckers, aus der Zeichnung gemessen
+stecker_c_tuelle = 11.5;       // [Neutrik] Knickschutz dahinter
+winkel_adapter = [20, 6.5, 12, 7]; // [ANNAHME] Buchsenfläche ab Achse des Steckers, Überstand zur anderen Seite, Tiefe ab Port, Dicke
 
 /* [Kasten hinten mit Neutrik-Buchsen, D-Norm, Flansch außen] */
 kasten_t = 32;           // Tiefe hinter dem Keil
@@ -102,10 +106,12 @@ buchse_x_usb3 = 27.3;
 buchse_x_eth = 61.8;     // Neutrik NE8FDX-P6, etherCON
 buchse_x_xlr = 96.3;     // Neutrik NC3FD-L-1, DMX
 buchse_x_usb = 130.8;    // Neutrik NAUSBC-5G-FL, USB-C mit Kabel innen, nah am USB-C des Pi
-tiefe_usb = 30;          // [Neutrik] 29,4 mm ab Flanschfront
+tiefe_usb = 48;          // [Neutrik] Gehäuse 29,4 mm ab Flanschfront, dahinter Kragen und Tülle Ø9, 21 mm
+gehaeuse_usb = 27;
 tiefe_xlr = 32;          // [ANNAHME] samt Lötkelchen und Litzen
 tiefe_usb3 = 73;         // vom User gemessen 40 mm hinter der Wand, dazu USB-B-Stecker 33 mm [ANNAHME]
-tiefe_eth = 60;          // [Neutrik] 29,5 mm hinter dem Flansch, dazu RJ45-Stecker [ANNAHME]
+tiefe_eth = 60;          // [Neutrik] 29,5 mm hinter dem Flansch, dahinter RJ45-Stecker mit Tülle [ANNAHME]
+gehaeuse_eth = 27;
 neutrik_d = 24;          // [Neutrik] Ausschnitt ≥ Ø24, Löcher ≥ Ø3,2 im Abstand 19 × 24 (diagonal)
 neutrik_loch_x = 19;
 neutrik_loch_y = 24;
@@ -509,13 +515,23 @@ module m_usb_a() { // Deck-Kabel am oberen USB-Port
 module m_rj45() {
     im_pi() translate([88, 45.75 - 7, pi_d + 1]) cube([stecker_rj45_l, 14, 12]);
 }
-module m_strom() {
-    im_pi() translate([11.2 - 7, -stecker_strom_l, pi_d - 3]) cube([14, stecker_strom_l, 10]);
+function strom_port() = [pi_x_rechts - 11.2, pi_y_hinten + 1, pi_z + pi_d + 1.6]; // Mitte der Öffnung des USB-C am Pi
+module m_strom() { // Winkeladapter im USB-C des Pi, Neutrik-Stecker liegt quer davor
+    p = strom_port();
+    a = winkel_adapter;
+    translate(p) {
+        translate([-a[0], 0, -a[3] / 2]) cube([a[0] + a[1], a[2], a[3]]);
+        translate([-a[0] - stecker_c[0], (a[2] - stecker_c[1]) / 2, -stecker_c[2] / 2]) cube([stecker_c[0], stecker_c[1], stecker_c[2]]);
+        translate([-a[0] - stecker_c[0], a[2] / 2, 0]) rotate([0, -90, 0]) cylinder(d = 8.5, h = stecker_c_tuelle);
+    }
 }
-module m_buchse(x, t) {
-    // Durch die Wand und an den Domen vorbei rund wie der Ausschnitt, dahinter als Quader
+// k: Gehäuse der Buchse hinter der Wand, voll 26 × 28; dahinter bis t schmal (Stecker, Tülle)
+module m_buchse(x, t, k = 99, schmal = [14, 16]) {
+    // Durch die Wand und an den Domen vorbei rund wie der Ausschnitt
     an_buchse(x) cylinder(d = neutrik_d - 0.2, h = neutrik_dom + 0.5);
-    translate([x - 13, gesamt - kasten_wand - t, buchse_z - 14]) cube([26, t - neutrik_dom - 0.5, 28]);
+    kk = min(k, t);
+    translate([x - 13, gesamt - kasten_wand - kk, buchse_z - 14]) cube([26, kk - neutrik_dom - 0.5, 28]);
+    if (t > kk) translate([x - schmal[0] / 2, gesamt - kasten_wand - t, buchse_z - schmal[1] / 2]) cube([schmal[0], t - kk + 0.01, schmal[1]]);
 }
 module m_luefter() {
     translate([wand + 0.2, luefter_y - luefter[0] / 2, luefter_z - luefter[0] / 2]) cube([luefter[1], luefter[0], luefter[0]]);
@@ -541,9 +557,9 @@ module montiert(name) {
     if (name == "usb_a") m_usb_a();
     if (name == "rj45") m_rj45();
     if (name == "strom") m_strom();
-    if (name == "buchse_usb") m_buchse(buchse_x_usb, tiefe_usb);
+    if (name == "buchse_usb") m_buchse(buchse_x_usb, tiefe_usb, gehaeuse_usb, [9, 9]);
     if (name == "buchse_xlr") m_buchse(buchse_x_xlr, tiefe_xlr);
-    if (name == "buchse_eth") m_buchse(buchse_x_eth, tiefe_eth);
+    if (name == "buchse_eth") m_buchse(buchse_x_eth, tiefe_eth, gehaeuse_eth);
     if (name == "buchse_usb3" && usb3_buchse) m_buchse(buchse_x_usb3, tiefe_usb3);
     if (name == "rs485") m_rs485();
     if (name == "luefter") m_luefter();
