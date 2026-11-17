@@ -20,10 +20,12 @@ import {
   type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
 } from "@parrafraktor/engine";
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
+import { VORSCHAU_STIL, schrift } from "./vorschau-stil.js";
 import { NebelBild, NEBEL_LAMPE_VORGABE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
 
 export type VorderModus = "spiegel" | "buehne" | "waerme";
 export type Ansicht = "bild" | "phaser" | "reflexion";
+export { VORSCHAU_STIL, setzeVorschauStil, type VorschauStil } from "./vorschau-stil.js";
 
 export interface VorschauDaten {
   parameter: Parameter;
@@ -56,15 +58,7 @@ const WAERME_MASS = 0.35;               // Wärmebild: Pixel je CSS-Pixel; es is
 const WAERME_UNSCHAERFE_M = 0.07;       // Radius der Unschärfe im Raum; geschätzt, nicht an einen Abstand gekoppelt
 const WAERME_VERSTAERKUNG = 1.4;
 
-const FARBE = {
-  grund: "#0b0a0f",
-  rahmen: "#2a2d33",
-  spiegel: "#c9ccd1",
-  live: "#ff1f4f",
-  licht: "255,214,160",        // warmes Gegenlicht wie in der Simulation
-  lichtLive: "240,160,48",
-  rueckseite: "#2a2630",
-};
+const FARBE = VORSCHAU_STIL;
 
 // Kleine Abweichungen weich nachziehen, damit die Vorschau nicht ruckelt
 const nachziehen = (lokal: number, server: number): number =>
@@ -168,12 +162,12 @@ export function strahlen(spiegel: RaumSpiegel[], lampe: Punkt, zoom: number = ZO
 }
 // Neonfarben wie in der Oberfläche (RGB-Tripel für Transparenz)
 const PHASER = {
-  punkt: "0,229,255",
-  live: "255,31,79",
-  raster: "rgba(140,136,168,0.12)",
-  null: "rgba(140,136,168,0.4)",
-  rahmen: "rgba(140,136,168,0.18)",
-  text: "rgba(140,136,168,0.9)",
+  get punkt() { return FARBE.punkt; },
+  get live() { return FARBE.punktLive; },
+  get raster() { return `rgba(${FARBE.achse},0.12)`; },
+  get null() { return `rgba(${FARBE.achse},0.4)`; },
+  get rahmen() { return `rgba(${FARBE.achse},0.18)`; },
+  get text() { return `rgba(${FARBE.achse},0.9)`; },
 };
 
 // Falschfarben fürs Wärmebild: 256 RGB-Stufen von Schwarz über Violett und Magenta nach Hellgelb
@@ -364,10 +358,10 @@ export class Vorschau {
       this.spur.push(w);
       if (this.spur.length > SPUR_N) this.spur.shift();
     }
-    // Achse: so hoch wie nötig in 30°-Schritten, weich nachgezogen
+    // Achse: fest oder so hoch wie nötig in 30°-Schritten, weich nachgezogen
     const groesster = Math.max(...this.spur.flat().map(Math.abs), 1);
     const ziel = Math.min(180, Math.max(30, Math.ceil((groesster + 3) / 30) * 30));
-    this.bereich += (ziel - this.bereich) * 0.08;
+    this.bereich = FARBE.phaserAchse > 0 ? FARBE.phaserAchse : this.bereich + (ziel - this.bereich) * 0.08;
     const r = this.bereich;
 
     const links = 40, rechts = 8, oben = 10, unten = 50, luecke = 10;
@@ -380,7 +374,7 @@ export class Vorschau {
     ctx.fillStyle = FARBE.grund;
     ctx.fillRect(0, 0, breite, hoehe);
     // Raster und Beschriftung
-    ctx.font = "600 10px -apple-system, sans-serif";
+    ctx.font = schrift(10);
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     const schritt = r > 120 ? 90 : r > 60 ? 45 : 15;
@@ -470,10 +464,12 @@ export class Vorschau {
     for (let g = 0; g < w.length; g++) {
       const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
       const x = px(k, i), y = py(w[g]!);
-      ctx.fillStyle = `rgba(${farbe},0.25)`;
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, 2 * Math.PI);
-      ctx.fill();
+      if (FARBE.schein) {
+        ctx.fillStyle = `rgba(${farbe},0.25)`;
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+      }
       ctx.fillStyle = `rgb(${farbe})`;
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, 2 * Math.PI);
@@ -493,11 +489,11 @@ export class Vorschau {
     ctx.fillStyle = FARBE.grund;
     ctx.fillRect(0, 0, breite, hoehe);
     // Raster (1 m) und Wände
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.strokeStyle = `rgba(${FARBE.linie},0.04)`;
     ctx.lineWidth = 1;
     for (let x = 0; x <= RAUM.b; x++) { ctx.beginPath(); ctx.moveTo(X(x), Y(0)); ctx.lineTo(X(x), Y(RAUM.t)); ctx.stroke(); }
     for (let y = 0; y <= RAUM.t; y++) { ctx.beginPath(); ctx.moveTo(X(0), Y(y)); ctx.lineTo(X(RAUM.b), Y(y)); ctx.stroke(); }
-    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.strokeStyle = `rgba(${FARBE.linie},0.14)`;
     ctx.strokeRect(X(0), Y(0), RAUM.b * m, RAUM.t * m);
 
     const spiegel = raumSpiegel(winkel);
@@ -533,7 +529,7 @@ export class Vorschau {
       ctx.lineWidth = Math.max(2, m * 0.05);
       ctx.beginPath(); ctx.moveTo(X(sp.a.x), Y(sp.a.y)); ctx.lineTo(X(sp.b.x), Y(sp.b.y)); ctx.stroke();
       const o = 0.012;
-      ctx.strokeStyle = d.live ? `rgb(${FARBE.lichtLive})` : "#e8ecf4";
+      ctx.strokeStyle = d.live ? `rgb(${FARBE.lichtLive})` : `rgb(${FARBE.spiegelKante})`;
       ctx.lineWidth = Math.max(1, m * 0.022);
       ctx.beginPath();
       ctx.moveTo(X(sp.a.x + sp.n.x * o), Y(sp.a.y + sp.n.y * o));
@@ -541,20 +537,22 @@ export class Vorschau {
       ctx.stroke();
     }
     // Scheinwerfer
-    const glanz = ctx.createRadialGradient(X(lampe.x), Y(lampe.y), 0, X(lampe.x), Y(lampe.y), m * 0.4);
-    glanz.addColorStop(0, `rgba(${farbe},0.9)`);
-    glanz.addColorStop(1, `rgba(${farbe},0)`);
-    ctx.fillStyle = glanz;
-    ctx.beginPath(); ctx.arc(X(lampe.x), Y(lampe.y), m * 0.4, 0, 2 * Math.PI); ctx.fill();
+    if (FARBE.schein) {
+      const glanz = ctx.createRadialGradient(X(lampe.x), Y(lampe.y), 0, X(lampe.x), Y(lampe.y), m * 0.4);
+      glanz.addColorStop(0, `rgba(${farbe},0.9)`);
+      glanz.addColorStop(1, `rgba(${farbe},0)`);
+      ctx.fillStyle = glanz;
+      ctx.beginPath(); ctx.arc(X(lampe.x), Y(lampe.y), m * 0.4, 0, 2 * Math.PI); ctx.fill();
+    }
     ctx.fillStyle = `rgb(${farbe})`;
     ctx.beginPath(); ctx.arc(X(lampe.x), Y(lampe.y), Math.max(3, m * 0.09), 0, 2 * Math.PI); ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.4)";
-    ctx.font = "600 10px -apple-system, sans-serif";
+    ctx.fillStyle = `rgba(${FARBE.text},0.4)`;
+    ctx.font = schrift(10);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.fillText("Rückwand", X(RAUM.b / 2), Y(0) + 4);
     ctx.textBaseline = "top";
-    ctx.fillText("Scheinwerfer ziehen", X(lampe.x), Y(lampe.y) + m * 0.3);
+    if (FARBE.hinweise) ctx.fillText("Scheinwerfer ziehen", X(lampe.x), Y(lampe.y) + m * 0.3);
   }
 
   // ---------- Draufsicht ----------
@@ -617,8 +615,8 @@ export class Vorschau {
       ctx.clip();
       this.element(ctx, x0 + spalte / 2, y0 + spalte / 2, (spalte - 8) / SICHT_VORN, k, d, winkel, 1);
       ctx.restore();
-      ctx.fillStyle = "rgba(255,255,255,0.55)";
-      ctx.font = "600 11px -apple-system, sans-serif";
+      ctx.fillStyle = `rgba(${FARBE.text},0.55)`;
+      ctx.font = schrift(11);
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       const lage = k === 0 ? " vorn" : k === ELEMENTE - 1 ? " hinten" : "";
@@ -648,18 +646,19 @@ export class Vorschau {
       const x = ((i + 0.5) * RASTER - ELEMENT_B / 2) * s;
       if (vorderseite) {
         const hell = (0.16 + 0.3 * Math.cos(a) ** 4) * tiefe;
-        const c1 = Math.round(235 * hell), c2 = Math.round(170 * hell);
+        const ton = (rgb: string) => rgb.split(",").map((c) => Math.min(255, Math.round(Number(c) * hell))).join(",");
+        const rand = `rgb(${ton(FARBE.spiegelHell)})`, mitte = `rgb(${ton(FARBE.spiegelMitte)})`;
         const verlauf = ctx.createLinearGradient(0, -halb, 0, halb);
-        verlauf.addColorStop(0, `rgb(${c1},${c1},${Math.round(c1 * 1.05)})`);
-        verlauf.addColorStop(0.5, `rgb(${c2},${c2},${Math.round(c2 * 1.12)})`);
-        verlauf.addColorStop(1, `rgb(${c1},${c1},${Math.round(c1 * 1.05)})`);
+        verlauf.addColorStop(0, rand);
+        verlauf.addColorStop(0.5, mitte);
+        verlauf.addColorStop(1, rand);
         ctx.fillStyle = verlauf;
       } else {
         ctx.fillStyle = FARBE.rueckseite;
       }
       ctx.fillRect(x - b / 2, -halb, b, 2 * halb);
     }
-    ctx.strokeStyle = d.live ? `rgba(255,31,79,${0.7 * tiefe})` : `rgba(255,255,255,${0.35 * tiefe})`;
+    ctx.strokeStyle = d.live ? `rgba(${FARBE.punktLive},${0.7 * tiefe})` : `rgba(${FARBE.linie},${0.35 * tiefe})`;
     ctx.lineWidth = Math.max(1, s * 0.015);
     ctx.strokeRect(-halb, -halb, 2 * halb, 2 * halb);
     ctx.restore();
