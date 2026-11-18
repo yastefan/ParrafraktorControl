@@ -57,6 +57,9 @@ export interface Parameter {
   speedVon: number;
   speedBis: number;
   phase: number;       // Grad, Versatz über die Auswahl wie MAtricks-Phase (360° = eine Welle über die Auswahl)
+  // Grad, 0 = aus: Phase läuft über die Elemente weiter (Element-Folge). Sonst läuft die Phase in jedem
+  // Element für sich, und die Elemente sind nach ihrem Rang in der Element-Folge um so viel versetzt.
+  elementPhase: number;
   // Sinus: Anteil des Durchlaufs, in dem sich ein Spiegel bewegt, wie Width im Phaser der grandMA3.
   // 100 = immer, darunter steht er den Rest der Zeit auf Offset: eine schmale Welle zieht durch.
   breite: number;      // %
@@ -89,6 +92,7 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   speedVon: 3,
   speedBis: 0,
   phase: 360,
+  elementPhase: 0,
   breite: 100,
   group: 0,
   faecher: 0,
@@ -225,12 +229,13 @@ export function auswahl(p: Parameter, g: number): Auswahl {
   const i = gespiegelt ? SPIEGEL_N - 1 - (g % SPIEGEL_N) : g % SPIEGEL_N;
   const vonInnen = i < h ? h - 1 - i : i - h;
   let { platz, anzahl } = ordnungsPlatz(p.ordnung, i);
+  const innen = { platz, anzahl };
   const rang = elementRang(p.elementFolge, k);
   if (rang !== null) { platz += rang * anzahl; anzahl *= elementRaenge(p.elementFolge); }
   const mitte = p.ordnung === "mitteAussen" || p.ordnung === "aussenMitte";
   const lage = mitte ? (vonInnen + 0.5) / h : (platz + 0.5) / anzahl;
   // Groups: das Muster wiederholt sich alle "group" Spiegel
-  if (p.group > 0) { platz %= p.group; anzahl = Math.min(anzahl, p.group); }
+  if (p.group > 0) { platz %= p.group; anzahl = Math.min(anzahl, p.group); innen.platz %= p.group; innen.anzahl = Math.min(innen.anzahl, p.group); }
   // anteil: Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis. Mit Speed je Element
   // zählt nur der Rang des Elements: alle Spiegel eines Elements gleich schnell, die Elemente gestaffelt
   // (nacheinander: von, Mitte, bis; Mitte → außen: Mitte von, außen bis; zusammen: alle von).
@@ -239,7 +244,11 @@ export function auswahl(p: Parameter, g: number): Auswahl {
     : anzahl > 1 ? Math.min(1, platz / (anzahl - 1)) : 0;
   // Gegenlauf: linke Hälfte gespiegelt; im gespiegelten Element der ganze Winkel noch einmal
   const seite = p.gegenlauf ? (i < h ? -1 : 1) * (gespiegelt ? -1 : 1) : 1;
-  return { platz, anzahl, anteil, lage, seite, versatz: (p.phase / 360) * (platz / anzahl) };
+  // Element-Phase: Phase nur innerhalb des Elements, dazu ein fester Versatz je Rang
+  const versatz = p.elementPhase > 0 && rang !== null
+    ? (p.phase / 360) * (innen.platz / innen.anzahl) + (p.elementPhase / 360) * rang
+    : (p.phase / 360) * (platz / anzahl);
+  return { platz, anzahl, anteil, lage, seite, versatz };
 }
 
 // ---------- Rotation ----------

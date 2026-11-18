@@ -116,7 +116,7 @@ Impulse (Live-Seite)
 | Impulse › | obere Reihe wählt die Art (löst nichts aus); Elemente schaltet die Element-Folge, Regler die Drehregler-Seite (Hülle: Attack, Sustain, Release, Stärke; Lauf: Ausbreitung, Breite, Versatz), Symmetrisch schaltet die Spiegelung |
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
-| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf), **Fein** (Group, Ping-Pong, Speed je Element). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
+| Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf, Element-Phase), **Fein** (Group, Ping-Pong, Speed je Element). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 
@@ -173,6 +173,7 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 |---|---|
 | Ordnung | innerhalb jedes Elements: links → rechts, rechts → links, Mitte → außen, außen → Mitte, verschachtelt (erst gerade, dann ungerade), Zufall (feste Mischung) |
 | Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter), Mitte → außen (erst das mittlere, dann beide äußeren; das erste ist das Spiegelbild des dritten – mit Gegenlauf und Ordnung Mitte → außen ist die ganze Installation symmetrisch) |
+| Element-Phase | aus: die Phase läuft mit der Element-Folge über die Elemente weiter. Sonst läuft die Phase in jedem Element für sich, und die Elemente sind nach der Element-Folge um so viel versetzt (vorn → hinten mit 15°: 0°, 15°, 30°; Mitte → außen: beide äußeren 15° hinter dem mittleren; bei zusammen ohne Wirkung) |
 | Gegenlauf | linke Hälfte jedes Elements gespiegelt, auch der Offset (Offset 30° = links −30°, rechts +30°) |
 | Ping-Pong | Muster läuft hin und wieder zurück |
 | Speed je Element | Speed von → bis gilt für die Elemente statt für die Spiegel: alle Spiegel eines Elements gleich schnell, die Elemente nach der Element-Folge gestaffelt. Bei Phase 90° und 3 → 4 BPM sind alle nach 2 min wieder deckungsgleich |

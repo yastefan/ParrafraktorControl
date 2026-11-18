@@ -54,7 +54,7 @@ const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name }
 // als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge).
 const GRUPPEN: ReglerSeite[] = [
   { name: "Bewegung", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("kante"), zahl("wabern"), zahl("puls"), zahl("nachlauf")] },
-  { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf")] },
+  { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf"), zahl("elementPhase")] },
   { name: "Fein", ton: "fein", regler: [zahl("group"), schalter("pingpong"), schalter("speedJeElement")] },
 ];
 
