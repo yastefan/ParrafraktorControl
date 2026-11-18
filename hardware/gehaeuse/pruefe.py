@@ -5,7 +5,8 @@ Aufruf: python3 hardware/gehaeuse/pruefe.py   (braucht openscad und numpy)
 Schreibt teile/*.stl und pruefbericht.txt.
 
 Prüft: dicht (jede Kante zweimal), Bauraum, Überhang über 45°, Überschneidung aller Teile
-und Platzhalter in Einbaulage, Standfestigkeit überschlägig.
+und Platzhalter in Einbaulage, den Einbauweg (Bett mit Deck senkrecht auf die Stützen, Korpus
+senkrecht darüber), Standfestigkeit überschlägig.
 """
 import itertools
 import pathlib
@@ -118,6 +119,90 @@ def punkte_im_koerper(punkte, t):
     return np.array(innen).reshape(-1, 3)
 
 
+RASTER = 0.2       # mm, Höhenkarten für den Einbauweg
+# Einbau: Bett mit Deck senkrecht auf die Stützen, dann Korpus senkrecht über alles
+OBEN_AUF = ["deck", "deck_echt", "deck_usb", "bett"]
+UNTEN = ["boden", "pi", "usb_a", "rj45", "strom", "rs485", "luefter", "ballast", "ballastdeckel",
+         "kasten", "buchse_usb", "buchse_xlr", "buchse_eth", "buchse_usb3"]
+
+
+def hoehenkarte(netze, oben, form):
+    """Senkrechte Strahlen durch die Rastermitten: je Strahl die höchste (oben=True) oder tiefste
+    Fläche aller Netze. Geht auch mit offenen Netzen. Kein Treffer = nan."""
+    flach = np.full(form[0] * form[1], -np.inf if oben else np.inf)
+    f = np.maximum if oben else np.minimum
+    for t in netze:
+        t = t.astype(np.float64)
+        xy = t[:, :, :2] / RASTER - 0.5
+        lo = np.ceil(xy.min(1) - 1e-9).astype(np.int64)
+        hi = np.floor(xy.max(1) + 1e-9).astype(np.int64)
+        lo = np.maximum(lo, 0)
+        hi = np.minimum(hi, np.array(form) - 1)
+        nx, ny = np.clip(hi - lo + 1, 0, None).T
+        n = nx * ny
+        tri = np.nonzero(n)[0]
+        grenzen = np.cumsum(n[tri])
+        start = 0
+        while start < len(tri):
+            ende = np.searchsorted(grenzen, (grenzen[start - 1] if start else 0) + 3_000_000, side="right")
+            ende = max(ende, start + 1)
+            sel = tri[start:ende]
+            k = n[sel]
+            welche = np.repeat(sel, k)
+            off = np.arange(k.sum()) - np.repeat(np.cumsum(k) - k, k)
+            gx = lo[welche, 0] + off % nx[welche]
+            gy = lo[welche, 1] + off // nx[welche]
+            px, py = (gx + 0.5) * RASTER, (gy + 0.5) * RASTER
+            v0, v1, v2 = t[welche, 0], t[welche, 1], t[welche, 2]
+            d = (v1[:, 0] - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - (v1[:, 1] - v0[:, 1]) * (v2[:, 0] - v0[:, 0])
+            with np.errstate(divide="ignore", invalid="ignore"):
+                u = ((px - v0[:, 0]) * (v2[:, 1] - v0[:, 1]) - (py - v0[:, 1]) * (v2[:, 0] - v0[:, 0])) / d
+                v = ((v1[:, 0] - v0[:, 0]) * (py - v0[:, 1]) - (v1[:, 1] - v0[:, 1]) * (px - v0[:, 0])) / d
+            e = 1e-9
+            ok = (np.abs(d) > 1e-12) & (u >= -e) & (v >= -e) & (u + v <= 1 + e)
+            z = v0[ok, 2] + u[ok] * (v1[ok, 2] - v0[ok, 2]) + v[ok] * (v2[ok, 2] - v0[ok, 2])
+            idx = gx[ok] * form[1] + gy[ok]
+            o = np.lexsort((z, idx))
+            idx, z = idx[o], z[o]
+            rand = idx[1:] != idx[:-1]
+            sel_ = np.r_[rand, True] if oben else np.r_[True, rand]
+            flach[idx[sel_]] = f(flach[idx[sel_]], z[sel_])
+            start = ende
+    karte = flach.reshape(form)
+    karte[np.isinf(karte)] = np.nan
+    return karte
+
+
+def einbauweg(netze, aus):
+    """Senkrechter Einbau geht, wenn in jeder Spalte (x, y) das Bewegte ganz über dem Festen liegt."""
+    fehler = 0
+    hi = np.max([t.reshape(-1, 3).max(0) for t in netze.values()], axis=0)
+    form = (int(hi[0] / RASTER) + 3, int(hi[1] / RASTER) + 3)
+    def schritt(titel, oben_namen, unten_namen):
+        nonlocal fehler
+        unten = hoehenkarte([netze[n] for n in unten_namen if n in netze], True, form)
+        aus(titel)
+        for n in oben_namen:
+            if n not in netze:
+                continue
+            o = hoehenkarte([netze[n]], False, form)
+            schlecht = ~np.isnan(o) & np.isfinite(unten) & (o < unten - 0.05)
+            if schlecht.any():
+                ij = np.argwhere(schlecht) * RASTER
+                aus(f"  {n}: stößt an, {schlecht.sum()} Zellen, x {ij[:, 0].min():.1f}–{ij[:, 0].max():.1f}, "
+                    f"y {ij[:, 1].min():.1f}–{ij[:, 1].max():.1f}, bis {np.nanmax(np.where(schlecht, unten - o, np.nan)):.1f} mm tief")
+                fehler += 1
+            else:
+                aus(f"  {n}: frei")
+    # Der Platzhalter des Decks ist ein grober Klotz; mit dem echten Elgato-Netz nur dieses
+    oben_auf = [n for n in OBEN_AUF if not (n == "deck" and "deck_echt" in netze)]
+    schritt("  1. Bett mit Deck senkrecht auf die Stützen (gegen Boden und alles darauf):",
+            oben_auf, UNTEN)
+    schritt("  2. Korpus senkrecht über alles (Korpus gegen jedes Teil darunter):",
+            ["korpus"], oben_auf + UNTEN)
+    return fehler
+
+
 def main():
     zeilen = []
     def aus(s=""):
@@ -221,6 +306,10 @@ def main():
                     fehler += 1
                 else:
                     aus(f"  {name}: frei")
+
+        aus("")
+        aus("Einbauweg, senkrecht von oben (senkrechte Strahlen im Raster 0,2 mm):")
+        fehler += einbauweg(netze, aus)
 
         # Standfestigkeit: Schwerpunkt aus Volumen, Geräte mit Herstellergewicht
         mg = []

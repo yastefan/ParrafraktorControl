@@ -69,9 +69,20 @@ einsatz_m3_t = 7;
 einsatz_m25_d = 3.5;     // Gewindeeinsatz M2,5, Bohrung ebenso prüfen
 einsatz_m25_t = 5;
 m3_frei = 3.4;
-leiste_b = 11;           // senkrechte Schraubleisten hinten im Korpus
-leiste_d = 9;
-schraube_x = wand + 6.3;
+m25_frei = 2.9;
+
+/* [Einbau: Deck auf Stützen am Boden, Korpus zuletzt senkrecht darüber] */
+// Alles, was am Korpus nach innen ragt, liegt außerhalb der Grundfläche des Decks (Draufsicht),
+// sonst ließe sich der Korpus nicht senkrecht überstülpen. pruefe.py prüft das.
+ecke_vorn = [7.05, 7.05, 3.85];    // Eckdom vorn links: x, y, Radius; 1 mm Luft zum Deck [CAD]
+ecke_hinten = [6.25, 128.02, 3.05]; // hinten links, ebenso
+schraube_vorn = [7.05, 7.05];       // M3 in den vorderen Eckdom
+schraube_hinten = [6.2, 128.3];     // M2,5 in den hinteren, für M3 ist dort kein Platz
+// Stützen auf dem Boden unter dem Bett: x, y, Durchmesser; Stifte greifen in Löcher im Bett
+stuetzen = [[12.5, 30, 6], [b - 12.5, 30, 6], [44, 112, 8], [b - 12.5, 118, 8]];
+stift_d = 4;
+stift_h = 4;
+stift_loch = 4.6;
 
 /* [Raspberry Pi 4, offizielle Zeichnung] */
 // Pi liegt mit der Bauteilseite oben, SD-Kante rechts, USB/Ethernet links, USB-C-Kante hinten.
@@ -86,7 +97,7 @@ kuehler_h = 15;          // [ANNAHME] passiver Kühlkörper auf dem SoC, Höhe a
 pi_loecher = [[3.5,3.5],[61.5,3.5],[3.5,52.5],[61.5,52.5]];  // [RPi] u von SD-Kante, v von USB-C-Kante
 
 /* [Stecker im Gehäuse] */
-stecker_usb_a_l = 35;    // Händlerbild: 12 Metall, 16 Gehäuse, Knickschutz geschätzt
+stecker_usb_a_l = 23;    // ab Port: Händlerbild 16 Gehäuse, Knickschutz geschätzt; 12 mm Metall stecken im Port
 stecker_rj45_l = 45;     // [ANNAHME]
 // Strom: gerader USB-C-Stecker am Kabel der NAUSBC-5G passt nicht gerade in den Pi (endet 4 mm vor der
 // Buchse in der Rückwand). Deshalb 90°-Winkeladapter am Pi, Buchse seitlich zu den Micro-HDMI-Ports.
@@ -110,6 +121,7 @@ tiefe_usb = 48;          // [Neutrik] Gehäuse 29,4 mm ab Flanschfront, dahinter
 gehaeuse_usb = 27;
 tiefe_xlr = 32;          // [ANNAHME] samt Lötkelchen und Litzen
 tiefe_usb3 = 73;         // vom User gemessen 40 mm hinter der Wand, dazu USB-B-Stecker 33 mm [ANNAHME]
+gehaeuse_usb3 = 40;      // runder Körper (passt durch Ø24), dahinter nur der USB-B-Stecker
 tiefe_eth = 60;          // [Neutrik] 29,5 mm hinter dem Flansch, dahinter RJ45-Stecker mit Tülle [ANNAHME]
 gehaeuse_eth = 27;
 neutrik_d = 24;          // [Neutrik] Ausschnitt ≥ Ø24, Löcher ≥ Ø3,2 im Abstand 19 × 24 (diagonal)
@@ -126,12 +138,13 @@ neutrik_dom_d = 9;
 /* [Lüfter, optional: 40 × 40 × 10 mm, linke Seitenwand neben dem Pi, saugt an] */
 luefter = [40, 10];      // Kantenlänge, Dicke
 luefter_y = 100;
-luefter_z = 25;
+luefter_z = 25;          // Mitte des Gitters in der Seitenwand
+luefter_halter_an = true;
 luefter_loch = 32;       // Lochabstand der Befestigung
 
 /* [RS485: M5Stack Unit RS485-ISO (U094), 56 × 24 × 10,2 mm, stehend an der rechten Wand] */
 rs485_modul = [10.2, 56, 24];
-rs485_y = 63;           // zwischen Ethernet-Stecker des Pi und Schraubleiste
+rs485_y = 52;           // weiter vorn stieße es an das Bett, dahinter steht die Stütze
 
 /* [Ballast] */
 ballast = [105, 30, 6];  // Flachstahl, etwa 148 g
@@ -149,14 +162,12 @@ h_hinten = h_vorn + laenge * sin(neigung);
 cx = b / 2;
 deck_lage = -(platte + blende_luft + deck_rand_z);        // Rückplatte unter der Oberseite
 schacht_unten = deck_lage + rahmen_hoehe;
-bett_x = b / 2 - wand - luft;                             // halbe Breite des Betts
-lasche_x = 70;                                            // Schrauben des Betts, ± von der Mitte
-lasche_s = [30, 112];
+bett_x = 68;                                              // halbe Breite des Betts, innerhalb des Decks
+innen_x = b / 2 - wand;                                   // halbe lichte Breite des Korpus
 gesamt = tiefe + kasten_t;                                // Tiefe außen
 function buchsen() = concat([[buchse_x_usb, tiefe_usb], [buchse_x_xlr, tiefe_xlr], [buchse_x_eth, tiefe_eth]],
     usb3_buchse ? [[buchse_x_usb3, tiefe_usb3]] : []);
 function z_unten(y) = h_vorn + y * tan(neigung) - platte / cos(neigung);
-leiste_y = tiefe - rueck_d - leiste_d;
 x0 = wand + luft;                                         // Boden/Rückwand von links
 x1 = b - wand - luft;
 pi_z = boden_d + pi_abstand;
@@ -183,21 +194,15 @@ function oben_z(y) = h_vorn + y * tan(neigung);
 // ---------------- Korpus ----------------
 
 // Schacht unter der Oberseite. Plattenkoordinaten. Seiten gehen in die Seitenwände über.
+// Keine Vorderwand: Beim senkrechten Überstülpen wandert das Deck relativ zum Korpus nach vorn.
 module schacht() {
     difference() {
-        translate([cx - bett_x - 1.5, s0 - spiel - rahmen_b, schacht_unten])
-            cube([2 * bett_x + 3, deck_h + 2 * spiel + 2 * rahmen_b, -schacht_unten - platte + 0.01]);
+        translate([cx - innen_x - 1.5, s0 + 1, schacht_unten])
+            cube([2 * innen_x + 3, deck_h + spiel + rahmen_b - 1, -schacht_unten - platte + 0.01]);
         // hinten nur oben, Seiten enden davor
         translate([cx - 200, s0 + 128, schacht_unten - 1])
             cube([400, 100, deck_lage + schacht_hinten - schacht_unten + 1]);
     }
-}
-
-// Laschen unter dem Rand des Decks, dort schrägt sich seine Rückseite weg. Deck-Koordinaten
-module schacht_laschen() {
-    for (sx = [-1, 1], ss = lasche_s) translate([0, ss, 0]) mirror([sx < 0 ? 1 : 0, 0, 0])
-        translate([0, -7, 0]) rotate([-90, 0, 0]) mirror([0, 1, 0]) linear_extrude(14)
-            polygon([[67.8, rahmen_hoehe], [bett_x + 1.5, rahmen_hoehe], [bett_x + 1.5, 19.2], [70.52, 19.2], [67.8, 16.5]]);
 }
 
 module korpus_aussen() {
@@ -233,34 +238,34 @@ module korpus_innenraum() {
     translate([wand, tiefe - rueck_d - 1, -1]) cube([b - 2 * wand, rueck_d + 2, kasten_h + 1]);
 }
 
-module saeule(x, y) {
-    translate([x, y, boden_d + luft]) cylinder(d = 10, h = h_hinten);
+// Eckdom: Kreis, zur Ecke hin aufgefüllt, volle Höhe bis unter die Oberseite (druckt kopfüber ohne Stütze)
+module eckdom(e, ecke) {
+    translate([0, 0, boden_d + luft]) linear_extrude(h_hinten) hull() {
+        translate([e[0], e[1]]) circle(r = e[2]);
+        translate(ecke) square(0.01, center = true);
+    }
 }
+function spiegel_x(p) = [b - p[0], p[1]];
 
 module innen_verstaerkung() {
     intersection() {
         korpus_innenraum();
-        union() {
-            for (x = [wand + 4.5, b - wand - 4.5]) saeule(x, wand + 4.5);
-            // Leisten enden unter dem Bett
-            // oben zur Seitenwand hin abgeschrägt, druckt ohne Stütze
-            for (x = [wand - eps, b - wand - leiste_b + eps]) hull() {
-                translate([x, leiste_y, boden_d + luft]) cube([leiste_b, leiste_d, leiste_oben - leiste_b - boden_d - luft]);
-                translate([x < cx ? x : x + leiste_b - 1, leiste_y, boden_d + luft]) cube([1, leiste_d, leiste_oben - boden_d - luft]);
-            }
+        for (m = [0, 1]) mirror_x(m) {
+            eckdom(ecke_vorn, [wand, wand]);
+            eckdom(ecke_hinten, [wand, tiefe - rueck_d]);
         }
     }
 }
+module mirror_x(m) { if (m == 1) translate([b, 0, 0]) mirror([1, 0, 0]) children(); else children(); }
 
-module einsatz_von_unten(x, y) {
-    translate([x, y, boden_d + luft - eps]) cylinder(d = einsatz_m3_d, h = einsatz_m3_t);
+module einsatz_von_unten(x, y, d = einsatz_m3_d, t = einsatz_m3_t) {
+    translate([x, y, boden_d + luft - eps]) cylinder(d = d, h = t);
 }
 
-function ls_x() = [schraube_x, b - schraube_x];
+// Schrauben von unten in die Eckdome: [x, y, M3?]
 function boden_schrauben() = [
-    [wand + 4.5, wand + 4.5], [b - wand - 4.5, wand + 4.5],
-    [schraube_x, leiste_y + leiste_d / 2], [b - schraube_x, leiste_y + leiste_d / 2]];
-leiste_oben = 66;
+    concat(schraube_vorn, [true]), concat(spiegel_x(schraube_vorn), [true]),
+    concat(schraube_hinten, [false]), concat(spiegel_x(schraube_hinten), [false])];
 
 module korpus() {
     difference() {
@@ -283,22 +288,17 @@ module korpus() {
                     }
                 }
             }
-            intersection() { korpus_aussen(); im_deck() schacht_laschen(); }
         }
-        for (p = boden_schrauben()) einsatz_von_unten(p[0], p[1]);
-        // Lüftergitter links, auch ohne Lüfter als Zuluft
-        translate([-1, luefter_y, luefter_z]) rotate([0, 90, 0]) {
+        for (p = boden_schrauben()) if (p[2]) einsatz_von_unten(p[0], p[1]); else einsatz_von_unten(p[0], p[1], einsatz_m25_d, einsatz_m25_t);
+        // Lüftergitter links, auch ohne Lüfter als Zuluft; der Lüfter steht im Halter auf dem Boden
+        translate([-1, luefter_y, luefter_z]) rotate([0, 90, 0])
             for (u = [-15:6:15], v = [-15:6:15]) if (norm([u, v]) < 18.5)
                 translate([u, v, 0]) cylinder(d = 4, h = wand + 2);
-            for (u = [-1, 1], v = [-1, 1]) translate([u * luefter_loch / 2, v * luefter_loch / 2, 0]) cylinder(d = m3_frei, h = wand + 2);
-        }
         // Abluft oben in der Rückwand über dem Kasten
         for (x = [30:6:b - 30]) translate([x, tiefe + 1, kasten_h + 8]) rotate([90, 0, 0]) hull() {
             cylinder(d = 3, h = rueck_d + 2);
             translate([0, 34, 0]) cylinder(d = 3, h = rueck_d + 2);
         }
-        // Einsätze für das Bett, von unten
-        im_deck() for (sx = [-1, 1], ss = lasche_s) translate([sx * lasche_x, ss, rahmen_hoehe - 0.01]) cylinder(d = einsatz_m3_d, h = 6);
     }
 }
 
@@ -343,12 +343,18 @@ module boden() {
                 for (p = pi_loecher) pi_saeule(p);
                 wanne();
                 rs485_tasche();
+                if (luefter_halter_an) luefter_halter();
+                stuetzen();
             }
         }
         // Schrauben von unten in Korpus und Kasten
-        for (p = concat(boden_schrauben(), kasten_schrauben())) {
+        for (p = concat(kasten_schrauben(), [for (q = boden_schrauben()) if (q[2]) q])) {
             translate([p[0], p[1], -1]) cylinder(d = m3_frei, h = boden_d + 2);
             translate([p[0], p[1], -1]) cylinder(d = 6.5, h = 3);   // Köpfe versenkt
+        }
+        for (p = [for (q = boden_schrauben()) if (!q[2]) q]) {
+            translate([p[0], p[1], -1]) cylinder(d = m25_frei, h = boden_d + 2);
+            translate([p[0], p[1], -1]) cylinder(d = 5, h = 3);
         }
         // Pi
         for (p = pi_loecher) translate(concat(pi_pos(p[0], p[1]), [pi_z - einsatz_m25_t + eps])) cylinder(d = einsatz_m25_d, h = einsatz_m25_t);
@@ -431,9 +437,6 @@ module bett_lokal() {
                 translate([-bett_x, 0, 0]) rotate([90, 0, 90]) linear_extrude(2 * bett_x)
                     polygon([[s_a, 0], [s_a + 3.5, -bett_d], [120, -bett_d], [131, 7.8], [130, 7.8], [116, -bett_luft],
                              [41, -bett_luft], [18, 1.6], [s_a, 1.6]]);
-                // Laschen, stoßen von unten an die Laschen des Schachts
-                for (sx = [-1, 1], ss = lasche_s) translate([sx * (66.5 + bett_x) / 2 - (bett_x - 66.5) / 2, ss - 7, -bett_d])
-                    cube([bett_x - 66.5, 14, rahmen_hoehe + bett_d]);
                 // Sitze: voller Querschnitt bis zur Stirnfläche
                 for (sx = [-1, 1]) am_dom(sx) translate([0, 0, -8]) cylinder(d = dom_d - 0.4, h = 8);
             }
@@ -449,11 +452,45 @@ module bett_lokal() {
         // USB
         translate([usb_fenster[0], usb_s - usb_fenster[2] / 2, -bett_d - 1]) linear_extrude(rahmen_hoehe)
             offset(r = 3) offset(delta = -3) square([usb_fenster[1] - usb_fenster[0], usb_fenster[2]]);
-        // Laschen: Schraube von unten in den Schacht
-        for (sx = [-1, 1], ss = lasche_s) translate([sx * lasche_x, ss, 0]) {
-            translate([0, 0, -bett_d - 1]) cylinder(d = m3_frei, h = rahmen_hoehe + bett_d + 2);
-            translate([0, 0, -bett_d - 1]) cylinder(d = 6.5, h = bett_d + 5);
+        // Löcher für die Stifte der Stützen, senkrecht in Einbaulage
+        for (p = stuetzen) translate(stuetze_lokal(p)) rotate([-neigung, 0, 0]) translate([0, 0, -10]) cylinder(d = stift_loch, h = 30);
+    }
+}
+// Punkt der Bett-Unterseite über einer Stütze, in Deck-Koordinaten
+function stuetze_lokal(p) = let(h = deck_lage - bett_d)
+    [p[0] - cx, (p[1] + h * sin(neigung)) / cos(neigung) - s0, -bett_d];
+// Höhe der Bett-Unterseite über (x, y), Welt
+function bett_unten_z(y) = let(h = deck_lage - bett_d, s = (y + h * sin(neigung)) / cos(neigung))
+    h_vorn + s * sin(neigung) + h * cos(neigung);
+
+module stuetzen() {
+    for (p = stuetzen) translate([p[0], p[1], 0]) {
+        z = bett_unten_z(p[1]);
+        intersection() {
+            union() {
+                cylinder(d = p[2], h = 200);
+                cylinder(d1 = p[2] + 6, d2 = p[2], h = boden_d + 3);   // Fuß
+            }
+            translate([-p[0], -p[1], 0]) auf_platte() translate([-500, -500, deck_lage - bett_d - 500]) cube([1000, 1000, 500]);
         }
+        translate([0, 0, z - 3]) {
+            cylinder(d = stift_d, h = 3 + stift_h - 1);
+            translate([0, 0, 3 + stift_h - 1]) cylinder(d1 = stift_d, d2 = stift_d - 2, h = 1);
+        }
+    }
+}
+
+// Lüfterhalter: Rinne im Boden und Anschlag hinten; vorn frei, die Seitenwand hält ihn
+luefter_x = wand + 0.5;
+module luefter_halter() {
+    y0 = luefter_y - luefter[0] / 2;
+    difference() {
+        union() {
+            translate([x0, y0 - 1, 0]) cube([luefter_x + luefter[1] + 2 - x0, luefter[0] + 2, boden_d + 3]);
+            translate([x0, y0 + luefter[0], 0]) cube([luefter_x + luefter[1] + 2 - x0, 3, boden_d + luefter[0] - 5]);
+        }
+        translate([luefter_x - 0.2, y0 - 2, boden_d]) cube([luefter[1] + 0.4, luefter[0] + 0.4 + 2, 50]);
+        translate([luefter_x - 0.2, y0 + luefter[0] - 0.01, boden_d]) cube([luefter[1] + 0.4, 1.5, 50]);
     }
 }
 
@@ -534,7 +571,7 @@ module m_buchse(x, t, k = 99, schmal = [14, 16]) {
     if (t > kk) translate([x - schmal[0] / 2, gesamt - kasten_wand - t, buchse_z - schmal[1] / 2]) cube([schmal[0], t - kk + 0.01, schmal[1]]);
 }
 module m_luefter() {
-    translate([wand + 0.2, luefter_y - luefter[0] / 2, luefter_z - luefter[0] / 2]) cube([luefter[1], luefter[0], luefter[0]]);
+    translate([luefter_x, luefter_y - luefter[0] / 2, boden_d]) cube([luefter[1], luefter[0], luefter[0]]);
 }
 module m_rs485() {
     translate([rs485_x, rs485_y, boden_d]) cube(rs485_modul);
@@ -560,7 +597,7 @@ module montiert(name) {
     if (name == "buchse_usb") m_buchse(buchse_x_usb, tiefe_usb, gehaeuse_usb, [9, 9]);
     if (name == "buchse_xlr") m_buchse(buchse_x_xlr, tiefe_xlr);
     if (name == "buchse_eth") m_buchse(buchse_x_eth, tiefe_eth, gehaeuse_eth);
-    if (name == "buchse_usb3" && usb3_buchse) m_buchse(buchse_x_usb3, tiefe_usb3);
+    if (name == "buchse_usb3" && usb3_buchse) m_buchse(buchse_x_usb3, tiefe_usb3, gehaeuse_usb3);
     if (name == "rs485") m_rs485();
     if (name == "luefter") m_luefter();
     if (name == "ballast") m_ballast();
