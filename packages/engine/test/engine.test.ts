@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   Engine, MODI, PARAMETER_VORGABE, PATCH_VORGABE, ROTATE_STOP, leseStellungen, schreibeUniversen,
-  tiltGrad, tiltWert, type Parameter,
+  auswahl, tiltGrad, tiltWert, type Parameter,
 } from "@parrafraktor/engine";
 
 interface Fall {
@@ -318,6 +318,26 @@ describe("Regler", () => {
     const q = { ...p, puls: 0 }, f = new Engine(), ohne: number[] = [];
     for (let i = 0; i < 1000; i++) { f.weiter(q, 0.01); ohne.push(f.alle(q).filter((s) => s.tilt > 45).length); }
     expect(Math.max(...ohne) - Math.min(...ohne)).toBeLessThan(Math.max(...zahlen) - Math.min(...zahlen));
+  });
+
+  it("Element-Phase: Phase nur im Element, Elemente nach Rang versetzt; aus = Phase über alle", () => {
+    const grad = (p: Parameter, g: number) => Math.round(auswahl(p, g).versatz * 360 * 1000) / 1000;
+    const p: Parameter = { ...PARAMETER_VORGABE, modus: "sinus", phase: 120, ordnung: "links", elementFolge: "vorneHinten", group: 0, elementPhase: 15 };
+    // im Element: 120° über 12 Spiegel, in jedem Element gleich
+    expect(grad(p, 11) - grad(p, 0)).toBeCloseTo(110, 6);
+    // von Element zu Element 15°
+    expect(grad(p, 12) - grad(p, 0)).toBeCloseTo(15, 6);
+    expect(grad(p, 24) - grad(p, 0)).toBeCloseTo(30, 6);
+    // Mitte → außen: beide äußeren Elemente gleich weit hinter dem mittleren
+    const m: Parameter = { ...p, elementFolge: "mitteAussen", ordnung: "mitteAussen", gegenlauf: true };
+    expect(grad(m, 0) - grad(m, 12 + 11)).toBeCloseTo(15, 6);   // erstes Element ist gespiegelt
+    expect(grad(m, 24) - grad(m, 12)).toBeCloseTo(15, 6);
+    // zusammen: kein Rang, kein Versatz
+    const z: Parameter = { ...p, elementFolge: "zusammen" };
+    expect(grad(z, 12)).toBe(grad(z, 0));
+    // aus: wie bisher, Phase läuft über alle 36
+    const a: Parameter = { ...p, elementPhase: 0 };
+    expect(grad(a, 12) - grad(a, 0)).toBeCloseTo(40, 6);
   });
 
   it("Speed je Element: Elemente in sich gleich schnell, gestaffelt, nach (Ränge − 1) / (bis − von) min wieder deckungsgleich", () => {

@@ -6,7 +6,7 @@ import {
 } from "@parrafraktor/engine";
 
 export type ZahlParameter =
-  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge"
+  | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "elementPhase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge"
   | "groesse" | "weite" | "kante" | "wabern" | "puls" | "nachlauf";
 
 export interface Bereich {
@@ -25,6 +25,7 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
   speedVon: { name: "Speed von", kurz: "Speed von", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "aus" },
   speedBis: { name: "Speed bis", kurz: "Speed bis", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "aus" },
   phase: { name: "Phase", kurz: "Phase", min: 0, max: 720, schritt: 1, einheit: "°" },
+  elementPhase: { name: "Element-Phase", kurz: "El.-Phase", min: 0, max: 360, schritt: 1, einheit: "°", nullText: "aus" },
   breite: { name: "Breite", kurz: "Breite", min: 5, max: 100, schritt: 1, einheit: " %" },
   group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "aus" },
   faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
@@ -55,10 +56,10 @@ export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenla
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
 const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
   sinus: ["schwuenge", "wellenlaenge"],
-  pendelwelle: ["speedBis", "phase", "breite", "wellenlaenge", "pingpong", "speedJeElement"],
-  wind: ["speedBis", "phase", "breite", "schwuenge", "pingpong", "speedJeElement"],
+  pendelwelle: ["speedBis", "phase", "elementPhase", "breite", "wellenlaenge", "pingpong", "speedJeElement"],
+  wind: ["speedBis", "phase", "elementPhase", "breite", "schwuenge", "pingpong", "speedJeElement"],
   rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong"],
-  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement"],
+  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "elementPhase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement"],
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
 const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "puls", "nachlauf"];
