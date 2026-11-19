@@ -18,7 +18,7 @@
 #
 # Aufruf im Repo auf dem Pi:
 #   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay]
-#        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band bg|a] [--land DE]]
+#        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band a|bg] [--land DE]]
 # Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen.
 set -euo pipefail
 
@@ -33,7 +33,7 @@ SCHNITTSTELLE=eth0
 AP_SSID=""
 AP_PASSWORT=""
 AP_ADRESSE=192.168.4.1/24
-AP_BAND=bg
+AP_BAND=a
 LAND=DE
 
 hilfe() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit "${1:-0}"; }
