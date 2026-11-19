@@ -17,6 +17,6 @@ export class OscModul implements Eingabemodul {
   async schliesse(): Promise<void> {}
 
   status(): ModulStatus {
-    return { name: this.name, art: "eingabe", zustand: "aus", text: "noch nicht umgesetzt" };
+    return { name: this.name, art: "eingabe", zustand: "aus", text: "not implemented yet" };
   }
 }

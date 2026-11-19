@@ -134,7 +134,7 @@ export function patchWarnung(patch: readonly PatchElement[], kanaeleProElement: 
     for (let b = a + 1; b < patch.length; b++) {
       const x = patch[a]!, y = patch[b]!;
       if (x.universe === y.universe && Math.abs(x.adresse - y.adresse) < kanaeleProElement) {
-        return `Element ${a + 1} und ${b + 1} überschneiden sich in Universe ${x.universe}`;
+        return `Element ${a + 1} and ${b + 1} overlap in universe ${x.universe}`;
       }
     }
   }

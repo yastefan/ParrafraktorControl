@@ -20,6 +20,6 @@ export class Rs485Ausgabe implements Ausgabe {
   async schliesse(): Promise<void> {}
 
   status(): ModulStatus {
-    return { name: this.name, art: "ausgabe", zustand: "fehler", text: `${this.e.geraet}: noch nicht umgesetzt` };
+    return { name: this.name, art: "ausgabe", zustand: "fehler", text: `${this.e.geraet}: not implemented yet` };
   }
 }

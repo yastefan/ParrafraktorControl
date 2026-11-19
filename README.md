@@ -101,7 +101,7 @@ Hauptmenü                                   Untermenü (Pattern, Presets)
 
 Impulse (Live-Seite)
 ┌─────────┬─────────┬─────────┬─────────┐
-│Flash auf│Flash zu │  Loch   │  Iris   │
+│  Open   │  Close  │  Hole   │  Iris   │
 ├─────────┼─────────┼─────────┼─────────┤
 │‹ Zurück │Elemente │ Regler  │Symmetr. │
 └─────────┴─────────┴─────────┴─────────┘
@@ -144,16 +144,36 @@ WantedBy=multi-user.target
 sudo systemctl enable --now parrafraktor
 ```
 
+## Begriffe am Pult
+
+Die Oberfläche (Client und Stream Deck) ist englisch, diese Anleitung deutsch. Die wichtigsten Begriffe:
+
+| Pult | hier |
+|---|---|
+| Motion / Distribution / Fine | Bewegung / Verteilung / Fein |
+| Speed from / Speed to | Speed von / Speed bis |
+| Width, Fan, Return, Wavelength | Breite, Fächer, Wiederkehr, Wellenlänge |
+| Element phase, Counter-motion, Speed per element | Element-Phase, Gegenlauf, Speed je Element |
+| Order, Elements (together, front → back, back → front, center → out) | Ordnung, Element-Folge (zusammen, vorn → hinten, hinten → vorn, Mitte → außen) |
+| Coupling, Noise, Range | Kopplung, Rauschen, Reichweite |
+| Path (Circle, Line, Iris, Drift), Size, Travel, Edge, Wobble, Pulse, Lag | Bahn (Kreis, Linie, Iris, Drift), Größe, Weite, Kante, Wabern, Puls, Nachlauf |
+| Impulses: Open, Close, Hole, Iris; Strength, Spread, Element delay, Envelope | Impulse: Flash auf, Flash zu, Loch, Iris; Stärke, Ausbreitung, Element-Versatz, Hülle |
+| Settings: Layout, Crossfade, Read MA | Einstellungen: Aufbau, Überblendung, MA mitlesen |
+| Preview: Reflection, Haze, Mirror / Stage / Thermal | Vorschau: Reflexion, Nebel, Spiegel / Bühne / Wärmebild |
+| „mir.“ als Einheit | Spiegel |
+
 ## Pattern und Regler
 
 Ein Pattern ist die Grundbewegung, die dauerhaft läuft:
 
-- **Sinus**: die klassische Welle.
-- **Pendelwelle**: Jeder Spiegel schwingt etwas schneller als sein Vorgänger, wie bei einer Pendelwelle aus echten Pendeln. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und wieder zusammen, wenn der erste Spiegel so oft geschwungen hat, wie **Wiederkehr** sagt (dann hat jeder folgende einen Schwung mehr geschafft). Speed ist das Tempo des ersten Spiegels und beschleunigt das ganze Bild; je kleiner die Wiederkehr, desto schneller laufen die hinteren Spiegel. Startet beim Wählen im Gleichlauf.
+- **Sine** (Sinus): die klassische Welle.
+- **Pendulum wave** (Pendelwelle, vorerst nicht am Pult wählbar, nur noch über alte Presets): Jeder Spiegel schwingt etwas schneller als sein Vorgänger, wie bei einer Pendelwelle aus echten Pendeln. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und wieder zusammen, wenn der erste Spiegel so oft geschwungen hat, wie **Wiederkehr** sagt (dann hat jeder folgende einen Schwung mehr geschafft). Speed ist das Tempo des ersten Spiegels und beschleunigt das ganze Bild; je kleiner die Wiederkehr, desto schneller laufen die hinteren Spiegel. Startet beim Wählen im Gleichlauf.
 - **Wind**: Böen ziehen entlang der Ordnung durch die Spiegel und verändern sich dabei langsam, wiederholt sich nie. **Wellenlänge** = wie viele Spiegel eine Böe breit ist, Speed = Tempo (eine Wellenlänge je Durchlauf).
+- **Swarm** (Schwarm): Jeder Spiegel läuft wie beim Sinus, aber mit eigenem Tempo (Speed von → bis), und zieht die anderen zu sich (Kuramoto-Modell, mit Rauschen und Reichweite wie ein Vogelschwarm im Vicsek-Modell). **Kopplung** aus = jeder für sich wie Speed je Spiegel, ab etwa 30 % rasten sie ein, dazwischen bilden sich Inseln und Ausreißer. Mit Phase rasten sie nicht in den Gleichlauf, sondern in die Welle der Phase ein. **Rauschen** stört jeden Spiegel für sich und bricht die Ordnung wieder auf (ab etwa 50 % deutlich). **Reichweite** = wie viele Plätze je Seite ein Spiegel sieht (aus = alle): klein gibt wandernde Fronten statt einem Gleichlauf. Startet beim Wählen verstreut (Nachbarn ähnlich, verdeckt von der Überblendung). Kein Spiegel läuft langsamer als das halbe oder schneller als das 1,5-fache Speed, auch wenn Kopplung oder Rauschen mehr verlangen; das Rauschen trifft immer mehrere Nachbarn zusammen wie eine Böe.
+- **Flash** (Glühwürmchen): Jeder Spiegel lädt sich im Durchlauf auf und „blitzt“: ein Ausschlag zur Seite und zurück, so lang wie die **Breite** (wirkt zwischen 30 und 40 %, darunter wäre er zu schnell, darüber fehlt die Pause). Wer blitzt, stößt die anderen weiter, je voller sie schon sind, desto mehr. Wer dadurch voll ist, blitzt mit: Lawinen, bis alle im Takt blitzen (meist nach ½–1 min). Dazu passen sie ihr Tempo an: Wer kurz nach dem eigenen Blitz einen sieht, wird langsamer, wer kurz davor einen sieht, schneller. Alles das passiert nur in der Pause, man sieht es nicht; jeder Blitz läuft im eigenen Tempo und sieht gleich aus. Mit Phase wandert der Blitz als Welle durch. Kopplung, Rauschen und Reichweite wie bei Swarm.
 - **Rotation**: endlos über TiltRotate. **Phase** dreht die Spiegel gegeneinander versetzt, **Breite** lässt jeden Spiegel eine Umdrehung in Schüben machen und dann stehen, **Fächer** staffelt die Drehzahl entlang der Ordnung, **Group** wiederholt das Muster in Gruppen, **Gegenlauf** dreht die linke Hälfte andersherum. TiltRotate kennt nur eine Drehzahl, deshalb rechnet die App den Winkel nur mit: Am echten Aufbau kann er abweichen. Die Breite kann nicht kleiner werden, als die Einstellung „TiltRotate max.“ erlaubt: bei 10 U/min und 3 BPM etwa 56 %.
-- **Öffnung**: für den Aufbau hintereinander. Ein Loch wandert durch alle drei Elemente: Jedes Element öffnet nur einen Schlitz, die drei Schlitze kreuzen sich im Loch. **Bahn** = Kreis, Linie (waagrecht), Iris (geht in der Mitte auf und zu) oder Drift (zieht frei umher). **Größe** = Radius, **Weite** = wie weit es wandert (Iris: um so viel geht es auf), **Kante** = hart bis weich, **Wabern** = atmet, driftet und verformt sich (zufällig), **Puls** = die Größe schwankt im Takt der Bahn, zweimal je Umlauf um ± so viel Prozent (bleibt periodisch, anders als Wabern), **Nachlauf** = die Elemente laufen einander nach, das Loch wird schief und geht zu und auf. Offset, Amplitude, Phase und Verteilung gelten hier nicht; zu = 0°, offen = 90°. Die Rechnung nutzt die Drehung aus Einstellungen → Aufbau, die muss also zum echten Aufbau passen. Wandert das Loch weit nach außen (ab etwa 37 cm), blitzen an den Spitzen des gedrehten Elements kleine Dreiecke auf, weil dort nur dieses eine Element abdeckt.
-- **Ruhe**: alle Spiegel stehen auf Offset, nur Impulse bewegen sie.
+- **Aperture** (Öffnung): für den Aufbau hintereinander. Ein Loch wandert durch alle drei Elemente: Jedes Element öffnet nur einen Schlitz, die drei Schlitze kreuzen sich im Loch. **Bahn** = Kreis, Linie (waagrecht), Iris (geht in der Mitte auf und zu) oder Drift (zieht frei umher). **Größe** = Radius, **Weite** = wie weit es wandert (Iris: um so viel geht es auf), **Kante** = hart bis weich, **Wabern** = atmet, driftet und verformt sich (zufällig), **Puls** = die Größe schwankt im Takt der Bahn, zweimal je Umlauf um ± so viel Prozent (bleibt periodisch, anders als Wabern), **Nachlauf** = die Elemente laufen einander nach, das Loch wird schief und geht zu und auf. Offset, Amplitude, Phase und Verteilung gelten hier nicht; zu = 0°, offen = 90°. Die Rechnung nutzt die Drehung aus Einstellungen → Aufbau, die muss also zum echten Aufbau passen. Wandert das Loch weit nach außen (ab etwa 37 cm), blitzen an den Spitzen des gedrehten Elements kleine Dreiecke auf, weil dort nur dieses eine Element abdeckt.
+- **Rest** (Ruhe, vorerst nicht am Pult wählbar, nur noch über alte Presets): alle Spiegel stehen auf Offset, nur Impulse bewegen sie.
 
 Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über die eingestellte Überblendzeit über. Regler, die eine Form nicht benutzt, blendet der Client aus.
 
@@ -184,15 +204,15 @@ Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über d
 
 Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben wählt man die **Art**, ausgelöst wird auf dem **Streifen** (Touchstreifen am Stream Deck, Streifen im Client): **Tippen** startet den Impuls an dieser Stelle, **Wischen** lässt ihn vom Rand in Wischrichtung durchlaufen. Danach läuft die Hüllkurve von selbst ab.
 
-- **Flash auf / Flash zu**: Spiegel auf einen festen Tilt. „Auf“ für Licht von hinten, „Zu“ für Licht von außen.
-- **Loch**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Öffnung: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Bühne zu sehen.
+- **Open / Close**: Spiegel auf einen festen Tilt. „Open“ für Licht von hinten, „Close“ für Licht von außen.
+- **Hole**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Aperture: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Bühne zu sehen.
 - **Iris**: wie Loch, wächst aber mit der Hüllkurve aus einem Punkt und schrumpft wieder.
-- Winkel unter Einstellungen → Impulse: Flash auf/zu (Platzhalter 90° und 0°).
+- Winkel unter Einstellungen → Impulse: Open/Close (Platzhalter 90° und 0°).
 - **Hüllkurve**: Attack (hin), Sustain (bleiben), Release (zurück), Stärke. Im Client die Punkte ziehen: oben links = Attack und Stärke, oben rechts = Ende des Sustain, unten = Ende des Release. Während eines Impulses läuft ein Punkt auf der Kurve mit.
 - **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn.
 - **Stärke**: wie weit zum Ziel (auch als Griff in der Hüllkurve).
 - **Breite**: Getippt wirkt der Impuls nur auf so viele Spiegel um den Startpunkt („alle“ = ganzes Element). Gewischt läuft er immer durch das ganze Element.
-- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt wie beim Gegenlauf (Flash-Winkel und Ausschlag umgekehrt).
+- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt wie beim Gegenlauf (Winkel von Open/Close und Ausschlag umgekehrt).
 - **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich. Bei Loch und Iris: Zeit, die das gewischte Loch quer durchs Bild braucht (aus = die ganze Hüllkurve lang).
 - Mehrere Impulse dürfen sich überlagern; der zuletzt gestartete liegt oben.
 

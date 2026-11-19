@@ -29,7 +29,7 @@ export function Fader({ titel, wert, min, max, schritt, anzeige, gesperrt, zusat
   return (
     <div class="fader">
       <div class="fader-name">
-        <span onClick={tippe} title="Doppeltippen: Vorgabewert">{titel}</span>
+        <span onClick={tippe} title="Double-tap: default">{titel}</span>
         {zusatz}
       </div>
       <div

@@ -20,7 +20,7 @@ export function Bewegung({ parameter: p }: { parameter: Parameter }) {
   // Bei Offset je Element wird es eng: dann die kurzen Namen
   const dicht = p.offsetGetrennt && benutzt(p.modus, "offset");
   return (
-    <Modul titel="03 Bewegung" klasse="m-bewegung">
+    <Modul titel="03 Motion" klasse="m-bewegung">
       <div class={`bank ${dicht ? "dicht" : ""}`}>
         {benutzt(p.modus, "offset") && <Offset p={p} />}
         {namen.map((name) => <ZahlFader key={name} name={name} wert={p[name]} titel={dicht ? BEREICHE[name].kurz : undefined} />)}
@@ -39,7 +39,7 @@ export function Verteilung({ parameter: p }: { parameter: Parameter }) {
   const oeffnung = p.modus === "oeffnung";
   const schalter = schalterVon(p);
   return (
-    <Modul titel={oeffnung ? "04 Bahn" : "04 Verteilung"} klasse={`m-verteilung ${oeffnung ? "nur-bahn" : ""}`}>
+    <Modul titel={oeffnung ? "04 Path" : "04 Distribution"} klasse={`m-verteilung ${oeffnung ? "nur-bahn" : ""}`}>
       <div class="verteilung">
         {stufenVon(p).map((name) => <Stufen key={name} name={name} wert={p[name]} ohneName={oeffnung} />)}
         {schalter.length > 0 && (
@@ -67,8 +67,8 @@ function Offset({ p }: { p: Parameter }) {
       type="button"
       class={`schloss ${p.offsetGetrennt ? "offen" : ""}`}
       disabled={!l.bedienbar}
-      aria-label={p.offsetGetrennt ? "Offset für alle Elemente gleich" : "Offset je Element"}
-      title={p.offsetGetrennt ? "für alle gleich" : "je Element"}
+      aria-label={p.offsetGetrennt ? "Same offset for all elements" : "Offset per element"}
+      title={p.offsetGetrennt ? "same for all" : "per element"}
       onClick={() => l.setze(p.offsetGetrennt
         ? { offsetGetrennt: false }
         // Öffnen: alle Elemente starten beim gemeinsamen Offset

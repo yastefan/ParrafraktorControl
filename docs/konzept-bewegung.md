@@ -13,7 +13,7 @@ Sägezahn sind eigentlich Ereignisse, die in eine Schleife gepackt wurden.
 
 | Ebene | Inhalt | Regler |
 |---|---|---|
-| **Grundbewegung** | Ruhe, Welle, Pendelwelle, Wind, Drehen | Offset (je Element möglich), Amplitude, Speed, Phase, Breite |
+| **Grundbewegung** | Ruhe, Welle, Pendelwelle, Wind, Schwarm, Glühwürmchen, Drehen | Offset (je Element möglich), Amplitude, Speed, Phase, Breite |
 | **Verteilung** | Ordnung, Gegenlauf, Gruppe, Fächer, Element-Folge | gilt für beide anderen Ebenen |
 | **Impulse** | Flash auf, Flash zu, Loch, Iris | Hüllkurve A/H/R, Stärke, Element-Versatz |
 
@@ -26,6 +26,10 @@ Vor der Show wird die Grundbewegung eingestellt, live werden Impulse gedrückt.
 - **Pendelwelle** – jeder Spiegel mit leicht anderer Periode (Speed × (1 + Platz/Wiederkehr)): Gleichlauf →
   Schlangen → Chaos → Gleichlauf. Regler: Speed (ganzes Bild), Wiederkehr (Schwünge), Amplitude.
 - **Wind** – Böen ziehen entlang der Ordnung durch und verändern sich langsam, wiederholt sich nie.
+- **Schwarm** – gekoppelte Oszillatoren (Kuramoto, mit Rauschen und Reichweite wie Vicsek): eigenes Tempo je
+  Spiegel, Kopplung zieht in den Gleichlauf bzw. die Welle der Phase, Rauschen bricht ihn auf.
+- **Glühwürmchen** – pulsgekoppelte Oszillatoren (Mirollo/Strogatz): Ausschlag am Ende jedes Durchlaufs,
+  der die Nachbarn um einen Anteil ihrer Ladung weiterstößt; Lawinen bis zum gemeinsamen Takt.
   Regler: Wellenlänge, Tempo, Amplitude.
 - **Drehen** – TiltRotate (bisher „Rotation“).
 

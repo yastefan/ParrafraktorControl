@@ -14,10 +14,10 @@ export const SPIEGEL_GESAMT = ELEMENTE * SPIEGEL_N;
 export const ELEMENT_FOLGEN = ["zusammen", "vorneHinten", "hintenVorne", "mitteAussen"] as const;
 export type ElementFolge = (typeof ELEMENT_FOLGEN)[number];
 export const ELEMENT_FOLGE_NAME: Record<ElementFolge, string> = {
-  zusammen: "zusammen",
-  vorneHinten: "vorn → hinten",
-  hintenVorne: "hinten → vorn",
-  mitteAussen: "Mitte → außen",
+  zusammen: "together",
+  vorneHinten: "front → back",
+  hintenVorne: "back → front",
+  mitteAussen: "center → out",
 };
 export const istElementFolge = (x: unknown): x is ElementFolge => (ELEMENT_FOLGEN as readonly unknown[]).includes(x);
 

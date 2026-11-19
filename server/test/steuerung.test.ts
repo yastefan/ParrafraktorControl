@@ -101,7 +101,7 @@ describe("Auto am Stream Deck", () => {
     s.setze({ amplitude: 50 });
     s.speicherePreset(1);
     s.benennePreset(1, "Zwei");
-    expect(m.tastenInhalt(HAUPT.auto)).toMatchObject({ titel: "Auto", unter: "aus" });
+    expect(m.tastenInhalt(HAUPT.auto)).toMatchObject({ titel: "Auto", unter: "off" });
     m.aktion(HAUPT.auto)!.tippen!();
     expect(s.autoAn).toBe(true);
     s.rufePresetAuf(1);
@@ -117,7 +117,7 @@ describe("Presets", () => {
     const s = neu();
     s.setze({ amplitude: 77, phase: 90 });
     s.speicherePreset(3);
-    expect(s.presets[3]).toMatchObject({ name: "Sinus", look: { amplitude: 77, phase: 90 } });
+    expect(s.presets[3]).toMatchObject({ name: "Sine", look: { amplitude: 77, phase: 90 } });
     expect(s.presets[3]!.look).not.toHaveProperty("laeuft");
 
     s.waehlePattern("wind");
@@ -212,11 +212,11 @@ describe("Stream Deck: Reglerseiten", () => {
   it("zeigen nur Regler, die die Grundbewegung benutzt", async () => {
     const { reglerSeiten } = await import("../src/eingabe/streamdeck/belegung.js");
     const namen = (m: Parameters<typeof reglerSeiten>[0]) => reglerSeiten(m).map((s) => [s.name, s.regler.map((r) => r.name)]);
-    expect(namen("ruhe")).toEqual([["Bewegung", ["offset"]]]);
-    expect(namen("pendelwelle")[0]).toEqual(["Bewegung", ["offset", "amplitude", "speedVon", "schwuenge"]]);
-    expect(namen("wind").map(([n]) => n)).toEqual(["Bewegung", "Verteilung", "Fein"]);
+    expect(namen("ruhe")).toEqual([["Motion", ["offset"]]]);
+    expect(namen("pendelwelle")[0]).toEqual(["Motion", ["offset", "amplitude", "speedVon", "schwuenge"]]);
+    expect(namen("wind").map(([n]) => n)).toEqual(["Motion", "Distribution", "Fine"]);
     expect(reglerSeiten("sinus").every((s) => s.regler.length <= 4)).toBe(true);
     // Sinus: die Breite gleich auf der zweiten Bewegungsseite
-    expect(namen("sinus")[1]).toEqual(["Bewegung 2", ["breite", "speedBis"]]);
+    expect(namen("sinus")[1]).toEqual(["Motion 2", ["breite", "speedBis"]]);
   });
 });

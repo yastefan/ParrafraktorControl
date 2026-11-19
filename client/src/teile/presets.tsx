@@ -20,10 +20,10 @@ export function Presets() {
   if (!stand) return null;
   const auto = stand.auto;
   const startbar = stand.presets.filter((p, nr) => p && auto.auswahl[nr]).length >= 2;
-  const hinweis = auto.an ? `Auto · noch ${zeigeZeit(Math.max(0, auto.restS))}`
-    : bearbeiten ? "Tippen: umbenennen"
-    : auswahl ? "Tippen: läuft in Auto mit oder nicht"
-    : "Tippen: abrufen · Halten: speichern";
+  const hinweis = auto.an ? `Auto · ${zeigeZeit(Math.max(0, auto.restS))}`
+    : bearbeiten ? "Tap: rename"
+    : auswahl ? "Tap: include in Auto or not"
+    : "Tap: recall · Hold: store";
   return (
     <Modul
       titel={auto.an ? "02 Presets // Auto" : "02 Presets"}
@@ -34,7 +34,7 @@ export function Presets() {
           <button
             type="button" class={`aktion haken ${auto.an ? "aktiv" : ""}`} aria-pressed={auto.an}
             disabled={!l.bedienbar || (!auto.an && !startbar)}
-            title={startbar ? "Ausgewählte Presets abfahren" : "Mindestens zwei Presets auswählen"}
+            title={startbar ? "Run through the selected presets" : "Select at least two presets"}
             onClick={() => l.sende({ typ: "auto", an: !auto.an })}
           >
             Auto
@@ -43,13 +43,13 @@ export function Presets() {
             type="button" class={`aktion ${auswahl ? "aktiv" : ""}`}
             onClick={() => { setAuswahl(!auswahl); setBearbeiten(false); }}
           >
-            {auswahl ? "Fertig" : "Auswahl"}
+            {auswahl ? "Done" : "Select"}
           </button>
           <button
             type="button" class={`aktion ${bearbeiten ? "aktiv" : ""}`}
             onClick={() => { setBearbeiten(!bearbeiten); setAuswahl(false); }}
           >
-            {bearbeiten ? "Fertig" : "Bearbeiten"}
+            {bearbeiten ? "Done" : "Edit"}
           </button>
         </>
       )}
@@ -65,8 +65,8 @@ export function Presets() {
       </div>
       {(auswahl || auto.an) && (
         <div class="auto-regler">
-          <AutoRegler name="Halten" feld="halteS" wert={auto.halteS} />
-          <AutoRegler name="Überblenden" feld="blendeS" wert={auto.blendeS} />
+          <AutoRegler name="Hold" feld="halteS" wert={auto.halteS} />
+          <AutoRegler name="Fade" feld="blendeS" wert={auto.blendeS} />
         </div>
       )}
     </Modul>
@@ -120,7 +120,7 @@ function PresetPlatz({ nr, preset, aktiv, bearbeiten, bedienbar, auswaehlen, zei
         <button
           type="button" class="preset-name" disabled={!preset || !bedienbar}
           onClick={() => {
-            const name = window.prompt(`Name für Preset ${nr + 1}`, preset?.name ?? "");
+            const name = window.prompt(`Name for preset ${nr + 1}`, preset?.name ?? "");
             if (name?.trim()) l.sende({ typ: "preset", aktion: "umbenennen", nr, name: name.trim().slice(0, PRESET_NAME_MAX) });
           }}
         >
@@ -129,8 +129,8 @@ function PresetPlatz({ nr, preset, aktiv, bearbeiten, bedienbar, auswaehlen, zei
         </button>
         {preset && (
           <button
-            type="button" class="preset-loeschen" disabled={!bedienbar} aria-label={`Preset ${nr + 1} löschen`}
-            onClick={() => { if (window.confirm(`Preset „${preset.name}“ löschen?`)) l.sende({ typ: "preset", aktion: "loeschen", nr }); }}
+            type="button" class="preset-loeschen" disabled={!bedienbar} aria-label={`Delete preset ${nr + 1}`}
+            onClick={() => { if (window.confirm(`Delete preset “${preset.name}”?`)) l.sende({ typ: "preset", aktion: "loeschen", nr }); }}
           >
             ×
           </button>

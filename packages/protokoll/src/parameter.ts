@@ -7,6 +7,7 @@ import {
 
 export type ZahlParameter =
   | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "elementPhase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge"
+  | "kopplung" | "rauschen" | "reichweite"
   | "groesse" | "weite" | "kante" | "wabern" | "puls" | "nachlauf";
 
 export interface Bereich {
@@ -22,44 +23,50 @@ export interface Bereich {
 export const BEREICHE: Record<ZahlParameter, Bereich> = {
   offset: { name: "Offset", kurz: "Offset", min: -180, max: 180, schritt: 1, einheit: "°" },
   amplitude: { name: "Amplitude", kurz: "Ampl.", min: 0, max: 180, schritt: 1, einheit: "°" },
-  speedVon: { name: "Speed von", kurz: "Speed von", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "aus" },
-  speedBis: { name: "Speed bis", kurz: "Speed bis", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "aus" },
+  speedVon: { name: "Speed from", kurz: "Speed from", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "off" },
+  speedBis: { name: "Speed to", kurz: "Speed to", min: 0, max: 10, schritt: 0.1, einheit: " BPM", nullText: "off" },
   phase: { name: "Phase", kurz: "Phase", min: 0, max: 720, schritt: 1, einheit: "°" },
-  elementPhase: { name: "Element-Phase", kurz: "El.-Phase", min: 0, max: 360, schritt: 1, einheit: "°", nullText: "aus" },
-  breite: { name: "Breite", kurz: "Breite", min: 5, max: 100, schritt: 1, einheit: " %" },
-  group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "aus" },
-  faecher: { name: "Fächer", kurz: "Fächer", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
-  schwuenge: { name: "Wiederkehr", kurz: "Wiederk.", min: 4, max: 100, schritt: 1, einheit: " Schw." },
-  wellenlaenge: { name: "Wellenlänge", kurz: "Wellenl.", min: 1, max: 36, schritt: 1, einheit: " Sp." },
-  groesse: { name: "Größe", kurz: "Größe", min: 5, max: 90, schritt: 1, einheit: " cm" },
-  weite: { name: "Weite", kurz: "Weite", min: 0, max: 90, schritt: 1, einheit: " cm" },
-  kante: { name: "Kante", kurz: "Kante", min: 0, max: 100, schritt: 1, einheit: " %" },
-  wabern: { name: "Wabern", kurz: "Wabern", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
-  puls: { name: "Puls", kurz: "Puls", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
-  nachlauf: { name: "Nachlauf", kurz: "Nachlauf", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  elementPhase: { name: "Element phase", kurz: "El. phase", min: 0, max: 360, schritt: 1, einheit: "°", nullText: "off" },
+  breite: { name: "Width", kurz: "Width", min: 5, max: 100, schritt: 1, einheit: " %" },
+  group: { name: "Group", kurz: "Group", min: 0, max: 18, schritt: 1, einheit: "", nullText: "off" },
+  faecher: { name: "Fan", kurz: "Fan", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "off" },
+  schwuenge: { name: "Return", kurz: "Return", min: 4, max: 100, schritt: 1, einheit: " sw." },
+  wellenlaenge: { name: "Wavelength", kurz: "Wavel.", min: 1, max: 36, schritt: 1, einheit: " mir." },
+  groesse: { name: "Size", kurz: "Size", min: 5, max: 90, schritt: 1, einheit: " cm" },
+  weite: { name: "Travel", kurz: "Travel", min: 0, max: 90, schritt: 1, einheit: " cm" },
+  kante: { name: "Edge", kurz: "Edge", min: 0, max: 100, schritt: 1, einheit: " %" },
+  wabern: { name: "Wobble", kurz: "Wobble", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "off" },
+  puls: { name: "Pulse", kurz: "Pulse", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "off" },
+  nachlauf: { name: "Lag", kurz: "Lag", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "off" },
+  kopplung: { name: "Coupling", kurz: "Coupling", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "off" },
+  rauschen: { name: "Noise", kurz: "Noise", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "off" },
+  reichweite: { name: "Range", kurz: "Range", min: 0, max: 35, schritt: 1, einheit: " mir.", nullText: "all" },
 };
 
 // Regler mit festen Stufen (Umschalter im Client, Durchschalten am Stream Deck)
 export type StufenParameter = "bahn" | "ordnung" | "elementFolge";
 
 export const STUFEN = {
-  bahn: { name: "Bahn", werte: BAHNEN, text: BAHN_NAME },
-  ordnung: { name: "Ordnung", werte: ORDNUNGEN, text: ORDNUNG_NAME },
-  elementFolge: { name: "Elemente", werte: ELEMENT_FOLGEN, text: ELEMENT_FOLGE_NAME },
+  bahn: { name: "Path", werte: BAHNEN, text: BAHN_NAME },
+  ordnung: { name: "Order", werte: ORDNUNGEN, text: ORDNUNG_NAME },
+  elementFolge: { name: "Elements", werte: ELEMENT_FOLGEN, text: ELEMENT_FOLGE_NAME },
 } as const;
 
 // Schalter (an/aus)
 export type SchalterParameter = "gegenlauf" | "pingpong" | "speedJeElement";
-export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenlauf", pingpong: "Ping-Pong", speedJeElement: "Speed je Element" };
+export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Counter-motion", pingpong: "Ping-pong", speedJeElement: "Speed per element" };
 
 // Welche Regler eine Grundbewegung nicht benutzt: werden im Client ausgeblendet
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
+const KOPPLUNG: Regler[] = ["kopplung", "rauschen", "reichweite"];
 const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
-  sinus: ["schwuenge", "wellenlaenge"],
-  pendelwelle: ["speedBis", "phase", "elementPhase", "breite", "wellenlaenge", "pingpong", "speedJeElement"],
-  wind: ["speedBis", "phase", "elementPhase", "breite", "schwuenge", "pingpong", "speedJeElement"],
-  rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong"],
-  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "elementPhase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement"],
+  sinus: ["schwuenge", "wellenlaenge", ...KOPPLUNG],
+  pendelwelle: ["speedBis", "phase", "elementPhase", "breite", "wellenlaenge", "pingpong", "speedJeElement", ...KOPPLUNG],
+  wind: ["speedBis", "phase", "elementPhase", "breite", "schwuenge", "pingpong", "speedJeElement", ...KOPPLUNG],
+  schwarm: ["schwuenge", "wellenlaenge", "pingpong"],
+  gluehwuermchen: ["schwuenge", "wellenlaenge", "pingpong"],
+  rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong", ...KOPPLUNG],
+  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "elementPhase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement", ...KOPPLUNG],
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
 const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "puls", "nachlauf"];

@@ -89,13 +89,13 @@ function stand(): Stand {
     ...ausgaben.map((a) => a.status()),
     ...(mitlesen ? [mitlesen.status()] : []),
     ...eingaben.map((m) => m.status()),
-    { name: "Clients", art: "eingabe", zustand: web?.anzahlClients ? "aktiv" : "bereit", text: `${web?.anzahlClients ?? 0} verbunden` },
+    { name: "Clients", art: "eingabe", zustand: web?.anzahlClients ? "aktiv" : "bereit", text: `${web?.anzahlClients ?? 0} connected` },
   ];
   const warnungen: string[] = [];
   const patch = patchWarnung(e.patch, KANAELE_PRO_ELEMENT);
   if (patch) warnungen.push(patch);
-  if (!ausgaben.length) warnungen.push("Keine Ausgabe aktiv – die Spiegel bekommen nichts.");
-  if (e.artnet.an && e.sacn.an) warnungen.push("Art-Net und sACN gleichzeitig aktiv.");
+  if (!ausgaben.length) warnungen.push("No output active – the mirrors receive nothing.");
+  if (e.artnet.an && e.sacn.an) warnungen.push("Art-Net and sACN active at the same time.");
   return {
     typ: "stand",
     version: PROTOKOLL_VERSION,
@@ -105,7 +105,12 @@ function stand(): Stand {
     einstellungen: e,
     module,
     netzwerk: netzwerk(),
-    takt: { umlaufVon: takt.engine.umlaufVon, umlauf: Array.from(takt.engine.umlauf) },
+    takt: {
+      umlaufVon: takt.engine.umlaufVon,
+      umlauf: Array.from(takt.engine.umlauf),
+      tempo: Array.from(takt.engine.tempo),
+      schub: Array.from(takt.engine.schub),
+    },
     presets: [...steuerung.presets],
     letztesPreset: steuerung.letztesPreset,
     blende: steuerung.blende ? { ...steuerung.blende } : null,

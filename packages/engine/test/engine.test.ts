@@ -373,6 +373,130 @@ describe("Regler", () => {
   });
 });
 
+describe("Schwarm und Glühwürmchen", () => {
+  // Ordnung (Kuramoto) der Umläufe: 1 = alle im Takt (man sieht dann den Gleichlauf bzw. die Welle der
+  // Phase), um 0 = verstreut
+  const ordnung = (e: Engine) => {
+    let x = 0, y = 0;
+    for (let g = 0; g < 36; g++) {
+      const w = 2 * Math.PI * e.umlauf[g]!;
+      x += Math.cos(w); y += Math.sin(w);
+    }
+    return Math.hypot(x, y) / 36;
+  };
+  const lauf = (p: Parameter, s: number) => {
+    const e = new Engine();
+    for (let i = 0; i < s * 40; i++) e.weiter(p, 0.025);
+    return ordnung(e);
+  };
+  const basis = (modus: "schwarm" | "gluehwuermchen"): Parameter =>
+    ({ ...PARAMETER_VORGABE, modus, speedVon: 3.5, speedBis: 4.5, rauschen: 0, reichweite: 0 });
+
+  it("starten verstreut", () => {
+    for (const modus of ["schwarm", "gluehwuermchen"] as const) expect(lauf({ ...basis(modus), kopplung: 0 }, 2), modus).toBeLessThan(0.4);
+  });
+
+  it("Schwarm: ohne Kopplung bleiben sie verstreut, mit Kopplung rasten sie ein, auch in die Welle der Phase", () => {
+    expect(lauf({ ...basis("schwarm"), kopplung: 0 }, 60)).toBeLessThan(0.4);
+    expect(lauf({ ...basis("schwarm"), kopplung: 60 }, 60)).toBeGreaterThan(0.95);
+    expect(lauf({ ...basis("schwarm"), kopplung: 60, phase: 360 }, 60)).toBeGreaterThan(0.95);
+  });
+
+  it("Schwarm mit Phase: die Welle der Phase bleibt sichtbar", () => {
+    const p: Parameter = { ...basis("schwarm"), kopplung: 60, phase: 360 };
+    const e = new Engine();
+    for (let i = 0; i < 60 * 40; i++) e.weiter(p, 0.025);
+    const w = e.alle(p).map((s) => s.tilt);
+    // eine ganze Welle über die 36: Nachbarn nah beieinander, aber nicht alle gleich
+    expect(Math.max(...w) - Math.min(...w)).toBeGreaterThan(p.amplitude);
+    for (let g = 0; g < 35; g++) expect(Math.abs(w[g + 1]! - w[g]!)).toBeLessThan(p.amplitude * 0.4);
+  });
+
+  it("kein Spiegel läuft rückwärts, steht oder rast", () => {
+    for (const modus of ["schwarm", "gluehwuermchen"] as const) {
+      const p: Parameter = { ...basis(modus), kopplung: 100, rauschen: 100, breite: 30 };
+      const e = new Engine();
+      e.weiter(p, 0);
+      // gemessen über je 0,25 s (die Engine rechnet in festen Schritten von 5 ms)
+      let min = Infinity, max = 0;
+      for (let i = 0; i < 120 * 4; i++) {
+        const vor = Float64Array.from(e.umlauf);
+        for (let k = 0; k < 10; k++) e.weiter(p, 0.025);
+        e.umlauf.forEach((u, g) => {
+          const tempo = ((u - vor[g]!) / 0.25) * 60;   // BPM
+          min = Math.min(min, tempo); max = Math.max(max, tempo);
+        });
+      }
+      expect(min, modus).toBeGreaterThanOrEqual(0.5 * 3.5 * 0.97);
+      // Glühwürmchen springen in der Ruhe (unsichtbar), deshalb nur der Schwarm nach oben begrenzt
+      if (modus === "schwarm") expect(max, modus).toBeLessThanOrEqual(1.5 * 4.5 * 1.03);
+    }
+  });
+
+  it("Schwarm: viel Rauschen bricht den Gleichlauf auf", () => {
+    expect(lauf({ ...basis("schwarm"), kopplung: 30, rauschen: 100 }, 120)).toBeLessThan(0.7);
+  });
+
+  it("Vorschau und Server laufen gleich: beim Abgleich springt nichts", () => {
+    // Server mit 40 Hz, Vorschau mit eigenem Bildtakt und später gestartet; jede Sekunde übernimmt sie
+    // Umlauf, Tempo und Stöße wie client/src/vorschau.ts (große Abweichungen sofort, kleine weich)
+    const nachziehen = (l: number, s: number) => (Math.abs(s - l) > 0.05 ? s : l + (s - l) * 0.2);
+    for (const modus of ["schwarm", "gluehwuermchen"] as const) {
+      const p: Parameter = { ...basis(modus), kopplung: 50, rauschen: 40, phase: 360, breite: modus === "gluehwuermchen" ? 30 : 100 };
+      const server = new Engine(), vorschau = new Engine();
+      for (let i = 0; i < 300; i++) server.weiter(p, 0.025);
+      let ts = 0, tv = 0, naechster = 1, schritt = 0;
+      let vor = vorschau.alle(p).map((s) => s.tilt);
+      for (let n = 0; tv < 60; n++) {
+        const dt = 0.012 + 0.008 * ((n * 7) % 11) / 10;
+        tv += dt;
+        vorschau.weiter(p, dt);
+        while (ts < tv) { server.weiter(p, 0.025); ts += 0.025; }
+        if (tv >= naechster) {
+          naechster++;
+          vorschau.umlaufVon = nachziehen(vorschau.umlaufVon, server.umlaufVon);
+          server.umlauf.forEach((u, g) => { vorschau.umlauf[g] = nachziehen(vorschau.umlauf[g]!, u); });
+          vorschau.tempo.set(server.tempo);
+          vorschau.schub.set(server.schub);
+        }
+        const jetzt = vorschau.alle(p).map((s) => s.tilt);
+        if (tv > 1.5) jetzt.forEach((w, g) => { schritt = Math.max(schritt, Math.abs(w - vor[g]!)); });
+        vor = jetzt;
+      }
+      expect(schritt, modus).toBeLessThan(3);   // ein Sprung wäre zweistellig
+    }
+  });
+
+  it("Glühwürmchen: die Stöße ziehen sie in den Takt", () => {
+    expect(lauf({ ...basis("gluehwuermchen"), kopplung: 0 }, 120)).toBeLessThan(0.4);
+    expect(lauf({ ...basis("gluehwuermchen"), kopplung: 60 }, 120)).toBeGreaterThan(0.8);
+  });
+
+  it("Glühwürmchen: ein Blitz dauert höchstens 40 % des Durchlaufs", () => {
+    const p: Parameter = { ...basis("gluehwuermchen"), breite: 100 };
+    const e = new Engine();
+    e.weiter(p, 0);
+    e.alle(p).forEach((s, g) => {
+      const x = e.umlauf[g]! - auswahl(p, g).versatz;
+      if (x - Math.floor(x) > 0.4) expect(s.tilt).toBeCloseTo(p.offset, 9);
+    });
+  });
+
+  it("Glühwürmchen: Ausschlag nur zu einer Seite, außerhalb der Breite auf Offset", () => {
+    const p: Parameter = { ...basis("gluehwuermchen"), offset: 10, amplitude: 30, breite: 30 };
+    const e = new Engine();
+    for (let i = 0; i < 400; i++) {
+      e.weiter(p, 0.025);
+      e.alle(p).forEach((s, g) => {
+        expect(s.tilt).toBeGreaterThanOrEqual(10 - 1e-9);
+        expect(s.tilt).toBeLessThanOrEqual(40 + 1e-9);
+        const x = e.umlauf[g]! - auswahl(p, g).versatz;
+        if (x - Math.floor(x) > 0.3) expect(s.tilt).toBeCloseTo(10, 9);
+      });
+    }
+  });
+});
+
 describe("weiche Formen", () => {
   // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
   // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
@@ -380,6 +504,8 @@ describe("weiche Formen", () => {
     for (const modus of MODI.filter((m) => m !== "rotation" && m !== "oeffnung")) {
       const p: Parameter = { ...PARAMETER_VORGABE, modus, amplitude: 1, speedVon: 60, phase: 360 };
       const e = new Engine();
+      // Form wählen: Schwarm und Glühwürmchen streuen dabei (wird in Steuerung und Vorschau übergeblendet)
+      e.weiter(p, 0);
       let vorher = e.alle(p);
       let maxSchritt = 0;
       for (let i = 0; i < 4000; i++) {

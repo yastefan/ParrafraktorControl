@@ -42,6 +42,9 @@ export interface Netzwerkschnittstelle {
 export interface Takt {
   umlaufVon: number;
   umlauf: number[];
+  // Glühwürmchen: angepasstes Tempo und ausstehende Stöße je Spiegel (fehlt bei älteren Servern)
+  tempo?: number[];
+  schub?: number[];
 }
 
 export interface Stand {
