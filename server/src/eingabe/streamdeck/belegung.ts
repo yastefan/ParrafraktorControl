@@ -51,9 +51,10 @@ const stufe = (name: StufenParameter): Regler => ({ art: "stufe", name });
 const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name });
 
 // Alle Regler nach Gruppe; je Grundbewegung bleiben die benutzten übrig. Bei der Bewegung kommt
-// als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge).
+// als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge,
+// Schwarm und Glühwürmchen: Kopplung).
 const GRUPPEN: ReglerSeite[] = [
-  { name: "Bewegung", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("kante"), zahl("wabern"), zahl("puls"), zahl("nachlauf")] },
+  { name: "Bewegung", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("kopplung"), zahl("rauschen"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("reichweite"), zahl("kante"), zahl("wabern"), zahl("puls"), zahl("nachlauf")] },
   { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf"), zahl("elementPhase")] },
   { name: "Fein", ton: "fein", regler: [zahl("group"), schalter("pingpong"), schalter("speedJeElement")] },
 ];

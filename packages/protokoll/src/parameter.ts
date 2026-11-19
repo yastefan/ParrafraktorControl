@@ -7,6 +7,7 @@ import {
 
 export type ZahlParameter =
   | "offset" | "amplitude" | "speedVon" | "speedBis" | "phase" | "elementPhase" | "breite" | "group" | "faecher" | "schwuenge" | "wellenlaenge"
+  | "kopplung" | "rauschen" | "reichweite"
   | "groesse" | "weite" | "kante" | "wabern" | "puls" | "nachlauf";
 
 export interface Bereich {
@@ -37,6 +38,9 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
   wabern: { name: "Wabern", kurz: "Wabern", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
   puls: { name: "Puls", kurz: "Puls", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
   nachlauf: { name: "Nachlauf", kurz: "Nachlauf", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  kopplung: { name: "Kopplung", kurz: "Kopplung", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  rauschen: { name: "Rauschen", kurz: "Rauschen", min: 0, max: 100, schritt: 1, einheit: " %", nullText: "aus" },
+  reichweite: { name: "Reichweite", kurz: "Reichw.", min: 0, max: 35, schritt: 1, einheit: " Sp.", nullText: "alle" },
 };
 
 // Regler mit festen Stufen (Umschalter im Client, Durchschalten am Stream Deck)
@@ -54,12 +58,15 @@ export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Gegenla
 
 // Welche Regler eine Grundbewegung nicht benutzt: werden im Client ausgeblendet
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
+const KOPPLUNG: Regler[] = ["kopplung", "rauschen", "reichweite"];
 const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
-  sinus: ["schwuenge", "wellenlaenge"],
-  pendelwelle: ["speedBis", "phase", "elementPhase", "breite", "wellenlaenge", "pingpong", "speedJeElement"],
-  wind: ["speedBis", "phase", "elementPhase", "breite", "schwuenge", "pingpong", "speedJeElement"],
-  rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong"],
-  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "elementPhase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement"],
+  sinus: ["schwuenge", "wellenlaenge", ...KOPPLUNG],
+  pendelwelle: ["speedBis", "phase", "elementPhase", "breite", "wellenlaenge", "pingpong", "speedJeElement", ...KOPPLUNG],
+  wind: ["speedBis", "phase", "elementPhase", "breite", "schwuenge", "pingpong", "speedJeElement", ...KOPPLUNG],
+  schwarm: ["schwuenge", "wellenlaenge", "pingpong"],
+  gluehwuermchen: ["schwuenge", "wellenlaenge", "pingpong"],
+  rotation: ["amplitude", "schwuenge", "wellenlaenge", "pingpong", ...KOPPLUNG],
+  ruhe: ["ordnung", "elementFolge", "amplitude", "speedVon", "speedBis", "phase", "elementPhase", "breite", "group", "faecher", "schwuenge", "wellenlaenge", "gegenlauf", "pingpong", "speedJeElement", ...KOPPLUNG],
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
 const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "puls", "nachlauf"];

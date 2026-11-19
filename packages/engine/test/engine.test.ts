@@ -373,6 +373,58 @@ describe("Regler", () => {
   });
 });
 
+describe("Schwarm und Glühwürmchen", () => {
+  // Ordnung (Kuramoto): 1 = alle im Gleichlauf bzw. in der Welle, die die Phase vorgibt, um 0 = verstreut
+  const ordnung = (e: Engine, p: Parameter) => {
+    let x = 0, y = 0;
+    for (let g = 0; g < 36; g++) {
+      const w = 2 * Math.PI * (e.umlauf[g]! - auswahl(p, g).versatz);
+      x += Math.cos(w); y += Math.sin(w);
+    }
+    return Math.hypot(x, y) / 36;
+  };
+  const lauf = (p: Parameter, s: number) => {
+    const e = new Engine();
+    for (let i = 0; i < s * 40; i++) e.weiter(p, 0.025);
+    return ordnung(e, p);
+  };
+  const basis = (modus: "schwarm" | "gluehwuermchen"): Parameter =>
+    ({ ...PARAMETER_VORGABE, modus, speedVon: 3.5, speedBis: 4.5, rauschen: 0, reichweite: 0 });
+
+  it("starten verstreut", () => {
+    for (const modus of ["schwarm", "gluehwuermchen"] as const) expect(lauf({ ...basis(modus), kopplung: 0 }, 2), modus).toBeLessThan(0.4);
+  });
+
+  it("Schwarm: ohne Kopplung bleiben sie verstreut, mit Kopplung rasten sie ein, auch in die Welle der Phase", () => {
+    expect(lauf({ ...basis("schwarm"), kopplung: 0 }, 60)).toBeLessThan(0.4);
+    expect(lauf({ ...basis("schwarm"), kopplung: 60 }, 60)).toBeGreaterThan(0.95);
+    expect(lauf({ ...basis("schwarm"), kopplung: 60, phase: 360 }, 60)).toBeGreaterThan(0.95);
+  });
+
+  it("Schwarm: viel Rauschen bricht den Gleichlauf auf", () => {
+    expect(lauf({ ...basis("schwarm"), kopplung: 30, rauschen: 100 }, 120)).toBeLessThan(0.7);
+  });
+
+  it("Glühwürmchen: die Stöße ziehen sie in den Takt", () => {
+    expect(lauf({ ...basis("gluehwuermchen"), kopplung: 0 }, 120)).toBeLessThan(0.4);
+    expect(lauf({ ...basis("gluehwuermchen"), kopplung: 60 }, 120)).toBeGreaterThan(0.8);
+  });
+
+  it("Glühwürmchen: Ausschlag nur zu einer Seite, außerhalb der Breite auf Offset", () => {
+    const p: Parameter = { ...basis("gluehwuermchen"), offset: 10, amplitude: 30, breite: 30 };
+    const e = new Engine();
+    for (let i = 0; i < 400; i++) {
+      e.weiter(p, 0.025);
+      e.alle(p).forEach((s, g) => {
+        expect(s.tilt).toBeGreaterThanOrEqual(10 - 1e-9);
+        expect(s.tilt).toBeLessThanOrEqual(40 + 1e-9);
+        const x = e.umlauf[g]! - auswahl(p, g).versatz;
+        if (x - Math.floor(x) > 0.3) expect(s.tilt).toBeCloseTo(10, 9);
+      });
+    }
+  });
+});
+
 describe("weiche Formen", () => {
   // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
   // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
