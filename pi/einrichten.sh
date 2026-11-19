@@ -4,7 +4,7 @@
 # auch wenn einfach der Strom gezogen wird.
 #
 #   - Datenpartition: kleine ext4-Partition hinter dem System, nur für daten/ (PARRAFRAKTOR_DATEN)
-#   - Node 20 aus Debian, npm ci, Build
+#   - Node 24 von NodeSource (apt), npm ci, Build
 #   - systemd-Dienst mit Neustart bei Absturz, Hardware-Watchdog
 #   - journald nur im RAM, keine Swap-Datei, keine automatischen apt-Läufe
 #   - udev-Regel fürs Stream Deck + (Zugriff ohne root)
@@ -28,6 +28,7 @@ IP=""
 GATEWAY=""
 OVERLAY=1
 STREAMDECK=1
+NODE_MAJOR=24
 DATEN_LABEL=pfdaten
 DATEN_MOUNT=/daten
 SCHNITTSTELLE=eth0
@@ -153,21 +154,34 @@ chown -R "$BENUTZER:" "$DATEN"
 # ---------- 2. Node und Build ----------
 schritt "Node und Build"
 apt-get update
+# Node 24 von NodeSource statt Node 20 aus Debian: Das Stream Deck zieht @julusian/jpeg-turbo 3.x
+# (Peer von @elgato-stream-deck/node-lib), das Node ≥ 22.18 verlangt. Scheitert es, wirft npm das
+# ganze Stream-Deck-Paket samt node-hid still weg. Node 20 ist außerdem seit April 2026 ohne Pflege.
+apt-get install -y --no-install-recommends ca-certificates curl gnupg
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
+  > /etc/apt/sources.list.d/nodesource.list
+# NodeSource vor Debian, auch falls Debian einmal eine höhere Version anbietet
+printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 1001\n' > /etc/apt/preferences.d/nodesource
+# npm und node-gyp aus Debian beißen sich mit dem nodejs von NodeSource (das bringt npm mit)
+apt-get remove -y npm node-gyp >/dev/null 2>&1 || true
+apt-get update
 # dnsmasq-base: DHCP/DNS für das eigene WLAN (NetworkManager, ipv4.method shared)
-# build-essential, python3, node-gyp, libudev-dev: falls node-hid (Stream Deck) kein passendes
-# vorgebautes Modul findet, baut npm es selbst – ohne diese Pakete fällt das Stream Deck still weg
-apt-get install -y --no-install-recommends nodejs npm git dnsmasq-base \
-  build-essential python3 node-gyp libudev-dev
+# build-essential, python3, cmake, libudev-dev: falls node-hid oder jpeg-turbo kein passendes
+# vorgebautes Modul finden, baut npm sie selbst
+apt-get install -y --no-install-recommends nodejs git dnsmasq-base \
+  build-essential python3 cmake libudev-dev
 NODE_VERSION="$(node -p 'process.versions.node')"
-node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>20||(a===20&&b>=19)?0:1)' \
-  || abbruch "Node $NODE_VERSION ist zu alt (Vite braucht 20.19 oder neuer)"
+node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=18)?0:1)' \
+  || abbruch "Node $NODE_VERSION ist zu alt (Stream Deck braucht 22.18 oder neuer)"
 echo "Node $NODE_VERSION"
 sudo -u "$BENUTZER" -H bash -c "cd '$REPO' && npm ci --no-audit --no-fund && npm run build"
 # Optionale Pakete lässt npm bei Fehlern still weg – hier laut werden
 if [ "$STREAMDECK" -eq 1 ]; then
   if ! sudo -u "$BENUTZER" -H bash -c "cd '$REPO/server' && node -e 'require(\"node-hid\"); require(\"@napi-rs/canvas\")'" ; then
     abbruch "Stream-Deck-Pakete fehlen oder laden nicht (node-hid, @napi-rs/canvas).
-  Ursache anzeigen:  cd $REPO && npm rebuild node-hid --foreground-scripts
+  Ursache anzeigen:  grep -h \"failed optional\" ~/.npm/_logs/*-debug-0.log | grep -v -e rollup -e esbuild -e canvas-
   Ohne Stream Deck weiter:  sudo pi/einrichten.sh … --ohne-streamdeck"
   fi
   echo "Stream-Deck-Pakete geladen."
