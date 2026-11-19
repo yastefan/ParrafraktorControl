@@ -68,7 +68,7 @@ export class ArtnetAusgabe implements Ausgabe {
       name: this.name,
       art: "ausgabe",
       zustand: this.sendet ? "aktiv" : "bereit",
-      text: `an ${this.e.ziel}${this.e.quelle ? ` über ${this.e.quelle}` : ""}`,
+      text: `to ${this.e.ziel}${this.e.quelle ? ` via ${this.e.quelle}` : ""}`,
     };
   }
 }

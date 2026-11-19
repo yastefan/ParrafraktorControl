@@ -413,8 +413,8 @@ export class NebelBild {
     ctx.textBaseline = "top";
     ctx.textAlign = "center";
     // am Boden über die Lampe, sonst ragt der Hinweis aus dem Bild
-    if (VORSCHAU_STIL.hinweise) ctx.fillText("Scheinwerfer ziehen", Math.max(52, Math.min(breite - 52, lx)), ly + r + 12 > hoehe ? ly - r - 12 : ly + r);
+    if (VORSCHAU_STIL.hinweise) ctx.fillText("Drag spotlight", Math.max(52, Math.min(breite - 52, lx)), ly + r + 12 > hoehe ? ly - r - 12 : ly + r);
     ctx.textAlign = "right";
-    if (VORSCHAU_STIL.messwerte) ctx.fillText(`${anzahl} Strahlen · ${this.msRechnen.toFixed(1)} ms · ${Math.round(1000 / this.msBild)} Bilder/s`, breite - 8, 6);
+    if (VORSCHAU_STIL.messwerte) ctx.fillText(`${anzahl} beams · ${this.msRechnen.toFixed(1)} ms · ${Math.round(1000 / this.msBild)} fps`, breite - 8, 6);
   }
 }

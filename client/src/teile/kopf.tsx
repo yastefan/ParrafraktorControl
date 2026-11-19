@@ -10,19 +10,19 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
   const warnungen = l.stand?.warnungen.length ?? 0;
 
   // Output: ob die App die Spiegel fährt (intern "Übernahme"). Aus = die MA fährt.
-  let uebernahmeText = "Output aus // halten";
-  if (u?.zustand === "an") uebernahmeText = "Output aktiv // halten";
+  let uebernahmeText = "Output off // hold";
+  if (u?.zustand === "an") uebernahmeText = "Output on // hold";
   else if (u?.zustand === "blendetEin" || u?.zustand === "blendetAus") {
-    uebernahmeText = `Output blendet ${Math.round(u.anteil * 100)} %`;
+    uebernahmeText = `Output fading ${Math.round(u.anteil * 100)} %`;
   }
-  const VERBINDUNG: Record<string, string> = { verbunden: "Link OK", verbinde: "Verbinde …", getrennt: "Getrennt" };
+  const VERBINDUNG: Record<string, string> = { verbunden: "Link OK", verbinde: "Connecting …", getrennt: "Disconnected" };
 
   return (
     <header class="kopf">
       <h1>Parrafraktor</h1>
       <span class="status"><span class={`punkt ${l.verbindung}`} />{VERBINDUNG[l.verbindung] ?? l.verbindung}</span>
       {l.updateBereit && (
-        <button type="button" class="knopf klein" onClick={l.updateBereit}>Neue Version</button>
+        <button type="button" class="knopf klein" onClick={l.updateBereit}>New version</button>
       )}
       <div class="kopf-rechts">
         <button
@@ -31,7 +31,7 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
           disabled={!l.bedienbar}
           onClick={() => p && l.setze({ laeuft: !p.laeuft })}
         >
-          {p?.laeuft === false ? "Weiter" : "Pause"}
+          {p?.laeuft === false ? "Resume" : "Pause"}
         </button>
         <HaltKnopf
           class={`uebernahme ${u?.zustand ?? "aus"}`}
@@ -41,7 +41,7 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
         >
           {uebernahmeText}
         </HaltKnopf>
-        <button type="button" class="knopf" onClick={beiEinstellungen} aria-label="Einstellungen">
+        <button type="button" class="knopf" onClick={beiEinstellungen} aria-label="Settings">
           Setup{warnungen ? <span class="marke">{warnungen}</span> : null}
         </button>
       </div>

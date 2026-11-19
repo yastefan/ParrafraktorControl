@@ -566,9 +566,9 @@ export class Vorschau {
     ctx.font = schrift(10);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.fillText("Rückwand", X(RAUM.b / 2), Y(0) + 4);
+    ctx.fillText("Back wall", X(RAUM.b / 2), Y(0) + 4);
     ctx.textBaseline = "top";
-    if (FARBE.hinweise) ctx.fillText("Scheinwerfer ziehen", X(lampe.x), Y(lampe.y) + m * 0.3);
+    if (FARBE.hinweise) ctx.fillText("Drag spotlight", X(lampe.x), Y(lampe.y) + m * 0.3);
   }
 
   // ---------- Draufsicht ----------
@@ -636,7 +636,7 @@ export class Vorschau {
       ctx.font = schrift(11);
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      const lage = k === 0 ? " vorn" : k === ELEMENTE - 1 ? " hinten" : "";
+      const lage = k === 0 ? " front" : k === ELEMENTE - 1 ? " back" : "";
       ctx.fillText(`${k + 1}${lage} · ${d.aufbau.drehung[k] ?? 0}°`, x0 + 7, y0 + 6);
     }
   }

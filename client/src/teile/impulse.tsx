@@ -30,20 +30,20 @@ export function Impulse() {
   return (
     <>
       <Modul
-        titel="05 Impulse"
+        titel="05 Impulses"
         klasse="m-impulse"
         aktionen={(
           <>
             <button
               type="button" class={`aktion ${e.symmetrisch ? "aktiv" : ""}`} disabled={!l.bedienbar}
               aria-pressed={e.symmetrisch}
-              title="Startet zugleich am gespiegelten Punkt, die linke Hälfte bewegt sich gespiegelt"
+              title="Also starts at the mirrored point, the left half moves mirrored"
               onClick={() => sofort({ ...e, symmetrisch: !e.symmetrisch })}
             >
-              Symmetrisch
+              Symmetric
             </button>
             <button type="button" class={`aktion ${mehr ? "aktiv" : ""}`} aria-expanded={mehr} onClick={() => setMehr(!mehr)}>
-              Mehr
+              More
             </button>
           </>
         )}
@@ -73,12 +73,12 @@ export function Impulse() {
         </div>
       </Modul>
       {mehr && (
-        <div class="impuls-mehr" role="dialog" aria-label="Weitere Impuls-Regler">
+        <div class="impuls-mehr" role="dialog" aria-label="More impulse controls">
           <div class="impuls-mehr-kopf">
-            <h3>Impulse // Mehr</h3>
-            <button type="button" class="aktion" onClick={() => setMehr(false)}>Schließen</button>
+            <h3>Impulses // More</h3>
+            <button type="button" class="aktion" onClick={() => setMehr(false)}>Close</button>
           </div>
-          <span class="stufen-name">Elemente</span>
+          <span class="stufen-name">Elements</span>
           <div class="stufen-raster folge">
             {ELEMENT_FOLGEN.map((f) => (
               <button
@@ -137,7 +137,7 @@ function Streifen({ name }: { name: string }) {
     <div
       class={`streifen ${l.bedienbar ? "" : "gesperrt"}`}
       role="button"
-      aria-label={`${name} von hier aus`}
+      aria-label={`${name} from here`}
       onPointerDown={(ev) => {
         if (!l.bedienbar) return;
         start.current = { id: ev.pointerId, x: anteil(ev) };
@@ -153,7 +153,7 @@ function Streifen({ name }: { name: string }) {
       }}
       onPointerCancel={() => { start.current = null; }}
     >
-      <span class="streifen-text">[ {name} // tippen oder wischen ]</span>
+      <span class="streifen-text">[ {name} // tap or swipe ]</span>
       {blitz && <span key={blitz.n} class="streifen-blitz" style={{ left: `${blitz.x * 100}%` }} />}
     </div>
   );
@@ -274,7 +274,7 @@ function Huelle({ e, setze, fertig }: HuelleProps) {
       class={`huelle ${l.bedienbar ? "" : "gesperrt"}`}
       viewBox={`0 0 ${B} ${H}`}
       role="img"
-      aria-label="Hüllkurve: Attack, Sustain, Release"
+      aria-label="Envelope: attack, sustain, release"
       onPointerDown={(ev) => {
         if (!l.bedienbar) return;
         const [px, py] = punkt(ev);

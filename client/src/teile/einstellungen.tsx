@@ -35,63 +35,63 @@ export function Einstellungen({ stand, schliessen }: Props) {
 
   return (
     <div class="schicht" onClick={(e) => e.target === e.currentTarget && schliessen()}>
-      <div class="blatt" role="dialog" aria-label="Einstellungen">
+      <div class="blatt" role="dialog" aria-label="Settings">
         <header class="blatt-kopf">
-          <h2>Einstellungen</h2>
-          <button type="button" class="knopf" onClick={schliessen}>Fertig</button>
+          <h2>Settings</h2>
+          <button type="button" class="knopf" onClick={schliessen}>Done</button>
         </header>
 
         {stand.warnungen.length > 0 && (
           <ul class="warnungen">{stand.warnungen.map((w) => <li key={w}>{w}</li>)}</ul>
         )}
 
-        <Gruppe titel="Aufbau">
+        <Gruppe titel="Layout">
           <label class="feldzeile">
-            <span class="name">Elemente</span>
+            <span class="name">Elements</span>
             <select value={entwurf.aufbau.anordnung} onChange={(ev) => sofort({
               aufbau: { ...entwurf.aufbau, anordnung: (ev.currentTarget as HTMLSelectElement).value as Anordnung },
             })}>
-              <option value="reihe">nebeneinander (Draufsicht)</option>
-              <option value="hintereinander">hintereinander, gedreht (Vorderansicht)</option>
+              <option value="reihe">side by side (top view)</option>
+              <option value="hintereinander">one behind the other, rotated (front view)</option>
             </select>
           </label>
           {entwurf.aufbau.anordnung === "hintereinander" && (
             <>
               <div class="feldzeile">
-                <span class="name">Drehung</span>
+                <span class="name">Rotation</span>
                 {Array.from({ length: ELEMENTE }, (_, k) => (
                   <Zahl
-                    key={k} name={k === 0 ? "1 vorn" : k === ELEMENTE - 1 ? `${k + 1} hinten` : String(k + 1)}
+                    key={k} name={k === 0 ? "1 front" : k === ELEMENTE - 1 ? `${k + 1} back` : String(k + 1)}
                     grenzen={GRENZEN.drehung} wert={entwurf.aufbau.drehung[k] ?? 0} schmal
                     setze={(v) => sofort({ aufbau: { ...entwurf.aufbau, drehung: entwurf.aufbau.drehung.map((d, i) => (i === k ? v : d)) } })}
                   />
                 ))}
               </div>
               <p class="hilfe">
-                Drehung jedes Elements in seiner Ebene, in Grad. Betrifft nur die Vorschau. Für diesen Aufbau passt
-                meist die Reihenfolge „je Element“.
+                Rotation of each element in its plane, in degrees. Used by the preview and by the pattern Aperture,
+                so it has to match the real layout.
               </p>
             </>
           )}
         </Gruppe>
 
-        <Gruppe titel="Überblendung">
+        <Gruppe titel="Crossfade">
           <Schieber
-            name="Dauer" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
+            name="Duration" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
             wert={entwurf.ueberblendungS} setze={(v) => sofort({ ueberblendungS: v })}
-            hilfe="Beim Wechsel der Form, beim Abrufen eines Presets und beim Ein- und Ausschalten des Outputs. Für den Output blendet die App von bzw. zur Stellung der MA – nur wenn sie die MA mitlesen kann, sonst springen die Spiegel."
+            hilfe="When switching the pattern, recalling a preset and switching the output on or off. For the output the app fades from or to the position of the MA – only if it can read the MA, otherwise the mirrors jump."
           />
         </Gruppe>
 
-        <Gruppe titel="Spiegel">
+        <Gruppe titel="Mirrors">
           <Schieber
-            name="TiltRotate max." einheit=" U/min" schritt={1} grenzen={GRENZEN.rotateMaxUpm}
+            name="TiltRotate max." einheit=" rpm" schritt={1} grenzen={GRENZEN.rotateMaxUpm}
             wert={entwurf.rotateMaxUpm} setze={(v) => sofort({ rotateMaxUpm: v })}
-            hilfe="Drehzahl bei DMX 0 bzw. 255. Platzhalter, bis die Spiegel-Firmware bekannt ist."
+            hilfe="Speed at DMX 0 or 255. Placeholder until the mirror firmware is known."
           />
         </Gruppe>
 
-        <Gruppe titel="Impulse">
+        <Gruppe titel="Impulses">
           <Schieber
             name="Open" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
             wert={entwurf.flash.auf} setze={(v) => sofort({ flash: { ...entwurf.flash, auf: v } })}
@@ -99,11 +99,11 @@ export function Einstellungen({ stand, schliessen }: Props) {
           <Schieber
             name="Close" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
             wert={entwurf.flash.zu} setze={(v) => sofort({ flash: { ...entwurf.flash, zu: v } })}
-            hilfe="Tilt, auf den die Impulse Open und Close die Spiegel fahren. „Open“ für Licht von hinten, „Close“ für Licht von außen. Platzhalter, bis die Winkel am Aufbau bestimmt sind."
+            hilfe="Tilt the impulses Open and Close move the mirrors to. “Open” for light from behind, “Close” for light from outside. Placeholder until the angles are determined on site."
           />
         </Gruppe>
 
-        <Gruppe titel="Patch (Fixture Gobbesso Parrafraktor, 37 Kanäle)">
+        <Gruppe titel="Patch (fixture Gobbesso Parrafraktor, 37 channels)">
           {Array.from({ length: ELEMENTE }, (_, k) => (
             <div class="feldzeile" key={k}>
               <span class="name">Element {k + 1}</span>
@@ -112,7 +112,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
                 setze={(v) => aendere((e) => { e.patch[k]!.universe = v; return e; })}
               />
               <Zahl
-                name="Adresse" grenzen={GRENZEN.adresse} wert={entwurf.patch[k]!.adresse}
+                name="Address" grenzen={GRENZEN.adresse} wert={entwurf.patch[k]!.adresse}
                 setze={(v) => aendere((e) => { e.patch[k]!.adresse = v; return e; })}
               />
             </div>
@@ -120,12 +120,12 @@ export function Einstellungen({ stand, schliessen }: Props) {
         </Gruppe>
 
         <Gruppe titel="Art-Net">
-          <Schalter name="Senden" an={entwurf.artnet.an} setze={(an) => aendere((e) => { e.artnet.an = an; return e; })} />
-          <Text name="Ziel-IP" wert={entwurf.artnet.ziel} setze={(v) => aendere((e) => { e.artnet.ziel = v; return e; })}
-            hilfe="Broadcast (z. B. 2.255.255.255) oder IP des Nodes" />
+          <Schalter name="Send" an={entwurf.artnet.an} setze={(an) => aendere((e) => { e.artnet.an = an; return e; })} />
+          <Text name="Target IP" wert={entwurf.artnet.ziel} setze={(v) => aendere((e) => { e.artnet.ziel = v; return e; })}
+            hilfe="Broadcast (e.g. 2.255.255.255) or IP of the node" />
           <Schnittstelle stand={stand} wert={entwurf.artnet.quelle} setze={(v) => aendere((e) => { e.artnet.quelle = v; return e; })} />
           <label class="feldzeile">
-            <span class="name">Zählung</span>
+            <span class="name">Numbering</span>
             <select value={entwurf.artnet.versatz} onChange={(ev) => aendere((e) => {
               e.artnet.versatz = Number((ev.currentTarget as HTMLSelectElement).value);
               return e;
@@ -134,33 +134,33 @@ export function Einstellungen({ stand, schliessen }: Props) {
               <option value={0}>Universe 1 = Art-Net 1</option>
             </select>
           </label>
-          <p class="hilfe">Art-Net hat keine Priority: Läuft die MA parallel, entscheidet der Merge im Node.</p>
+          <p class="hilfe">Art-Net has no priority: if the MA runs in parallel, the merge in the node decides.</p>
         </Gruppe>
 
         <Gruppe titel="sACN">
-          <Schalter name="Senden" an={entwurf.sacn.an} setze={(an) => aendere((e) => { e.sacn.an = an; return e; })} />
+          <Schalter name="Send" an={entwurf.sacn.an} setze={(an) => aendere((e) => { e.sacn.an = an; return e; })} />
           <Zahl name="Priority" grenzen={GRENZEN.priority} wert={entwurf.sacn.priority}
             setze={(v) => aendere((e) => { e.sacn.priority = v; return e; })} />
           <Schalter name="Multicast" an={entwurf.sacn.multicast} setze={(an) => aendere((e) => { e.sacn.multicast = an; return e; })} />
           {!entwurf.sacn.multicast && (
-            <Text name="Ziel-IP" wert={entwurf.sacn.ziel} setze={(v) => aendere((e) => { e.sacn.ziel = v; return e; })} />
+            <Text name="Target IP" wert={entwurf.sacn.ziel} setze={(v) => aendere((e) => { e.sacn.ziel = v; return e; })} />
           )}
           <Schnittstelle stand={stand} wert={entwurf.sacn.quelle} setze={(v) => aendere((e) => { e.sacn.quelle = v; return e; })} />
-          <p class="hilfe">Die MA sendet mit Priority 100. Schaltet man den Output aus, fällt der Node sofort auf die MA zurück.</p>
+          <p class="hilfe">The MA sends with priority 100. Switching the output off makes the node fall back to the MA immediately.</p>
         </Gruppe>
 
-        <Gruppe titel="DMX über RS485 (Raspberry Pi)">
-          <Schalter name="Senden" an={entwurf.rs485.an} setze={(an) => aendere((e) => { e.rs485.an = an; return e; })} />
-          <Text name="Gerät" wert={entwurf.rs485.geraet} setze={(v) => aendere((e) => { e.rs485.geraet = v; return e; })} />
-          <p class="hilfe">Noch nicht umgesetzt.</p>
+        <Gruppe titel="DMX via RS485 (Raspberry Pi)">
+          <Schalter name="Send" an={entwurf.rs485.an} setze={(an) => aendere((e) => { e.rs485.an = an; return e; })} />
+          <Text name="Device" wert={entwurf.rs485.geraet} setze={(v) => aendere((e) => { e.rs485.geraet = v; return e; })} />
+          <p class="hilfe">Not implemented yet.</p>
         </Gruppe>
 
         {geaendert && (
           <div class="speichern">
             {fehler && <span class="fehler">{fehler}</span>}
-            <button type="button" class="knopf" onClick={() => { setEntwurf(server); setGeaendert(false); }}>Verwerfen</button>
+            <button type="button" class="knopf" onClick={() => { setEntwurf(server); setGeaendert(false); }}>Discard</button>
             <button type="button" class="knopf haupt-knopf" disabled={!!fehler || !laden.bedienbar} onClick={speichern}>
-              Speichern
+              Save
             </button>
           </div>
         )}
@@ -181,8 +181,8 @@ export function Einstellungen({ stand, schliessen }: Props) {
 }
 
 function pruefe(e: E): string | null {
-  if (!istIpv4(e.artnet.ziel)) return "Art-Net: Ziel-IP ungültig";
-  if (e.sacn.an && !e.sacn.multicast && !istIpv4(e.sacn.ziel)) return "sACN: Ziel-IP für Unicast fehlt";
+  if (!istIpv4(e.artnet.ziel)) return "Art-Net: target IP invalid";
+  if (e.sacn.an && !e.sacn.multicast && !istIpv4(e.sacn.ziel)) return "sACN: target IP for unicast missing";
   return null;
 }
 
@@ -262,9 +262,9 @@ function Schnittstelle(p: { stand: Stand; wert: string; setze: (v: string) => vo
   const bekannt = p.stand.netzwerk.some((n) => n.adresse === p.wert);
   return (
     <label class="feldzeile">
-      <span class="name">Netzwerk</span>
+      <span class="name">Network</span>
       <select value={p.wert} onChange={(e) => p.setze((e.currentTarget as HTMLSelectElement).value)}>
-        <option value="">automatisch</option>
+        <option value="">automatic</option>
         {p.stand.netzwerk.map((n) => (
           <option key={n.adresse} value={n.adresse}>{n.name} – {n.adresse}</option>
         ))}

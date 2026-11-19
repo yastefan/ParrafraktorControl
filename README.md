@@ -144,6 +144,24 @@ WantedBy=multi-user.target
 sudo systemctl enable --now parrafraktor
 ```
 
+## Begriffe am Pult
+
+Die Oberfläche (Client und Stream Deck) ist englisch, diese Anleitung deutsch. Die wichtigsten Begriffe:
+
+| Pult | hier |
+|---|---|
+| Motion / Distribution / Fine | Bewegung / Verteilung / Fein |
+| Speed from / Speed to | Speed von / Speed bis |
+| Width, Fan, Return, Wavelength | Breite, Fächer, Wiederkehr, Wellenlänge |
+| Element phase, Counter-motion, Speed per element | Element-Phase, Gegenlauf, Speed je Element |
+| Order, Elements (together, front → back, back → front, center → out) | Ordnung, Element-Folge (zusammen, vorn → hinten, hinten → vorn, Mitte → außen) |
+| Coupling, Noise, Range | Kopplung, Rauschen, Reichweite |
+| Path (Circle, Line, Iris, Drift), Size, Travel, Edge, Wobble, Pulse, Lag | Bahn (Kreis, Linie, Iris, Drift), Größe, Weite, Kante, Wabern, Puls, Nachlauf |
+| Impulses: Open, Close, Hole, Iris; Strength, Spread, Element delay, Envelope | Impulse: Flash auf, Flash zu, Loch, Iris; Stärke, Ausbreitung, Element-Versatz, Hülle |
+| Settings: Layout, Crossfade, Read MA | Einstellungen: Aufbau, Überblendung, MA mitlesen |
+| Preview: Reflection, Haze, Mirror / Stage / Thermal | Vorschau: Reflexion, Nebel, Spiegel / Bühne / Wärmebild |
+| „mir.“ als Einheit | Spiegel |
+
 ## Pattern und Regler
 
 Ein Pattern ist die Grundbewegung, die dauerhaft läuft:

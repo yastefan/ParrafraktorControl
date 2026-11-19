@@ -24,7 +24,7 @@ export default defineConfig({
       manifest: {
         name: "Parrafraktor",
         short_name: "Parrafraktor",
-        description: "Steuerung für die Spiegel des Parrafraktors",
+        description: "Control for the mirrors of the Parrafraktor",
         lang: "de",
         display: "standalone",
         orientation: "any",

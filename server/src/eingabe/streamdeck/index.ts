@@ -40,7 +40,7 @@ export class StreamDeckModul implements Eingabemodul {
   private deck: StreamDeck | null = null;
   private suchTimer: NodeJS.Timeout | undefined;
   private zustand: ModulStatus["zustand"] = "bereit";
-  private text = "suche Gerät …";
+  private text = "looking for device …";
   private beendet = false;
 
   private menue: Menue = "haupt";
@@ -65,7 +65,7 @@ export class StreamDeckModul implements Eingabemodul {
       this.lib = await import("@elgato-stream-deck/node");
       this.maler = new Maler(await import("@napi-rs/canvas"));
     } catch (e) {
-      this.melde("fehler", `Pakete fehlen: ${fehlerText(e)}`);
+      this.melde("fehler", `packages missing: ${fehlerText(e)}`);
       return;
     }
     this.steuerung.on("aenderung", this.beiAenderung);
@@ -100,7 +100,7 @@ export class StreamDeckModul implements Eingabemodul {
         await this.verbinde(plus.path);
         return;
       }
-      this.melde("bereit", geraete.length ? "nur Stream Deck+ wird unterstützt" : "kein Gerät gefunden");
+      this.melde("bereit", geraete.length ? "only Stream Deck+ is supported" : "no device found");
     } catch (e) {
       this.melde("fehler", fehlerText(e));
     }
@@ -122,12 +122,12 @@ export class StreamDeckModul implements Eingabemodul {
       await deck.setBrightness(80);
       await deck.clearPanel();
       this.gezeichnet.clear();
-      this.melde("aktiv", `verbunden (${await deck.getSerialNumber().catch(() => "?")})`);
+      this.melde("aktiv", `connected (${await deck.getSerialNumber().catch(() => "?")})`);
       log("streamdeck", "verbunden");
       this.zeichneBald();
     } catch (e) {
       // Typisch auf dem Mac: die Elgato-Software hält das Gerät
-      this.melde("fehler", `nicht zu öffnen – läuft die Elgato-Software? (${fehlerText(e)})`);
+      this.melde("fehler", `cannot open – is the Elgato software running? (${fehlerText(e)})`);
       this.deck = null;
       this.suchTimer = setTimeout(() => void this.suche(), SUCHEN_MS);
     }
@@ -138,7 +138,7 @@ export class StreamDeckModul implements Eingabemodul {
     const deck = this.deck;
     this.deck = null;
     await deck?.close().catch(() => {});
-    this.melde("bereit", "getrennt, suche Gerät …");
+    this.melde("bereit", "disconnected, looking for device …");
     this.suchTimer = setTimeout(() => void this.suche(), SUCHEN_MS);
   }
 
@@ -379,7 +379,7 @@ export class StreamDeckModul implements Eingabemodul {
     // Hauptmenü: Menütasten dunkel mit Neonschrift und Neonrand
     const menueTaste = (ton: Farbton): Partial<TastenInhalt> => ({ grund: ton.dunkel, text: ton.hell, rahmen: ton.hell, rahmenBreite: 3 });
     const { parameter, uebernahme, presets, letztesPreset } = this.steuerung;
-    const haelt = this.halten?.taste === taste && !this.halten.ausgeloest ? "halten …" : undefined;
+    const haelt = this.halten?.taste === taste && !this.halten.ausgeloest ? "hold …" : undefined;
     if (this.menue === "haupt") {
       switch (taste) {
         case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus], ...menueTaste(TON.pattern) };
@@ -387,7 +387,7 @@ export class StreamDeckModul implements Eingabemodul {
           const p = letztesPreset === null ? null : presets[letztesPreset];
           return { titel: "Presets ›", unter: p?.name ?? "–", ...menueTaste(TON.presets) };
         }
-        case HAUPT.impulse: return { titel: "Impulse ›", unter: IMPULS_NAME[this.steuerung.impuls.art], ...menueTaste(TON.impulse) };
+        case HAUPT.impulse: return { titel: "Impulses ›", unter: IMPULS_NAME[this.steuerung.impuls.art], ...menueTaste(TON.impulse) };
         // Auto läuft: voll leuchtend wie der Rahmen im Client, darunter der aktuelle Look
         case HAUPT.auto: {
           const s = this.steuerung;
@@ -396,22 +396,22 @@ export class StreamDeckModul implements Eingabemodul {
             return { titel: "AUTO", unter: p?.name ?? "–", grund: TON.presets.hell, text: TON.presets.auf };
           }
           return s.autoStartbar
-            ? { titel: "Auto", unter: "aus", ...menueTaste(TON.presets) }
-            : { titel: "Auto", unter: "zu wenig Presets", leise: true };
+            ? { titel: "Auto", unter: "off", ...menueTaste(TON.presets) }
+            : { titel: "Auto", unter: "too few presets", leise: true };
         }
         // bei Ruhe wirken Ordnung und Elemente nicht: gedämpft
         case HAUPT.ordnung:
-          return { titel: "Ordnung", unter: STUFEN.ordnung.text[parameter.ordnung], leise: !benutzt(parameter.modus, "ordnung") };
+          return { titel: "Order", unter: STUFEN.ordnung.text[parameter.ordnung], leise: !benutzt(parameter.modus, "ordnung") };
         case HAUPT.elemente:
-          return { titel: "Elemente", unter: STUFEN.elementFolge.text[parameter.elementFolge], leise: !benutzt(parameter.modus, "elementFolge") };
-        case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Weiter", rahmen: FARBE.akzent };
+          return { titel: "Elements", unter: STUFEN.elementFolge.text[parameter.elementFolge], leise: !benutzt(parameter.modus, "elementFolge") };
+        case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Resume", rahmen: FARBE.akzent };
         case HAUPT.output:
           switch (uebernahme.zustand) {
-            case "an": return { titel: "OUTPUT", unter: haelt ?? "aktiv", grund: FARBE.live };
+            case "an": return { titel: "OUTPUT", unter: haelt ?? "on", grund: FARBE.live };
             case "blendetEin":
             case "blendetAus":
-              return { titel: `${Math.round(uebernahme.anteil * 100)} %`, unter: "Output blendet", grund: FARBE.blenden };
-            default: return { titel: "Output", unter: haelt ?? "aus · halten", grund: FARBE.liveDunkel, rahmen: FARBE.live };
+              return { titel: `${Math.round(uebernahme.anteil * 100)} %`, unter: "Output fading", grund: FARBE.blenden };
+            default: return { titel: "Output", unter: haelt ?? "off · hold", grund: FARBE.liveDunkel, rahmen: FARBE.live };
           }
         default: return { titel: "" };
       }
@@ -420,7 +420,7 @@ export class StreamDeckModul implements Eingabemodul {
     const ton: Farbton = TON[this.menue];
     const eintrag = (titel: string, gewaehlt: boolean, extra: Partial<TastenInhalt> = {}): TastenInhalt =>
       gewaehlt ? { titel, grund: ton.hell, text: ton.auf, ...extra } : { titel, grund: ton.dunkel, ...extra };
-    if (taste === TASTE_ZURUECK) return { titel: "‹ Zurück", rahmen: ton.hell };
+    if (taste === TASTE_ZURUECK) return { titel: "‹ Back", rahmen: ton.hell };
     if (this.menue === "impulse") {
       const e = this.steuerung.impuls;
       const art = IMPULS_ARTEN_TASTEN[taste];
@@ -429,17 +429,17 @@ export class StreamDeckModul implements Eingabemodul {
         const laeuft = this.steuerung.impulse().some((i) => i.art === art);
         return eintrag(IMPULS_NAME[art], e.art === art, laeuft && e.art !== art ? { rahmen: ton.hell } : {});
       }
-      if (taste === TASTE_ELEMENT_FOLGE) return eintrag("Elemente", false, { unter: ELEMENT_FOLGE_NAME[e.elementFolge] });
-      if (taste === TASTE_SYMMETRISCH) return eintrag("Symmetrisch", e.symmetrisch, { unter: e.symmetrisch ? "an" : "aus" });
+      if (taste === TASTE_ELEMENT_FOLGE) return eintrag("Elements", false, { unter: ELEMENT_FOLGE_NAME[e.elementFolge] });
+      if (taste === TASTE_SYMMETRISCH) return eintrag("Symmetric", e.symmetrisch, { unter: e.symmetrisch ? "on" : "off" });
       if (taste === TASTE_IMPULS_REGLER) {
-        return eintrag("Regler ›", false, { unter: IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.name });
+        return eintrag("Controls ›", false, { unter: IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.name });
       }
       return { titel: "" };
     }
     const anzahl = this.menue === "pattern" ? MODI_WAEHLBAR.length : PRESET_ANZAHL;
     if (taste === TASTE_SEITE) {
       return seitenAnzahl(anzahl) > 1
-        ? eintrag("Seite ›", false, { unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` })
+        ? eintrag("Page ›", false, { unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` })
         : { titel: "" };
     }
     const i = eintragAuf(this.seite, taste, anzahl);
@@ -447,15 +447,15 @@ export class StreamDeckModul implements Eingabemodul {
     if (this.menue === "pattern") return eintrag(MODUS_NAME[MODI_WAEHLBAR[i]!], parameter.modus === MODI_WAEHLBAR[i]);
     const p = presets[i];
     const gespeichert = this.gespeichert?.nr === i && Date.now() < this.gespeichert.bis;
-    if (!p) return { titel: String(i + 1), unter: gespeichert ? "gespeichert" : haelt ?? "leer · halten", leise: true, grund: FARBE.feld };
-    return eintrag(p.name, letztesPreset === i, { unter: gespeichert ? "gespeichert" : haelt ?? String(i + 1) });
+    if (!p) return { titel: String(i + 1), unter: gespeichert ? "stored" : haelt ?? "empty · hold", leise: true, grund: FARBE.feld };
+    return eintrag(p.name, letztesPreset === i, { unter: gespeichert ? "stored" : haelt ?? String(i + 1) });
   }
 
   // Kopf des Touchstreifens: Name der Reglerseite und ihre Farbe
   private streifenKopf(): { name: string; ton: Farbton } {
     if (this.menue === "impulse") {
       const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite];
-      return { name: `${seite?.name ?? ""} · Streifen: ${IMPULS_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
+      return { name: `${seite?.name ?? ""} · Strip: ${IMPULS_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
     }
     const { seite, nr, anzahl } = this.aktuelleSeite();
     return { name: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, ton: TON[seite.ton] };
@@ -480,7 +480,7 @@ export class StreamDeckModul implements Eingabemodul {
         const b = BEREICHE[r.name];
         return { titel: b.kurz, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
       }
-      if (r.art === "schalter") return { titel: SCHALTER[r.name], wert: p[r.name] ? "an" : "aus", anteil: null };
+      if (r.art === "schalter") return { titel: SCHALTER[r.name], wert: p[r.name] ? "on" : "off", anteil: null };
       const st = STUFEN[r.name];
       return { titel: st.name, wert: (st.text as Record<string, string>)[p[r.name]] ?? "", anteil: null };
     });

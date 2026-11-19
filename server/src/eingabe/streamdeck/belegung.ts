@@ -54,9 +54,9 @@ const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name }
 // als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge,
 // Schwarm und Glühwürmchen: Kopplung).
 const GRUPPEN: ReglerSeite[] = [
-  { name: "Bewegung", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("kopplung"), zahl("rauschen"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("reichweite"), zahl("kante"), zahl("wabern"), zahl("puls"), zahl("nachlauf")] },
-  { name: "Verteilung", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf"), zahl("elementPhase")] },
-  { name: "Fein", ton: "fein", regler: [zahl("group"), schalter("pingpong"), schalter("speedJeElement")] },
+  { name: "Motion", ton: "bewegung", regler: [stufe("bahn"), zahl("groesse"), zahl("weite"), zahl("offset"), zahl("amplitude"), zahl("speedVon"), zahl("kopplung"), zahl("rauschen"), zahl("phase"), zahl("breite"), zahl("speedBis"), zahl("schwuenge"), zahl("wellenlaenge"), zahl("reichweite"), zahl("kante"), zahl("wabern"), zahl("puls"), zahl("nachlauf")] },
+  { name: "Distribution", ton: "verteilung", regler: [stufe("ordnung"), stufe("elementFolge"), zahl("faecher"), schalter("gegenlauf"), zahl("elementPhase")] },
+  { name: "Fine", ton: "fein", regler: [zahl("group"), schalter("pingpong"), schalter("speedJeElement")] },
 ];
 
 // Reglerseiten für eine Grundbewegung: höchstens vier Regler je Seite, leere fallen weg
@@ -89,8 +89,8 @@ export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
 export const TASTE_SYMMETRISCH = 7;
 export const IMPULS_REGLER_SEITEN: { name: string; regler: ImpulsRegler[] }[] = [
-  { name: "Hülle", regler: ["attackS", "sustainS", "releaseS", "staerke"] },
-  { name: "Lauf", regler: ["ausbreitungS", "breite", "elementVersatzS"] },
+  { name: "Envelope", regler: ["attackS", "sustainS", "releaseS", "staerke"] },
+  { name: "Travel", regler: ["ausbreitungS", "breite", "elementVersatzS"] },
 ];
 
 // Untermenüs

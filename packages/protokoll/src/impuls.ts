@@ -12,11 +12,11 @@ export const IMPULS_BEREICHE: Record<ImpulsRegler, Bereich> = {
   attackS: { name: "Attack", kurz: "Attack", min: 0, max: 5, schritt: 0.05, einheit: " s" },
   sustainS: { name: "Sustain", kurz: "Sustain", min: 0, max: 10, schritt: 0.05, einheit: " s" },
   releaseS: { name: "Release", kurz: "Release", min: 0, max: 10, schritt: 0.05, einheit: " s" },
-  staerke: { name: "Stärke", kurz: "Stärke", min: 0, max: 100, schritt: 1, einheit: " %" },
-  elementVersatzS: { name: "Element-Versatz", kurz: "Versatz", min: 0, max: 2, schritt: 0.05, einheit: " s" },
-  ausbreitungS: { name: "Ausbreitung", kurz: "Ausbr.", min: 0, max: 3, schritt: 0.05, einheit: " s", nullText: "aus" },
-  breite: { name: "Breite", kurz: "Breite", min: 0, max: 12, schritt: 1, einheit: " Sp.", nullText: "alle" },
-  groesse: { name: "Größe", kurz: "Größe", min: 5, max: 90, schritt: 1, einheit: " cm" },
+  staerke: { name: "Strength", kurz: "Strength", min: 0, max: 100, schritt: 1, einheit: " %" },
+  elementVersatzS: { name: "Element delay", kurz: "Delay", min: 0, max: 2, schritt: 0.05, einheit: " s" },
+  ausbreitungS: { name: "Spread", kurz: "Spread", min: 0, max: 3, schritt: 0.05, einheit: " s", nullText: "off" },
+  breite: { name: "Width", kurz: "Width", min: 0, max: 12, schritt: 1, einheit: " mir.", nullText: "all" },
+  groesse: { name: "Size", kurz: "Size", min: 5, max: 90, schritt: 1, einheit: " cm" },
 };
 
 export const IMPULS_REGLER = Object.keys(IMPULS_BEREICHE) as ImpulsRegler[];

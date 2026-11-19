@@ -42,12 +42,12 @@ export class Mitlesen {
   }
 
   status(): ModulStatus {
-    const name = "MA mitlesen";
+    const name = "Read MA";
     if (this.fehler) return { name, art: "mitlesen", zustand: "fehler", text: this.fehler };
-    if (!this.sockets.length) return { name, art: "mitlesen", zustand: "aus", text: "keine Ausgabe aktiv" };
+    if (!this.sockets.length) return { name, art: "mitlesen", zustand: "aus", text: "no output active" };
     return this.stellungen()
-      ? { name, art: "mitlesen", zustand: "aktiv", text: "Stellung der MA bekannt, Überblendung möglich" }
-      : { name, art: "mitlesen", zustand: "bereit", text: "nichts empfangen – beim Übernehmen springen die Spiegel" };
+      ? { name, art: "mitlesen", zustand: "aktiv", text: "MA position known, crossfade possible" }
+      : { name, art: "mitlesen", zustand: "bereit", text: "nothing received – mirrors jump when the output takes over" };
   }
 
   async schliesse(): Promise<void> {

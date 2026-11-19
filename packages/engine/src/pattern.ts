@@ -33,19 +33,19 @@ export const istModus = (x: unknown): x is Modus => typeof x === "string" && (MO
 export const ORDNUNGEN = ["links", "rechts", "mitteAussen", "aussenMitte", "verschachtelt", "zufall"] as const;
 export type Ordnung = (typeof ORDNUNGEN)[number];
 export const ORDNUNG_NAME: Record<Ordnung, string> = {
-  links: "links → rechts",
-  rechts: "rechts → links",
-  mitteAussen: "Mitte → außen",
-  aussenMitte: "außen → Mitte",
-  verschachtelt: "verschachtelt",
-  zufall: "Zufall",
+  links: "left → right",
+  rechts: "right → left",
+  mitteAussen: "center → out",
+  aussenMitte: "out → center",
+  verschachtelt: "interleaved",
+  zufall: "random",
 };
 export const istOrdnung = (x: unknown): x is Ordnung => (ORDNUNGEN as readonly unknown[]).includes(x);
 
 // Öffnung: wie das Loch sich bewegt
 export const BAHNEN = ["kreis", "linie", "iris", "drift"] as const;
 export type Bahn = (typeof BAHNEN)[number];
-export const BAHN_NAME: Record<Bahn, string> = { kreis: "Kreis", linie: "Linie", iris: "Iris", drift: "Drift" };
+export const BAHN_NAME: Record<Bahn, string> = { kreis: "Circle", linie: "Line", iris: "Iris", drift: "Drift" };
 export const istBahn = (x: unknown): x is Bahn => (BAHNEN as readonly unknown[]).includes(x);
 
 // Feste Mischung für die Ordnung "Zufall": Platz des Spiegels i

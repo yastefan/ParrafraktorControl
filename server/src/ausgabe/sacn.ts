@@ -88,9 +88,9 @@ export class SacnAusgabe implements Ausgabe {
 
   status(): ModulStatus {
     if (this.fehler) return { name: this.name, art: "ausgabe", zustand: "fehler", text: this.fehler };
-    const ziel = this.e.multicast ? "Multicast" : `Unicast an ${this.e.ziel || "?"}`;
+    const ziel = this.e.multicast ? "Multicast" : `Unicast to ${this.e.ziel || "?"}`;
     if (!this.e.multicast && !this.e.ziel) {
-      return { name: this.name, art: "ausgabe", zustand: "fehler", text: "Unicast ohne Ziel-IP" };
+      return { name: this.name, art: "ausgabe", zustand: "fehler", text: "unicast without target IP" };
     }
     return {
       name: this.name,
