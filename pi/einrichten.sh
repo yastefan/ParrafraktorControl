@@ -4,7 +4,7 @@
 # auch wenn einfach der Strom gezogen wird.
 #
 #   - Datenpartition: kleine ext4-Partition hinter dem System, nur für daten/ (PARRAFRAKTOR_DATEN)
-#   - Node 20 aus Debian, npm ci, Build
+#   - Node 24 von NodeSource (apt), npm ci, Build
 #   - systemd-Dienst mit Neustart bei Absturz, Hardware-Watchdog
 #   - journald nur im RAM, keine Swap-Datei, keine automatischen apt-Läufe
 #   - udev-Regel fürs Stream Deck + (Zugriff ohne root)
@@ -17,7 +17,7 @@
 # RS485 (UART) wird hier nicht angefasst: serielle Schnittstelle und Konsole bleiben, wie sie sind.
 #
 # Aufruf im Repo auf dem Pi:
-#   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay]
+#   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay] [--ohne-streamdeck]
 #        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band a|bg] [--land DE]]
 # Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen.
 set -euo pipefail
@@ -27,6 +27,8 @@ DATEN_MB=1024
 IP=""
 GATEWAY=""
 OVERLAY=1
+STREAMDECK=1
+NODE_MAJOR=24
 DATEN_LABEL=pfdaten
 DATEN_MOUNT=/daten
 SCHNITTSTELLE=eth0
@@ -45,6 +47,7 @@ while [ $# -gt 0 ]; do
     --daten-mb) DATEN_MB="$2"; shift 2 ;;
     --schnittstelle) SCHNITTSTELLE="$2"; shift 2 ;;
     --ohne-overlay) OVERLAY=0; shift ;;
+    --ohne-streamdeck) STREAMDECK=0; shift ;;
     --ap-ssid) AP_SSID="$2"; shift 2 ;;
     --ap-passwort) AP_PASSWORT="$2"; shift 2 ;;
     --ap-adresse) AP_ADRESSE="$2"; shift 2 ;;
@@ -151,13 +154,35 @@ chown -R "$BENUTZER:" "$DATEN"
 # ---------- 2. Node und Build ----------
 schritt "Node und Build"
 apt-get update
-# dnsmasq-base: DHCP/DNS für das eigene WLAN (NetworkManager, ipv4.method shared)
-apt-get install -y --no-install-recommends nodejs npm git dnsmasq-base
+# Node 24 von NodeSource statt Node 20 aus Debian: Das Stream Deck zieht @julusian/jpeg-turbo 3.x
+# (Peer von @elgato-stream-deck/node-lib), das Node ≥ 22.18 verlangt. Scheitert es, wirft npm das
+# ganze Stream-Deck-Paket samt node-hid still weg. Node 20 ist außerdem seit April 2026 ohne Pflege.
+apt-get install -y --no-install-recommends ca-certificates curl gnupg
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
+  > /etc/apt/sources.list.d/nodesource.list
+# NodeSource vor Debian, auch falls Debian einmal eine höhere Version anbietet
+printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 1001\n' > /etc/apt/preferences.d/nodesource
+# npm und node-gyp aus Debian beißen sich mit dem nodejs von NodeSource (das bringt npm mit)
+apt-get remove -y npm node-gyp >/dev/null 2>&1 || true
+apt-get update
+. "$REPO/pi/pakete.sh"
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${PAKETE[@]}"
 NODE_VERSION="$(node -p 'process.versions.node')"
-node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>20||(a===20&&b>=19)?0:1)' \
-  || abbruch "Node $NODE_VERSION ist zu alt (Vite braucht 20.19 oder neuer)"
+node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=18)?0:1)' \
+  || abbruch "Node $NODE_VERSION ist zu alt (Stream Deck braucht 22.18 oder neuer)"
 echo "Node $NODE_VERSION"
 sudo -u "$BENUTZER" -H bash -c "cd '$REPO' && npm ci --no-audit --no-fund && npm run build"
+# Optionale Pakete lässt npm bei Fehlern still weg – hier laut werden
+if [ "$STREAMDECK" -eq 1 ]; then
+  if ! sudo -u "$BENUTZER" -H bash -c "cd '$REPO/server' && node -e 'require(\"node-hid\"); require(\"@napi-rs/canvas\")'" ; then
+    abbruch "Stream-Deck-Pakete fehlen oder laden nicht (node-hid, @napi-rs/canvas).
+  Ursache anzeigen:  grep -h \"failed optional\" ~/.npm/_logs/*-debug-0.log | grep -v -e rollup -e esbuild -e canvas-
+  Ohne Stream Deck weiter:  sudo pi/einrichten.sh … --ohne-streamdeck"
+  fi
+  echo "Stream-Deck-Pakete geladen."
+fi
 
 # ---------- 3. Stream Deck + ----------
 schritt "udev-Regel Stream Deck"
@@ -284,6 +309,11 @@ if [ "$OVERLAY" -eq 1 ]; then
   # Root per Overlay im RAM, Bootpartition schreibgeschützt (eine nonint-Antwort gilt für beide Fragen)
   sed -i 's#\(/boot/firmware.*defaults\)\(,ro\)\+#\1#' /etc/fstab   # nicht doppelt bei erneutem Aufruf
   raspi-config nonint do_overlayfs 0
+  # overlayroot legt ohne recurse=0 auch über alle anderen Einträge der fstab ein Overlay im RAM –
+  # dann landet auch /daten im RAM und nichts überlebt einen Neustart
+  mount -o remount,rw /boot/firmware
+  sed -i 's/overlayroot=tmpfs\( \|$\)/overlayroot=tmpfs:recurse=0\1/' /boot/firmware/cmdline.txt
+  grep -q "overlayroot=tmpfs:recurse=0" /boot/firmware/cmdline.txt || abbruch "overlayroot=tmpfs:recurse=0 fehlt in cmdline.txt"
   echo "Overlay ist eingetragen und gilt ab dem nächsten Start."
 else
   hinweis "Overlay nicht eingeschaltet (--ohne-overlay)"
