@@ -170,7 +170,8 @@ apt-get update
 # dnsmasq-base: DHCP/DNS für das eigene WLAN (NetworkManager, ipv4.method shared)
 # build-essential, python3, cmake, libudev-dev: falls node-hid oder jpeg-turbo kein passendes
 # vorgebautes Modul finden, baut npm sie selbst
-apt-get install -y --no-install-recommends nodejs git dnsmasq-base \
+# fonts-dejavu-core: Pi OS Lite hat sonst keine Schrift, das Stream Deck zeigte dann keinen Text
+apt-get install -y --no-install-recommends nodejs git dnsmasq-base fonts-dejavu-core \
   build-essential python3 cmake libudev-dev
 NODE_VERSION="$(node -p 'process.versions.node')"
 node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=18)?0:1)' \

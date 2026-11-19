@@ -1,5 +1,7 @@
 // Bilder für die LCD-Tasten und den Touchstreifen, gezeichnet mit @napi-rs/canvas (RGBA).
+import { existsSync } from "node:fs";
 import type { SKRSContext2D } from "@napi-rs/canvas";
+import { log } from "../../log.js";
 
 type Canvas = typeof import("@napi-rs/canvas");
 
@@ -52,8 +54,23 @@ export interface Feld {
   anteil: number | null;   // Füllung des Balkens 0 … 1, null = kein Balken
 }
 
+// Schriften, die mitgebracht werden, falls vorhanden. Raspberry Pi OS Lite hat ohne fonts-dejavu-core
+// gar keine Schrift – Skia zeichnet dann Farben und Balken, aber keinen Text.
+const SCHRIFT_DATEIEN = [
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+];
+const SCHRIFT_NAME = "PultSans";
+let schrift = "sans-serif";
+
 export class Maler {
-  constructor(private readonly c: Canvas) {}
+  constructor(private readonly c: Canvas) {
+    for (const datei of SCHRIFT_DATEIEN) {
+      if (existsSync(datei)) c.GlobalFonts.registerFromPath(datei, SCHRIFT_NAME);
+    }
+    if (c.GlobalFonts.has(SCHRIFT_NAME)) schrift = `${SCHRIFT_NAME}, sans-serif`;
+    else if (!c.GlobalFonts.families.length) log("streamdeck", "keine Schrift gefunden – Tasten ohne Text (Linux: fonts-dejavu-core installieren)");
+  }
 
   taste(breite: number, hoehe: number, inhalt: TastenInhalt): Uint8Array {
     const canvas = this.c.createCanvas(breite, hoehe);
@@ -92,7 +109,7 @@ export class Maler {
     ctx.fillStyle = ton.hell;
     ctx.fillRect(0, 0, breite, BAND);
     ctx.fillStyle = ton.auf;
-    ctx.font = "700 14px sans-serif";
+    ctx.font = `700 14px ${schrift}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillText(seite, 12, BAND / 2 + 1);
@@ -104,7 +121,7 @@ export class Maler {
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.fillStyle = FARBE.leise;
-      ctx.font = "600 15px sans-serif";
+      ctx.font = `600 15px ${schrift}`;
       ctx.fillText(f.titel, x + 14, BAND + 9);
       ctx.fillStyle = FARBE.text;
       passendeSchrift(ctx, f.wert, b - 28, 28);
@@ -139,7 +156,7 @@ function umbrechen(ctx: SKRSContext2D, text: string, breite: number, groesse: nu
 function passendeSchrift(ctx: SKRSContext2D, text: string, breite: number, groesse: number, gewicht = 700): void {
   let g = groesse;
   do {
-    ctx.font = `${gewicht} ${g}px sans-serif`;
+    ctx.font = `${gewicht} ${g}px ${schrift}`;
     g -= 1;
   } while (g > 10 && ctx.measureText(text).width > breite);
 }
