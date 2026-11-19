@@ -17,6 +17,15 @@ export interface SacnEinstellungen {
   quelle: string;      // lokale IP für Multicast; "" = automatisch
 }
 
+// Was nach einem Neustart des Servers von selbst angeht – für den Betrieb ohne MA (Ausstellung).
+// Sicherheitsentscheidung, Vorgabe beides aus: dann fährt nach einem Neustart zuerst die MA.
+//   output: die App übernimmt die Spiegel sofort (ohne MA ohne Überblendung, die Spiegel springen)
+//   auto:   Auto fährt die ausgewählten Presets ab (braucht mindestens zwei)
+export interface AutostartEinstellungen {
+  output: boolean;
+  auto: boolean;
+}
+
 export interface Rs485Einstellungen {
   an: boolean;
   geraet: string;      // serielle Schnittstelle, z. B. /dev/serial0 am Raspberry Pi
@@ -43,6 +52,7 @@ export interface Einstellungen {
   artnet: ArtnetEinstellungen;
   sacn: SacnEinstellungen;
   rs485: Rs485Einstellungen;
+  autostart: AutostartEinstellungen;
 }
 
 export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
@@ -57,6 +67,7 @@ export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
   artnet: { an: true, ziel: "2.255.255.255", quelle: "", versatz: -1 },
   sacn: { an: false, priority: 150, multicast: true, ziel: "", quelle: "" },
   rs485: { an: false, geraet: "/dev/serial0" },
+  autostart: { output: false, auto: false },
 };
 
 export const GRENZEN = {
@@ -96,6 +107,7 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
     return { universe: zahl(e.universe, alt.universe, GRENZEN.universe), adresse: zahl(e.adresse, alt.adresse, GRENZEN.adresse) };
   });
   const a = objekt(r.artnet), s = objekt(r.sacn), rs = objekt(r.rs485), au = objekt(r.aufbau), f = objekt(r.flash);
+  const st = objekt(r.autostart);
   const rohDrehung = Array.isArray(au.drehung) ? au.drehung : [];
   const aufbau: Aufbau = {
     anordnung: ANORDNUNGEN.includes(au.anordnung as Anordnung) ? (au.anordnung as Anordnung) : basis.aufbau.anordnung,
@@ -125,6 +137,7 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
       quelle: ip(s.quelle, basis.sacn.quelle, true),
     },
     rs485: { an: wahr(rs.an, basis.rs485.an), geraet: text(rs.geraet, basis.rs485.geraet) },
+    autostart: { output: wahr(st.output, basis.autostart.output), auto: wahr(st.auto, basis.autostart.auto) },
   };
 }
 

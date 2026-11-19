@@ -220,3 +220,34 @@ describe("Stream Deck: Reglerseiten", () => {
     expect(namen("sinus")[1]).toEqual(["Motion 2", ["breite", "speedBis"]]);
   });
 });
+
+describe("Autostart", () => {
+  const mit = (autostart: { output: boolean; auto: boolean }) => {
+    const e = { ...structuredClone(EINSTELLUNGEN_VORGABE), autostart };
+    const s = new Steuerung({ ...PARAMETER_VORGABE }, e, pruefePresets([]));
+    return s;
+  };
+
+  it("lässt nach dem Start ohne Einstellung alles aus", () => {
+    const s = mit({ output: false, auto: false });
+    expect(s.autostart()).toEqual([]);
+    expect(s.uebernahme.soll).toBe(false);
+    expect(s.autoAn).toBe(false);
+  });
+
+  it("schaltet Output und Auto ein, Auto nur mit zwei Presets", () => {
+    const s = mit({ output: true, auto: true });
+    s.speicherePreset(0);
+    expect(s.autostart()).toEqual(["Output an", "Auto nicht gestartet: weniger als zwei Presets ausgewählt"]);
+    expect(s.uebernahme.soll).toBe(true);
+    expect(s.autoAn).toBe(false);
+
+    const t = mit({ output: false, auto: true });
+    t.speicherePreset(0);
+    t.setze({ amplitude: 50 });
+    t.speicherePreset(1);
+    expect(t.autostart()).toEqual(["Auto an"]);
+    expect(t.autoAn).toBe(true);
+    expect(t.uebernahme.soll).toBe(false);
+  });
+});

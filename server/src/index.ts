@@ -96,6 +96,7 @@ function stand(): Stand {
   if (patch) warnungen.push(patch);
   if (!ausgaben.length) warnungen.push("No output active – the mirrors receive nothing.");
   if (e.artnet.an && e.sacn.an) warnungen.push("Art-Net and sACN active at the same time.");
+  if (e.autostart.output) warnungen.push("Autostart output is on: after every restart the app drives the mirrors at once, the MA cannot take them.");
   return {
     typ: "stand",
     version: PROTOKOLL_VERSION,
@@ -142,6 +143,8 @@ steuerung.on("einstellungen", (e) => {
 
 web = new WebServer({ port, clientVerzeichnis, tls }, steuerung, stand);
 starteAusgaben(steuerung.einstellungen);
+// Autostart (Betrieb ohne MA) vor dem ersten Takt, damit sofort gesendet wird
+for (const t of steuerung.autostart()) log("autostart", t);
 takt.starte();
 await web.starte();
 log("server", `Daten in ${datenVerzeichnis}`);

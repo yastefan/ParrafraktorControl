@@ -23,6 +23,14 @@ describe("Einstellungen", () => {
   it("verwirft eine unbekannte Anordnung", () => {
     expect(pruefeEinstellungen({ aufbau: { anordnung: "kreis" } }).aufbau.anordnung).toBe("reihe");
   });
+
+  it("Autostart ist aus, auch bei alten Dateien und ungültigen Werten", () => {
+    expect(pruefeEinstellungen({}).autostart).toEqual({ output: false, auto: false });
+    expect(pruefeEinstellungen({ autostart: { output: "ja", auto: 1 } }).autostart).toEqual({ output: false, auto: false });
+    const an = pruefeEinstellungen({ autostart: { output: true } });
+    expect(an.autostart).toEqual({ output: true, auto: false });
+    expect(pruefeEinstellungen({ autostart: { auto: true } }, an).autostart).toEqual({ output: true, auto: true });
+  });
 });
 
 describe("alte Dateien", () => {
