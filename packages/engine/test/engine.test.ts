@@ -417,23 +417,54 @@ describe("Schwarm und Glühwürmchen", () => {
       const p: Parameter = { ...basis(modus), kopplung: 100, rauschen: 100, breite: 30 };
       const e = new Engine();
       e.weiter(p, 0);
+      // gemessen über je 0,25 s (die Engine rechnet in festen Schritten von 5 ms)
       let min = Infinity, max = 0;
-      for (let i = 0; i < 120 * 40; i++) {
+      for (let i = 0; i < 120 * 4; i++) {
         const vor = Float64Array.from(e.umlauf);
-        e.weiter(p, 0.025);
+        for (let k = 0; k < 10; k++) e.weiter(p, 0.025);
         e.umlauf.forEach((u, g) => {
-          const tempo = ((u - vor[g]!) / 0.025) * 60;   // BPM
+          const tempo = ((u - vor[g]!) / 0.25) * 60;   // BPM
           min = Math.min(min, tempo); max = Math.max(max, tempo);
         });
       }
-      expect(min, modus).toBeGreaterThanOrEqual(0.5 * 3.5 - 1e-6);
+      expect(min, modus).toBeGreaterThanOrEqual(0.5 * 3.5 * 0.97);
       // Glühwürmchen springen in der Ruhe (unsichtbar), deshalb nur der Schwarm nach oben begrenzt
-      if (modus === "schwarm") expect(max, modus).toBeLessThanOrEqual(1.5 * 4.5 + 1e-6);
+      if (modus === "schwarm") expect(max, modus).toBeLessThanOrEqual(1.5 * 4.5 * 1.03);
     }
   });
 
   it("Schwarm: viel Rauschen bricht den Gleichlauf auf", () => {
     expect(lauf({ ...basis("schwarm"), kopplung: 30, rauschen: 100 }, 120)).toBeLessThan(0.7);
+  });
+
+  it("Vorschau und Server laufen gleich: beim Abgleich springt nichts", () => {
+    // Server mit 40 Hz, Vorschau mit eigenem Bildtakt und später gestartet; jede Sekunde übernimmt sie
+    // Umlauf, Tempo und Stöße wie client/src/vorschau.ts (große Abweichungen sofort, kleine weich)
+    const nachziehen = (l: number, s: number) => (Math.abs(s - l) > 0.05 ? s : l + (s - l) * 0.2);
+    for (const modus of ["schwarm", "gluehwuermchen"] as const) {
+      const p: Parameter = { ...basis(modus), kopplung: 50, rauschen: 40, phase: 360, breite: modus === "gluehwuermchen" ? 30 : 100 };
+      const server = new Engine(), vorschau = new Engine();
+      for (let i = 0; i < 300; i++) server.weiter(p, 0.025);
+      let ts = 0, tv = 0, naechster = 1, schritt = 0;
+      let vor = vorschau.alle(p).map((s) => s.tilt);
+      for (let n = 0; tv < 60; n++) {
+        const dt = 0.012 + 0.008 * ((n * 7) % 11) / 10;
+        tv += dt;
+        vorschau.weiter(p, dt);
+        while (ts < tv) { server.weiter(p, 0.025); ts += 0.025; }
+        if (tv >= naechster) {
+          naechster++;
+          vorschau.umlaufVon = nachziehen(vorschau.umlaufVon, server.umlaufVon);
+          server.umlauf.forEach((u, g) => { vorschau.umlauf[g] = nachziehen(vorschau.umlauf[g]!, u); });
+          vorschau.tempo.set(server.tempo);
+          vorschau.schub.set(server.schub);
+        }
+        const jetzt = vorschau.alle(p).map((s) => s.tilt);
+        if (tv > 1.5) jetzt.forEach((w, g) => { schritt = Math.max(schritt, Math.abs(w - vor[g]!)); });
+        vor = jetzt;
+      }
+      expect(schritt, modus).toBeLessThan(3);   // ein Sprung wäre zweistellig
+    }
   });
 
   it("Glühwürmchen: die Stöße ziehen sie in den Takt", () => {

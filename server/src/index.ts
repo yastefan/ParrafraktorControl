@@ -105,7 +105,12 @@ function stand(): Stand {
     einstellungen: e,
     module,
     netzwerk: netzwerk(),
-    takt: { umlaufVon: takt.engine.umlaufVon, umlauf: Array.from(takt.engine.umlauf) },
+    takt: {
+      umlaufVon: takt.engine.umlaufVon,
+      umlauf: Array.from(takt.engine.umlauf),
+      tempo: Array.from(takt.engine.tempo),
+      schub: Array.from(takt.engine.schub),
+    },
     presets: [...steuerung.presets],
     letztesPreset: steuerung.letztesPreset,
     blende: steuerung.blende ? { ...steuerung.blende } : null,

@@ -295,6 +295,9 @@ export class Vorschau {
     const e = this.engine;
     e.umlaufVon = nachziehen(e.umlaufVon, takt.umlaufVon);
     takt.umlauf.forEach((u, g) => { if (g < e.umlauf.length) e.umlauf[g] = nachziehen(e.umlauf[g]!, u); });
+    // Glühwürmchen: ohne Tempo und Stöße des Servers liefe die Vorschau nach jeder Lawine anders weiter
+    if (takt.tempo?.length === e.tempo.length) e.tempo.set(takt.tempo);
+    if (takt.schub?.length === e.schub.length) e.schub.set(takt.schub);
   }
 
   // Wie der Server: von der Stellung beim Abrufen weich zum neuen Look. Den Anteil rechnet die

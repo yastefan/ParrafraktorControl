@@ -308,12 +308,18 @@ const GLEICHLAUF_S = 0.4;
 //    Tempo, ohne Anpassung und Rauschen – alle Blitze sehen gleich aus. Er dauert die Breite, aber
 //    mindestens BLITZ_MIN (sonst zu schnell) und höchstens BLITZ_MAX des Durchlaufs (damit es eine Ruhe gibt).
 // Der Zustand steckt im Umlauf je Spiegel, die Vorschau gleicht ihn wie sonst mit dem Server ab.
-const SCHRITT_S = 0.02;          // größter Rechenschritt, längere dt werden unterteilt
+// Fester Rechenschritt: Server (40 Hz) und Vorschau (Bildtakt) rechnen so dieselben Schritte und laufen
+// nicht auseinander; der Rest der Zeit wartet auf den nächsten Aufruf (höchstens 5 ms Verzug)
+const SCHRITT_S = 0.005;
 const TEMPO_MIN = 0.5;           // nie langsamer als das halbe langsamste Speed (steht nicht, läuft nicht rückwärts)
 const TEMPO_MAX = 1.5;           // höchstens so schnell wie das 1,5-Fache des schnellsten Speeds
 const KOPPLUNG_MAX = 1.5;        // Kopplung 100 % = so viele Durchläufe/s je Durchlauf/s des mittleren Tempos
-const RAUSCHEN_MAX = 2;          // Rauschen 100 % = Störung etwa so stark wie das mittlere Tempo
-const RAUSCHEN_PLAETZE = 4;      // so viele Plätze breit ist eine Störung
+const RAUSCHEN_MAX = 3;          // Rauschen 100 % = Störung etwa so stark wie das mittlere Tempo
+const RAUSCHEN_PLAETZE = 4;
+// Das Rauschen läuft mit dem Umlauf bei Speed von (so viele Rasterschritte je Durchlauf), nicht mit
+// einer eigenen Uhr: Den Umlauf gleicht die Vorschau mit dem Server ab, eine eigene Uhr nicht – sonst
+// liefen Vorschau und Server auseinander und die Vorschau spränge beim Abgleich.
+const RAUSCHEN_TAKT = 4;      // so viele Plätze breit ist eine Störung
 const STREUUNG = 1;              // Anfangsstreuung beim Wählen (Durchläufe, etwa ± halber Durchlauf)
 const STOSS_MAX = 1.5;
 const ANPASSUNG = 0.6;           // Glühwürmchen: so viel ändert sich das Tempo je Durchlauf voller Blitze (bei Kopplung 100 %)
@@ -336,10 +342,11 @@ export class Engine {
   // Rotation: mitgezählter Winkel (Grad) und vorgegebene Drehzahl je Spiegel
   private readonly gedreht = new Float64Array(SPIEGEL_GESAMT);
   private readonly drehzahl = new Float64Array(SPIEGEL_GESAMT);
-  // Glühwürmchen: noch ausstehender Stoß je Spiegel (Durchläufe), Schwarm und Glühwürmchen: Uhr fürs Rauschen
-  private readonly schub = new Float64Array(SPIEGEL_GESAMT);
-  private readonly tempo = new Float64Array(SPIEGEL_GESAMT).fill(1);   // Glühwürmchen: angepasstes Tempo (× eigenes)
-  private sekunden = 0;
+  // Glühwürmchen: noch ausstehender Stoß je Spiegel (Durchläufe)
+  // (öffentlich, damit die Vorschau sie wie den Umlauf mit dem Server abgleichen kann)
+  readonly schub = new Float64Array(SPIEGEL_GESAMT);
+  private rest = 0;   // Zeit, die noch nicht gerechnet ist (s, kleiner als SCHRITT_S)
+  readonly tempo = new Float64Array(SPIEGEL_GESAMT).fill(1);   // Glühwürmchen: angepasstes Tempo (× eigenes)
 
   // Zeit weiterlaufen lassen (dt in Sekunden)
   weiter(p: Parameter, dt: number): void {
@@ -358,10 +365,9 @@ export class Engine {
     }
     const [von, bis] = speeds(p);
     this.umlaufVon += (dt * von) / 60;
-    this.sekunden += dt;
     if (istGekoppelt(p.modus)) {
-      const n = Math.max(1, Math.ceil(dt / SCHRITT_S));
-      for (let i = 0; i < n; i++) this.koppele(p, von, bis, dt / n);
+      this.rest += dt;
+      for (; this.rest >= SCHRITT_S; this.rest -= SCHRITT_S) this.koppele(p, von, bis, SCHRITT_S);
       this.gedreht.fill(0);
       this.drehzahl.fill(0);
       return;
@@ -442,7 +448,7 @@ export class Engine {
       }
       // Rauschen: weich, über die Plätze zusammenhängend und über die Zeit, immer gleich
       d += dt * (p.rauschen / 100) * RAUSCHEN_MAX * mittel
-        * rauschen(a[i]!.platz / RAUSCHEN_PLAETZE + 0.37 * Math.floor(i / SPIEGEL_N), 0.3 * this.sekunden + 11.3);
+        * rauschen(a[i]!.platz / RAUSCHEN_PLAETZE + 0.37 * Math.floor(i / SPIEGEL_N), RAUSCHEN_TAKT * this.umlaufVon + 11.3);
       schiebe(i, Math.min(Math.max(d, boden), grenze));
       // Glühwürmchen: Stöße, die im Blitz ankamen, wirken in der Ruhe danach
       if (ruht(i)) springe(i);
