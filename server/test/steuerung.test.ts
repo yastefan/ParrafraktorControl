@@ -117,7 +117,7 @@ describe("Presets", () => {
     const s = neu();
     s.setze({ amplitude: 77, phase: 90 });
     s.speicherePreset(3);
-    expect(s.presets[3]).toMatchObject({ name: "Sinus", look: { amplitude: 77, phase: 90 } });
+    expect(s.presets[3]).toMatchObject({ name: "Sine", look: { amplitude: 77, phase: 90 } });
     expect(s.presets[3]!.look).not.toHaveProperty("laeuft");
 
     s.waehlePattern("wind");

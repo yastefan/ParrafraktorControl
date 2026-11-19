@@ -15,15 +15,16 @@ export type Modus = (typeof MODI)[number];
 // (Wunsch des Users, 2026-11-19), die Engine kennt sie weiter: alte Presets und Dateien laufen wie bisher.
 export const MODI_WAEHLBAR: readonly Modus[] = ["sinus", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung"];
 
+// Namen am Pult englisch (Wunsch des Users, 2026-11-19), Bezeichner bleiben deutsch
 export const MODUS_NAME: Record<Modus, string> = {
-  sinus: "Sinus",
-  pendelwelle: "Pendelwelle",
+  sinus: "Sine",
+  pendelwelle: "Pendulum wave",
   wind: "Wind",
-  schwarm: "Schwarm",
-  gluehwuermchen: "Glühwürmchen",
+  schwarm: "Swarm",
+  gluehwuermchen: "Flash",
   rotation: "Rotation",
-  oeffnung: "Öffnung",
-  ruhe: "Ruhe",
+  oeffnung: "Aperture",
+  ruhe: "Rest",
 };
 
 export const istModus = (x: unknown): x is Modus => typeof x === "string" && (MODI as readonly string[]).includes(x);

@@ -1,4 +1,4 @@
-// Impulse: Art wählen (Flash auf, Flash zu, Loch, Iris) und auf dem Streifen auslösen –
+// Impulse: Art wählen (Open, Close, Hole, Iris) und auf dem Streifen auslösen –
 // wie der Touchstreifen des Stream Decks: Tippen = von dort aus, Wischen = läuft in Wischrichtung
 // durch (Tempo: Ausbreitung). Die Hüllkurve (Attack, Sustain, Release, Stärke) läuft danach von
 // selbst ab.

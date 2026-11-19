@@ -93,13 +93,13 @@ export function Einstellungen({ stand, schliessen }: Props) {
 
         <Gruppe titel="Impulse">
           <Schieber
-            name="Flash auf" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            name="Open" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
             wert={entwurf.flash.auf} setze={(v) => sofort({ flash: { ...entwurf.flash, auf: v } })}
           />
           <Schieber
-            name="Flash zu" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            name="Close" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
             wert={entwurf.flash.zu} setze={(v) => sofort({ flash: { ...entwurf.flash, zu: v } })}
-            hilfe="Tilt, auf den die Flashs die Spiegel fahren. „Auf“ für Licht von hinten, „Zu“ für Licht von außen. Platzhalter, bis die Winkel am Aufbau bestimmt sind."
+            hilfe="Tilt, auf den die Impulse Open und Close die Spiegel fahren. „Open“ für Licht von hinten, „Close“ für Licht von außen. Platzhalter, bis die Winkel am Aufbau bestimmt sind."
           />
         </Gruppe>
 

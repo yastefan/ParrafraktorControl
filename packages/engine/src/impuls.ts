@@ -3,7 +3,7 @@
 // (Ursprung 0 = links … 1 = rechts), Wischen vom Rand in Wischrichtung. Danach läuft die Hüllkurve
 // ab: Attack (hin), Sustain (bleiben), Release (zurück) – der Streifen kennt kein Halten.
 //
-//   Flash auf/zu  alle Spiegel zu einer Ziel-Stellung (Winkel aus den Einstellungen)
+//   Open/Close    alle Spiegel zu einer Ziel-Stellung (Winkel aus den Einstellungen)
 //   Loch          alles schließt sich bis auf ein Loch (wie die Grundbewegung Öffnung): Jedes Element
 //                 öffnet einen Schlitz, die sich am Ursprung kreuzen. Gewischt fährt das Loch quer durchs Bild.
 //   Iris          wie Loch, aber es wächst mit der Hüllkurve aus einem Punkt
@@ -21,7 +21,8 @@ import { schlitzOffen, weich, type Stellung } from "./pattern.js";
 
 export const IMPULS_ARTEN = ["auf", "zu", "loch", "iris"] as const;
 export type ImpulsArt = (typeof IMPULS_ARTEN)[number];
-export const IMPULS_NAME: Record<ImpulsArt, string> = { auf: "Flash auf", zu: "Flash zu", loch: "Loch", iris: "Iris" };
+// Namen am Pult englisch; "Flash" heißt jetzt das Pattern Glühwürmchen (2026-11-19)
+export const IMPULS_NAME: Record<ImpulsArt, string> = { auf: "Open", zu: "Close", loch: "Hole", iris: "Iris" };
 export const istImpulsArt = (x: unknown): x is ImpulsArt => (IMPULS_ARTEN as readonly unknown[]).includes(x);
 export const istOeffnungArt = (art: ImpulsArt): boolean => art === "loch" || art === "iris";
 

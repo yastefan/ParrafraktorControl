@@ -18,7 +18,7 @@
 //
 // Impulse (Live-Seite):
 //   ┌──────────┬──────────┬──────────┬──────────┐
-//   │Flash auf │Flash zu  │  Loch    │  Iris    │   obere Reihe: Art wählen (löst nichts aus)
+//   │  Open    │  Close   │  Hole    │  Iris    │   obere Reihe: Art wählen (löst nichts aus)
 //   ├──────────┼──────────┼──────────┼──────────┤
 //   │‹ Zurück  │ Elemente │ Regler   │Symmetr.  │   Regler: Seite Hülle (Attack/Sustain/Release/Stärke)
 //   └──────────┴──────────┴──────────┴──────────┘           oder Lauf (Ausbreitung/Breite/Versatz)
