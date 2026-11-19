@@ -9,6 +9,7 @@
 #   - journald nur im RAM, keine Swap-Datei, keine automatischen apt-Läufe
 #   - udev-Regel fürs Stream Deck + (Zugriff ohne root)
 #   - feste IP im Lichtnetz (NetworkManager), wenn --ip angegeben
+#   - eigenes WLAN (Access Point) fürs iPad, wenn --ap-ssid angegeben
 #   - zum Schluss: System schreibgeschützt (Overlay-Dateisystem über raspi-config)
 #
 # Voraussetzung: Vor dem ersten Start auf der Bootpartition in cmdline.txt das Wort „resize“
@@ -17,6 +18,7 @@
 #
 # Aufruf im Repo auf dem Pi:
 #   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay]
+#        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band bg|a] [--land DE]]
 # Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen.
 set -euo pipefail
 
@@ -28,8 +30,13 @@ OVERLAY=1
 DATEN_LABEL=pfdaten
 DATEN_MOUNT=/daten
 SCHNITTSTELLE=eth0
+AP_SSID=""
+AP_PASSWORT=""
+AP_ADRESSE=192.168.4.1/24
+AP_BAND=bg
+LAND=DE
 
-hilfe() { sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+hilfe() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit "${1:-0}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
     --ip) IP="$2"; shift 2 ;;
@@ -38,6 +45,11 @@ while [ $# -gt 0 ]; do
     --daten-mb) DATEN_MB="$2"; shift 2 ;;
     --schnittstelle) SCHNITTSTELLE="$2"; shift 2 ;;
     --ohne-overlay) OVERLAY=0; shift ;;
+    --ap-ssid) AP_SSID="$2"; shift 2 ;;
+    --ap-passwort) AP_PASSWORT="$2"; shift 2 ;;
+    --ap-adresse) AP_ADRESSE="$2"; shift 2 ;;
+    --ap-band) AP_BAND="$2"; shift 2 ;;
+    --land) LAND="$2"; shift 2 ;;
     -h|--help) hilfe 0 ;;
     *) echo "Unbekannte Option: $1" >&2; hilfe 1 ;;
   esac
@@ -55,6 +67,10 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 [ "$(uname -m)" = aarch64 ] || abbruch "braucht Raspberry Pi OS 64 Bit (aarch64)"
 . /etc/os-release
 [ "${VERSION_CODENAME:-}" = trixie ] || hinweis "Getestet für Trixie, gefunden: ${PRETTY_NAME:-unbekannt}"
+if [ -n "$AP_SSID" ]; then
+  [ ${#AP_PASSWORT} -ge 8 ] && [ ${#AP_PASSWORT} -le 63 ] || abbruch "--ap-passwort braucht 8 bis 63 Zeichen (WPA2)"
+  case "$AP_BAND" in bg|a) ;; *) abbruch "--ap-band ist bg (2,4 GHz) oder a (5 GHz)" ;; esac
+fi
 if grep -q "overlayroot=tmpfs" /proc/cmdline; then
   abbruch "Overlay ist aktiv – erst ausschalten: sudo pi/wartung.sh aus"
 fi
@@ -135,7 +151,8 @@ chown -R "$BENUTZER:" "$DATEN"
 # ---------- 2. Node und Build ----------
 schritt "Node und Build"
 apt-get update
-apt-get install -y --no-install-recommends nodejs npm git
+# dnsmasq-base: DHCP/DNS für das eigene WLAN (NetworkManager, ipv4.method shared)
+apt-get install -y --no-install-recommends nodejs npm git dnsmasq-base
 NODE_VERSION="$(node -p 'process.versions.node')"
 node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>20||(a===20&&b>=19)?0:1)' \
   || abbruch "Node $NODE_VERSION ist zu alt (Vite braucht 20.19 oder neuer)"
@@ -236,6 +253,31 @@ else
   hinweis "Keine --ip angegeben: $SCHNITTSTELLE bleibt bei DHCP"
 fi
 
+# ---------- 7b. Eigenes WLAN ----------
+schritt "WLAN-Access-Point"
+if [ -n "$AP_SSID" ]; then
+  AP=parrafraktor-ap
+  raspi-config nonint do_wifi_country "$LAND"
+  rfkill unblock wlan || true
+  nmcli connection delete "$AP" >/dev/null 2>&1 || true
+  # Kanal fest (6 bzw. 36), WPA2 mit CCMP; PMF aus und Stromsparen aus – beides macht der WLAN-Chip
+  # des Pi als Access Point erfahrungsgemäß unzuverlässig. ipv4.method shared: NetworkManager verteilt
+  # Adressen per DHCP, ohne Weiterleitung ins Lichtnetz (keine Standardroute über das WLAN).
+  KANAL=6; [ "$AP_BAND" = a ] && KANAL=36
+  nmcli connection add type wifi ifname wlan0 con-name "$AP" ssid "$AP_SSID" \
+    802-11-wireless.mode ap 802-11-wireless.band "$AP_BAND" 802-11-wireless.channel "$KANAL" \
+    802-11-wireless.powersave 2 \
+    wifi-sec.key-mgmt wpa-psk wifi-sec.proto rsn wifi-sec.pairwise ccmp wifi-sec.group ccmp \
+    wifi-sec.pmf disable wifi-sec.psk "$AP_PASSWORT" \
+    ipv4.method shared ipv4.addresses "$AP_ADRESSE" ipv4.never-default yes ipv6.method disabled \
+    connection.autoconnect yes connection.autoconnect-priority 100
+  echo "WLAN „$AP_SSID“ mit ${AP_ADRESSE%/*} gilt ab dem nächsten Start."
+  echo "Das bisherige WLAN (Internet) bleibt gespeichert und kommt nur, wenn der Access Point aus ist (pi/wartung.sh update)."
+  hinweis "Wer gerade per WLAN verbunden ist, kommt nach dem Neustart über „$AP_SSID“ auf ${AP_ADRESSE%/*}."
+else
+  echo "Kein --ap-ssid: kein eigenes WLAN."
+fi
+
 # ---------- 8. Schreibschutz ----------
 schritt "Overlay-Dateisystem"
 if [ "$OVERLAY" -eq 1 ]; then
@@ -251,6 +293,7 @@ schritt "Fertig"
 cat <<EOF
 Jetzt neu starten:   sudo reboot
 Danach prüfen:       sudo $REPO/pi/pruefen.sh
-Weboberfläche:       http://<IP>:8080 (bzw. https://<IP>:8443 mit Zertifikat)
+Weboberfläche:       http://<IP>:8080 (bzw. https://<IP>:8443 mit Zertifikat)${AP_SSID:+
+iPad:                WLAN „$AP_SSID“, dann http://${AP_ADRESSE%/*}:8080}
 Daten:               $DATEN
 EOF

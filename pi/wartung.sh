@@ -39,6 +39,17 @@ case "${1:-status}" in
     # Bei aktivem Overlay konnte raspi-config den Schreibschutz der Bootpartition nicht austragen;
     # Kernel-Updates schreiben dorthin
     mount -o remount,rw /boot/firmware
+    # Eigenes WLAN belegt den WLAN-Chip: für das Update kurz aus, dann verbindet sich das gespeicherte
+    # WLAN mit Internet (oder Internet kommt übers Kabel, wenn das Lichtnetz ein Gateway hat)
+    AP_AN=0
+    if nmcli -t -f NAME connection show --active | grep -qx parrafraktor-ap; then
+      AP_AN=1
+      echo "Eigenes WLAN aus für das Update (iPad verliert kurz die Verbindung) …"
+      nmcli connection down parrafraktor-ap
+      for _ in $(seq 30); do getent hosts deb.debian.org >/dev/null && break; sleep 1; done
+    fi
+    trap '[ "$AP_AN" = 1 ] && nmcli connection up parrafraktor-ap >/dev/null' EXIT
+    getent hosts deb.debian.org >/dev/null || { echo "Kein Internet – WLAN mit Internet oder Kabel mit Gateway nötig" >&2; exit 1; }
     apt-get update && apt-get -y full-upgrade
     sudo -u "$BENUTZER" -H bash -c "cd '$REPO' && git pull --ff-only && npm ci --no-audit --no-fund && npm run build"
     systemctl restart parrafraktor
@@ -48,6 +59,7 @@ case "${1:-status}" in
     overlay_eingetragen && ! overlay_aktiv && echo "(beim nächsten Start wieder aktiv)"
     ! overlay_eingetragen && overlay_aktiv && echo "(beim nächsten Start aus)"
     findmnt /daten >/dev/null && echo "Daten: /daten eingebunden" || echo "Daten: /daten NICHT eingebunden"
+    nmcli -t -f NAME connection show --active 2>/dev/null | grep -qx parrafraktor-ap && echo "Eigenes WLAN: an"
     true ;;
   *) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

@@ -134,6 +134,7 @@ Ein Raspberry Pi 4 mit SD-Karte läuft als eigenständiges Gerät, auch ohne gra
 | Watchdog | Hardware-Watchdog des BCM2711 (höchstens ca. 16 s), systemd `RuntimeWatchdogSec=15` |
 | Stream Deck | udev-Regel für Gruppe `plugdev`, der Dienst läuft ohne root |
 | Netz | feste IP im Lichtnetz über NetworkManager (Verbindung `lichtnetz`) |
+| WLAN | auf Wunsch eigenes WLAN fürs iPad (Access Point, Verbindung `parrafraktor-ap`, DHCP über NetworkManager) |
 | RS485 | noch nichts eingerichtet; der Benutzer ist schon in `dialout`, die serielle Schnittstelle bleibt unberührt |
 
 **1. Karte vorbereiten (am Mac)**
@@ -159,6 +160,14 @@ Optional vorher die Zertifikate (siehe oben) nach `zertifikate/` kopieren, dann 
 sudo pi/einrichten.sh --ip 2.0.0.50/8
 ```
 
+Soll der Pi ein eigenes WLAN fürs iPad aufmachen, Name und Passwort (8–63 Zeichen) dazu angeben:
+
+```bash
+sudo pi/einrichten.sh --ip 2.0.0.50/8 --ap-ssid Parrafraktor --ap-passwort 'geheimes-passwort'
+```
+
+Das iPad findet die App dann unter http://192.168.4.1:8080 (`--ap-adresse`, Vorgabe `192.168.4.1/24`) oder http://parrafraktor.local:8080. Vorgabe ist 2,4 GHz auf Kanal 6; `--ap-band a` nimmt 5 GHz (Kanal 36), meist ruhiger in Räumen mit vielen Netzen. Der Ländercode (`--land`, Vorgabe DE) gibt die erlaubten Kanäle vor. Der WLAN-Chip des Pi kann nicht gleichzeitig Access Point und mit einem anderen WLAN verbunden sein: Das WLAN, über das man einrichtet, bleibt gespeichert, kommt aber erst wieder, wenn der Access Point aus ist (`wartung.sh update` macht das selbst). Ins Lichtnetz wird nichts weitergeleitet. Für HTTPS die Adresse des Access Points beim `mkcert`-Aufruf mit angeben (z. B. `192.168.4.1`).
+
 Das Skript vergrößert die Systempartition auf 8 GiB (`--root-gb`), legt dahinter die Datenpartition mit 1 GiB an (`--daten-mb`), installiert Node, baut die App, richtet Dienst, Watchdog, Logs, udev und Netz ein und schaltet zum Schluss den Schreibschutz ein. Mit `--gateway` bekommt das Lichtnetz eine Standardroute, sonst bleibt das Internet beim WLAN. Ein erneuter Aufruf schadet nicht. Danach:
 
 ```bash
@@ -179,7 +188,7 @@ sudo ParrafraktorControl/pi/pruefen.sh
 sudo ParrafraktorControl/pi/wartung.sh aus
 ```
 
-Nach dem Neustart (System beschreibbar): apt-Updates, `git pull`, `npm ci`, Build, Dienst neu starten:
+Nach dem Neustart (System beschreibbar): apt-Updates, `git pull`, `npm ci`, Build, Dienst neu starten. Ein eigenes WLAN wird dafür kurz ausgeschaltet, damit sich der Pi mit dem gespeicherten WLAN mit Internet verbinden kann (alternativ Internet übers Kabel):
 
 ```bash
 sudo ParrafraktorControl/pi/wartung.sh update
@@ -198,9 +207,10 @@ sudo ParrafraktorControl/pi/wartung.sh an
 1. Einrichten wie oben, `pruefen.sh` ohne Fehler.
 2. Presets speichern, Einstellungen ändern, Autostart output einschalten.
 3. Mehrmals im Betrieb den Strom ziehen, auch **direkt nach dem Speichern eines Presets** (innerhalb einer Sekunde) und während Auto überblendet.
-4. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `pruefen.sh` ist grün.
+4. Mit eigenem WLAN: iPad verbindet sich nach jedem Start von selbst und erreicht die App.
+5. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `pruefen.sh` ist grün.
 
-Quellen: [Raspberry Pi OS Downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi Dokumentation: Konfiguration (Overlay File System)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, Zweig trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspberrypi-sys-mods, Zweig pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [Forum: Resize unter Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (Watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux-Treiber bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [Whitepaper „Making a more resilient file system“](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).
+Quellen: [Raspberry Pi OS Downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi Dokumentation: Konfiguration (Overlay File System)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, Zweig trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspberrypi-sys-mods, Zweig pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [Forum: Resize unter Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (Watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux-Treiber bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [NetworkManager: nmcli-Einstellungen (wifi, `ipv4.method shared`)](https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html), [Whitepaper „Making a more resilient file system“](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).
 
 ## Presets
 
