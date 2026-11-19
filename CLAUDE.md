@@ -2,7 +2,7 @@
 
 Plattformunabhängige Steuerung (macOS, Windows, Raspberry Pi) für den **Parrafraktor**, eine Lichtinstallation von Friedrich Gobbesso: 3 Elemente × 12 drehbare Spiegel = 36 Spiegel, Schrittmotoren, DMX. Ein Node-Server rechnet die Pattern der Website-Simulation und sendet per Art-Net/sACN (später RS485 am Pi). Bedienung: Stream Deck+ am Server-Rechner, PWA auf dem iPad, später MIDI/OSC.
 
-Sprache im Projekt: Deutsch (Bezeichner, Kommentare, Doku), die Oberfläche ist seit 2026-11-19 englisch (Wunsch des Users) – wie in der Simulation und der ESP32-Remote. Bedienung und Aufbau für Menschen stehen in der README.
+Sprache im Projekt: Deutsch (Bezeichner, Kommentare, Doku) – wie in der Simulation und der ESP32-Remote. Die Oberfläche (Client, Stream Deck) ist seit 2026-11-19 englisch (Wunsch des Users). Bedienung und Aufbau für Menschen stehen in der README.
 
 ## Befehle
 
