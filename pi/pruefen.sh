@@ -9,6 +9,7 @@ schlecht() { printf '\033[31mFEHLT\033[0m %s\n' "$*"; FEHLER=1; }
 pruefe() { local text="$1"; shift; if "$@" >/dev/null 2>&1; then gut "$text"; else schlecht "$text"; fi; }
 
 pruefe "Root schreibgeschützt (Overlay aktiv)" sh -c 'grep -q overlayroot=tmpfs /proc/cmdline && findmnt -no FSTYPE / | grep -q overlay'
+pruefe "Overlay nur für Root (recurse=0)" grep -q "overlayroot=tmpfs:recurse=0" /proc/cmdline
 pruefe "Bootpartition schreibgeschützt" sh -c 'findmnt -no OPTIONS /boot/firmware | grep -qE "(^|,)ro(,|$)"'
 pruefe "Datenpartition /daten eingebunden und beschreibbar" sh -c 'findmnt -no FSTYPE /daten | grep -q ext4 && t=/daten/.schreibtest && touch $t && rm $t'
 pruefe "Dienst parrafraktor läuft" systemctl is-active --quiet parrafraktor
@@ -27,6 +28,7 @@ fi
 
 echo
 echo "Watchdog:"; wdctl 2>/dev/null | sed 's/^/  /' || true
+echo "/daten:"; findmnt /daten | sed 's/^/  /' || echo "  nicht eingebunden"
 echo "Partitionen:"; lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS | sed 's/^/  /'
 echo "Letzte Meldungen des Dienstes:"; journalctl -u parrafraktor -n 8 --no-pager | sed 's/^/  /'
 exit $FEHLER

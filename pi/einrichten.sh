@@ -312,6 +312,11 @@ if [ "$OVERLAY" -eq 1 ]; then
   # Root per Overlay im RAM, Bootpartition schreibgeschützt (eine nonint-Antwort gilt für beide Fragen)
   sed -i 's#\(/boot/firmware.*defaults\)\(,ro\)\+#\1#' /etc/fstab   # nicht doppelt bei erneutem Aufruf
   raspi-config nonint do_overlayfs 0
+  # overlayroot legt ohne recurse=0 auch über alle anderen Einträge der fstab ein Overlay im RAM –
+  # dann landet auch /daten im RAM und nichts überlebt einen Neustart
+  mount -o remount,rw /boot/firmware
+  sed -i 's/overlayroot=tmpfs\( \|$\)/overlayroot=tmpfs:recurse=0\1/' /boot/firmware/cmdline.txt
+  grep -q "overlayroot=tmpfs:recurse=0" /boot/firmware/cmdline.txt || abbruch "overlayroot=tmpfs:recurse=0 fehlt in cmdline.txt"
   echo "Overlay ist eingetragen und gilt ab dem nächsten Start."
 else
   hinweis "Overlay nicht eingeschaltet (--ohne-overlay)"

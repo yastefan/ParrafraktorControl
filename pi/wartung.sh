@@ -12,7 +12,8 @@ set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 overlay_aktiv() { grep -q "overlayroot=tmpfs" /proc/cmdline; }
 overlay_eingetragen() { grep -q "overlayroot=tmpfs" /boot/firmware/cmdline.txt; }
-# raspi-config hängt sonst bei jedem Einschalten ein weiteres ",ro" an
+# raspi-config entfernt beim Ausschalten nur „overlayroot=tmpfs “ – mit :recurse=0 bleibt der Eintrag,
+# deshalb entfernt „aus“ ihn selbst. raspi-config hängt sonst bei jedem Einschalten ein weiteres ",ro" an
 boot_ro_austragen() { sed -i 's#\(/boot/firmware.*defaults\)\(,ro\)\+#\1#' /etc/fstab; }
 root() { [ "$(id -u)" -eq 0 ] || { echo "bitte mit sudo starten" >&2; exit 1; }; }
 
@@ -23,7 +24,7 @@ case "${1:-status}" in
     # Bekanntes Problem unter Trixie: der Eintrag bleibt manchmal stehen – dann von Hand entfernen
     if overlay_eingetragen; then
       mount -o remount,rw /boot/firmware
-      sed -i 's/overlayroot=tmpfs //' /boot/firmware/cmdline.txt
+      sed -i 's/overlayroot=tmpfs[^ ]* \?//' /boot/firmware/cmdline.txt
     fi
     echo "Overlay ausgetragen, starte neu …"; sleep 2; reboot ;;
   an)
@@ -31,6 +32,9 @@ case "${1:-status}" in
     overlay_aktiv && { echo "Overlay ist schon aktiv."; exit 0; }
     boot_ro_austragen
     raspi-config nonint do_overlayfs 0
+    # recurse=0: nur Root ins Overlay, /daten bleibt die echte Partition (siehe einrichten.sh)
+    mount -o remount,rw /boot/firmware
+    sed -i 's/overlayroot=tmpfs\( \|$\)/overlayroot=tmpfs:recurse=0\1/' /boot/firmware/cmdline.txt
     echo "Overlay eingetragen, starte neu …"; sleep 2; reboot ;;
   update)
     root

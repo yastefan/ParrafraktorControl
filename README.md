@@ -127,7 +127,7 @@ Ein Raspberry Pi 4 mit SD-Karte läuft als eigenständiges Gerät, auch ohne gra
 | Teil | Wie |
 |---|---|
 | System | Raspberry Pi OS Lite 64 Bit (Trixie, Stand Oktober 2026: Image vom 6.10.2026, Kernel 6.18); Node 24 aus dem apt-Repository von NodeSource, weil das Stream Deck Node ≥ 22.18 braucht und Debian nur Node 20 hat |
-| Schreibschutz | `raspi-config nonint do_overlayfs 0`: Root per `overlayroot=tmpfs` in `cmdline.txt`, Bootpartition `ro` in `/etc/fstab` |
+| Schreibschutz | `raspi-config nonint do_overlayfs 0`: Root per `overlayroot=tmpfs:recurse=0` in `cmdline.txt` (recurse=0, sonst legt overlayroot auch über `/daten` ein Overlay im RAM), Bootpartition `ro` in `/etc/fstab` |
 | Daten | Partition 3, ext4 (`data=journal,commit=5`), Label `pfdaten`, eingebunden unter `/daten`, `PARRAFRAKTOR_DATEN=/daten/parrafraktor` |
 | Logs | journald nur im RAM (`Storage=volatile`), keine Swap-Datei, keine apt-Timer, cloud-init nach der Einrichtung aus |
 | Dienst | `parrafraktor.service`, `Restart=always`, gibt nie auf |
