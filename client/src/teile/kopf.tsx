@@ -41,6 +41,11 @@ export function Kopf({ beiEinstellungen }: { beiEinstellungen: () => void }) {
         >
           {uebernahmeText}
         </HaltKnopf>
+        {l.stand?.einstellungen.autostart.output && (
+          <span class="autostart" title="Autostart output is on (settings): the app takes the mirrors after every restart">
+            Autostart
+          </span>
+        )}
         <button type="button" class="knopf" onClick={beiEinstellungen} aria-label="Settings">
           Setup{warnungen ? <span class="marke">{warnungen}</span> : null}
         </button>

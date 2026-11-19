@@ -42,7 +42,7 @@ interface Ereignisse {
 export class Steuerung extends EventEmitter<Ereignisse> {
   private _parameter: Parameter;
   private _einstellungen: Einstellungen;
-  // Übernahme startet immer aus: nach einem Neustart fährt zuerst die MA
+  // Übernahme startet aus: nach einem Neustart fährt zuerst die MA – außer mit Autostart (siehe autostart)
   private _uebernahme: Uebernahme = { soll: false, zustand: "aus", anteil: 0 };
   private _rev = 0;
   private _presets: Presets;
@@ -50,7 +50,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   private _blende: { id: number; anteil: number } | null = null;
   private _blendeDauerS = 0;
   private _auto: AutoEinstellung;
-  // Auto startet immer aus. Es fasst den Output nicht an, nur den Look.
+  // Auto startet aus (außer mit Autostart). Es fasst den Output nicht an, nur den Look.
   private _autoAn = false;
   private _autoRestS = 0;
   private _impuls: ImpulsEinstellung;
@@ -254,6 +254,22 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     this._autoRestS = 0;
     if (an) this.autoNaechstes();
     this.geaendert();
+  }
+
+  // Einmal nach dem Serverstart: schaltet ein, was unter Autostart eingestellt ist (Betrieb ohne MA,
+  // z. B. in einer Ausstellung). Liefert, was geschehen ist, fürs Log.
+  autostart(): string[] {
+    const { output, auto } = this._einstellungen.autostart;
+    const gemacht: string[] = [];
+    if (output) {
+      this.setzeUebernahme(true);
+      gemacht.push("Output an");
+    }
+    if (auto) {
+      this.setzeAuto(true);
+      gemacht.push(this._autoAn ? "Auto an" : "Auto nicht gestartet: weniger als zwei Presets ausgewählt");
+    }
+    return gemacht;
   }
 
   stelleAuto(roh: unknown): void {

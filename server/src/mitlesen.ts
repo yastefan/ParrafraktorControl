@@ -25,7 +25,9 @@ export class Mitlesen {
   private sockets: Socket[] = [];
   private empfangen = new Map<number, Empfangen>();
   private fehler = "";
+  // Eigene Adressen, alle paar Sekunden neu: am Pi kommt die feste IP oft erst nach dem Serverstart
   private eigene = eigeneAdressen();
+  private eigeneStand = Date.now();
 
   constructor(private readonly e: Einstellungen) {
     const universen = patchUniversen(e.patch);
@@ -66,6 +68,14 @@ export class Mitlesen {
     this.sockets.push(s);
   }
 
+  private istEigene(adresse: string): boolean {
+    if (!this.eigene.has(adresse) && Date.now() - this.eigeneStand > 5000) {
+      this.eigene = eigeneAdressen();
+      this.eigeneStand = Date.now();
+    }
+    return this.eigene.has(adresse);
+  }
+
   private merke(universe: number, daten: Uint8Array): void {
     this.empfangen.set(universe, { daten: new Uint8Array(daten), zeit: Date.now() });
   }
@@ -100,7 +110,7 @@ export class Mitlesen {
     this.socket(ARTNET_PORT, (p, von) => {
       if (p.length < 18 || p.toString("latin1", 0, 8) !== "Art-Net\0") return;
       if (p.readUInt16LE(8) !== 0x5000) return;                    // nur ArtDmx
-      if (this.eigene.has(von)) return;                            // eigene Pakete
+      if (this.istEigene(von)) return;                             // eigene Pakete
       const portAdresse = (p[15]! << 8) | p[14]!;
       const anzahl = Math.min(512, p.readUInt16BE(16));
       this.merke(portAdresse - versatz, p.subarray(18, 18 + anzahl));

@@ -1,4 +1,4 @@
-// Einstellungsmenü: Aufbau, Übernahme, Spiegel, Patch, Ausgaben, Status.
+// Einstellungsmenü: Autostart, Aufbau, Übernahme, Spiegel, Patch, Ausgaben, Status.
 // Aufbau und Regler (Überblendung, Drehzahl) wirken sofort. Patch und Netzwerk werden gesammelt und erst mit
 // "Speichern" geschickt, weil der Server dafür die Ausgaben neu startet.
 import type { ComponentChildren } from "preact";
@@ -44,6 +44,18 @@ export function Einstellungen({ stand, schliessen }: Props) {
         {stand.warnungen.length > 0 && (
           <ul class="warnungen">{stand.warnungen.map((w) => <li key={w}>{w}</li>)}</ul>
         )}
+
+        <Gruppe titel="Autostart (operation without MA)" warnung={entwurf.autostart.output}>
+          <Schalter name="Autostart output" an={entwurf.autostart.output}
+            setze={(an) => sofort({ autostart: { ...entwurf.autostart, output: an } })} />
+          <Schalter name="Autostart Auto" an={entwurf.autostart.auto}
+            setze={(an) => sofort({ autostart: { ...entwurf.autostart, auto: an } })} />
+          <p class="hilfe">
+            For exhibitions without a grandMA3. <b>Autostart output</b>: after every restart of the server the app takes the
+            mirrors at once, without holding Output – the mirrors jump to the look, the MA cannot drive them. Leave it off
+            whenever an MA is in the network. <b>Autostart Auto</b>: Auto runs the selected presets (at least two) after a restart.
+          </p>
+        </Gruppe>
 
         <Gruppe titel="Layout">
           <label class="feldzeile">
@@ -188,8 +200,8 @@ function pruefe(e: E): string | null {
 
 // ---------- Felder ----------
 
-const Gruppe = ({ titel, children }: { titel: string; children: ComponentChildren }) => (
-  <section class="gruppe">
+const Gruppe = ({ titel, warnung, children }: { titel: string; warnung?: boolean; children: ComponentChildren }) => (
+  <section class={`gruppe ${warnung ? "warnung" : ""}`}>
     <h3>{titel}</h3>
     {children}
   </section>

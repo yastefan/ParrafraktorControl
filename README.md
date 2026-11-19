@@ -53,7 +53,7 @@ node packages/engine/scripts/referenz-erzeugen.mjs /pfad/zu/WebsiteKlaus/src/js/
 npm run build && npm start
 ```
 
-Der Server liefert den gebauten Client selbst aus: http://<rechner>:8080. Einstellungen und die zuletzt eingestellten Parameter liegen in `daten/`. Presets liegen in `daten/presets.json`. Nach einem Neustart ist der Output immer aus, es fährt also zuerst die MA.
+Der Server liefert den gebauten Client selbst aus: http://<rechner>:8080. Einstellungen und die zuletzt eingestellten Parameter liegen in `daten/`. Presets liegen in `daten/presets.json`. Jede Datei wird mit `fsync` geschrieben, die vorige Fassung bleibt als `*.bak` und springt ein, wenn die Datei nach einem Stromausfall unlesbar ist. Nach einem Neustart ist der Output aus, es fährt also zuerst die MA – außer „Autostart output“ ist eingeschaltet.
 
 | Umgebungsvariable | Bedeutung |
 |---|---|
@@ -120,126 +120,93 @@ Impulse (Live-Seite)
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 
-### Raspberry Pi als Dienst
+### Raspberry Pi als Steuergerät
 
-```ini
-# /etc/systemd/system/parrafraktor.service
-[Unit]
-Description=ParrafraktorControl
-After=network-online.target
-Wants=network-online.target
+Ein Raspberry Pi 4 mit SD-Karte läuft als eigenständiges Gerät, auch ohne grandMA3 (z. B. in einer Ausstellung). Ziel: Er startet zuverlässig, auch wenn einfach der Strom gezogen wird. Dafür ist das System schreibgeschützt (Overlay-Dateisystem im RAM), nur eine kleine Datenpartition für Presets und Einstellungen ist beschreibbar, und der Server schreibt dorthin mit `fsync` und Sicherungskopie (`*.bak`).
 
-[Service]
-User=pi
-WorkingDirectory=/home/pi/ParrafraktorControl
-Environment=PORT=8443 TLS_CERT=zertifikate/server.pem TLS_KEY=zertifikate/server-key.pem
-ExecStart=/usr/bin/node server/dist/index.js
-Restart=always
+| Teil | Wie |
+|---|---|
+| System | Raspberry Pi OS Lite 64 Bit (Trixie, Stand Oktober 2026: Image vom 6.10.2026, Kernel 6.18, Node 20.19 aus Debian) |
+| Schreibschutz | `raspi-config nonint do_overlayfs 0`: Root per `overlayroot=tmpfs` in `cmdline.txt`, Bootpartition `ro` in `/etc/fstab` |
+| Daten | Partition 3, ext4 (`data=journal,commit=5`), Label `pfdaten`, eingebunden unter `/daten`, `PARRAFRAKTOR_DATEN=/daten/parrafraktor` |
+| Logs | journald nur im RAM (`Storage=volatile`), keine Swap-Datei, keine apt-Timer, cloud-init nach der Einrichtung aus |
+| Dienst | `parrafraktor.service`, `Restart=always`, gibt nie auf |
+| Watchdog | Hardware-Watchdog des BCM2711 (höchstens ca. 16 s), systemd `RuntimeWatchdogSec=15` |
+| Stream Deck | udev-Regel für Gruppe `plugdev`, der Dienst läuft ohne root |
+| Netz | feste IP im Lichtnetz über NetworkManager (Verbindung `lichtnetz`) |
+| RS485 | noch nichts eingerichtet; der Benutzer ist schon in `dialout`, die serielle Schnittstelle bleibt unberührt |
 
-[Install]
-WantedBy=multi-user.target
+**1. Karte vorbereiten (am Mac)**
+
+1. Mit dem Raspberry Pi Imager „Raspberry Pi OS Lite (64-bit)“ schreiben. In den Einstellungen Hostname (z. B. `parrafraktor`), Benutzer, SSH und für die Einrichtung WLAN mit Internet setzen.
+2. **Vor dem ersten Start**: Die Bootpartition erscheint am Mac als Laufwerk `bootfs`. In `cmdline.txt` das Wort `resize` löschen (die Datei bleibt eine Zeile). Sonst vergrößert der Pi beim ersten Start die Systempartition auf die ganze Karte, und für die Datenpartition bleibt kein Platz. Hat man es vergessen, bricht das Einrichtungsskript mit einem Hinweis ab; dann neu flashen.
+
+**2. Einrichten (auf dem Pi, mit Internet)**
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
 ```
 
 ```bash
-sudo systemctl enable --now parrafraktor
+git clone https://github.com/yastefan/ParrafraktorControl.git && cd ParrafraktorControl
 ```
 
-## Begriffe am Pult
+Der Dienst läuft unter diesem Benutzer direkt aus dem geklonten Verzeichnis (die Befehle unten gehen vom Heimverzeichnis aus).
 
-Die Oberfläche (Client und Stream Deck) ist englisch, diese Anleitung deutsch. Die wichtigsten Begriffe:
+Optional vorher die Zertifikate (siehe oben) nach `zertifikate/` kopieren, dann läuft der Dienst per HTTPS auf Port 8443. IP und Präfix für das Lichtnetz einsetzen:
 
-| Pult | hier |
-|---|---|
-| Motion / Distribution / Fine | Bewegung / Verteilung / Fein |
-| Speed from / Speed to | Speed von / Speed bis |
-| Width, Fan, Return, Wavelength | Breite, Fächer, Wiederkehr, Wellenlänge |
-| Element phase, Counter-motion, Speed per element | Element-Phase, Gegenlauf, Speed je Element |
-| Order, Elements (together, front → back, back → front, center → out) | Ordnung, Element-Folge (zusammen, vorn → hinten, hinten → vorn, Mitte → außen) |
-| Coupling, Noise, Range | Kopplung, Rauschen, Reichweite |
-| Path (Circle, Line, Iris, Drift), Size, Travel, Edge, Wobble, Pulse, Lag | Bahn (Kreis, Linie, Iris, Drift), Größe, Weite, Kante, Wabern, Puls, Nachlauf |
-| Impulses: Open, Close, Hole, Iris; Strength, Spread, Element delay, Envelope | Impulse: Flash auf, Flash zu, Loch, Iris; Stärke, Ausbreitung, Element-Versatz, Hülle |
-| Settings: Layout, Crossfade, Read MA | Einstellungen: Aufbau, Überblendung, MA mitlesen |
-| Preview: Reflection, Haze, Mirror / Stage / Thermal | Vorschau: Reflexion, Nebel, Spiegel / Bühne / Wärmebild |
-| „mir.“ als Einheit | Spiegel |
+```bash
+sudo pi/einrichten.sh --ip 2.0.0.50/8
+```
 
-## Pattern und Regler
+Das Skript vergrößert die Systempartition auf 8 GiB (`--root-gb`), legt dahinter die Datenpartition mit 1 GiB an (`--daten-mb`), installiert Node, baut die App, richtet Dienst, Watchdog, Logs, udev und Netz ein und schaltet zum Schluss den Schreibschutz ein. Mit `--gateway` bekommt das Lichtnetz eine Standardroute, sonst bleibt das Internet beim WLAN. Ein erneuter Aufruf schadet nicht. Danach:
 
-Ein Pattern ist die Grundbewegung, die dauerhaft läuft:
+```bash
+sudo reboot
+```
 
-- **Sine** (Sinus): die klassische Welle.
-- **Pendulum wave** (Pendelwelle, vorerst nicht am Pult wählbar, nur noch über alte Presets): Jeder Spiegel schwingt etwas schneller als sein Vorgänger, wie bei einer Pendelwelle aus echten Pendeln. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und wieder zusammen, wenn der erste Spiegel so oft geschwungen hat, wie **Wiederkehr** sagt (dann hat jeder folgende einen Schwung mehr geschafft). Speed ist das Tempo des ersten Spiegels und beschleunigt das ganze Bild; je kleiner die Wiederkehr, desto schneller laufen die hinteren Spiegel. Startet beim Wählen im Gleichlauf.
-- **Wind**: Böen ziehen entlang der Ordnung durch die Spiegel und verändern sich dabei langsam, wiederholt sich nie. **Wellenlänge** = wie viele Spiegel eine Böe breit ist, Speed = Tempo (eine Wellenlänge je Durchlauf).
-- **Swarm** (Schwarm): Jeder Spiegel läuft wie beim Sinus, aber mit eigenem Tempo (Speed von → bis), und zieht die anderen zu sich (Kuramoto-Modell, mit Rauschen und Reichweite wie ein Vogelschwarm im Vicsek-Modell). **Kopplung** aus = jeder für sich wie Speed je Spiegel, ab etwa 30 % rasten sie ein, dazwischen bilden sich Inseln und Ausreißer. Mit Phase rasten sie nicht in den Gleichlauf, sondern in die Welle der Phase ein. **Rauschen** stört jeden Spiegel für sich und bricht die Ordnung wieder auf (ab etwa 50 % deutlich). **Reichweite** = wie viele Plätze je Seite ein Spiegel sieht (aus = alle): klein gibt wandernde Fronten statt einem Gleichlauf. Startet beim Wählen verstreut (Nachbarn ähnlich, verdeckt von der Überblendung). Kein Spiegel läuft langsamer als das halbe oder schneller als das 1,5-fache Speed, auch wenn Kopplung oder Rauschen mehr verlangen; das Rauschen trifft immer mehrere Nachbarn zusammen wie eine Böe.
-- **Flash** (Glühwürmchen): Jeder Spiegel lädt sich im Durchlauf auf und „blitzt“: ein Ausschlag zur Seite und zurück, so lang wie die **Breite** (wirkt zwischen 30 und 40 %, darunter wäre er zu schnell, darüber fehlt die Pause). Wer blitzt, stößt die anderen weiter, je voller sie schon sind, desto mehr. Wer dadurch voll ist, blitzt mit: Lawinen, bis alle im Takt blitzen (meist nach ½–1 min). Dazu passen sie ihr Tempo an: Wer kurz nach dem eigenen Blitz einen sieht, wird langsamer, wer kurz davor einen sieht, schneller. Alles das passiert nur in der Pause, man sieht es nicht; jeder Blitz läuft im eigenen Tempo und sieht gleich aus. Mit Phase wandert der Blitz als Welle durch. Kopplung, Rauschen und Reichweite wie bei Swarm.
-- **Rotation**: endlos über TiltRotate. **Phase** dreht die Spiegel gegeneinander versetzt, **Breite** lässt jeden Spiegel eine Umdrehung in Schüben machen und dann stehen, **Fächer** staffelt die Drehzahl entlang der Ordnung, **Group** wiederholt das Muster in Gruppen, **Gegenlauf** dreht die linke Hälfte andersherum. TiltRotate kennt nur eine Drehzahl, deshalb rechnet die App den Winkel nur mit: Am echten Aufbau kann er abweichen. Die Breite kann nicht kleiner werden, als die Einstellung „TiltRotate max.“ erlaubt: bei 10 U/min und 3 BPM etwa 56 %.
-- **Aperture** (Öffnung): für den Aufbau hintereinander. Ein Loch wandert durch alle drei Elemente: Jedes Element öffnet nur einen Schlitz, die drei Schlitze kreuzen sich im Loch. **Bahn** = Kreis, Linie (waagrecht), Iris (geht in der Mitte auf und zu) oder Drift (zieht frei umher). **Größe** = Radius, **Weite** = wie weit es wandert (Iris: um so viel geht es auf), **Kante** = hart bis weich, **Wabern** = atmet, driftet und verformt sich (zufällig), **Puls** = die Größe schwankt im Takt der Bahn, zweimal je Umlauf um ± so viel Prozent (bleibt periodisch, anders als Wabern), **Nachlauf** = die Elemente laufen einander nach, das Loch wird schief und geht zu und auf. Offset, Amplitude, Phase und Verteilung gelten hier nicht; zu = 0°, offen = 90°. Die Rechnung nutzt die Drehung aus Einstellungen → Aufbau, die muss also zum echten Aufbau passen. Wandert das Loch weit nach außen (ab etwa 37 cm), blitzen an den Spitzen des gedrehten Elements kleine Dreiecke auf, weil dort nur dieses eine Element abdeckt.
-- **Rest** (Ruhe, vorerst nicht am Pult wählbar, nur noch über alte Presets): alle Spiegel stehen auf Offset, nur Impulse bewegen sie.
+```bash
+sudo ParrafraktorControl/pi/pruefen.sh
+```
 
-Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über die eingestellte Überblendzeit über. Regler, die eine Form nicht benutzt, blendet der Client aus.
+`pruefen.sh` zeigt, ob Overlay, Datenpartition, Dienst, Watchdog, Logs und Stream Deck stimmen.
 
-| Regler | Wirkung |
-|---|---|
-| Offset | Grundstellung. Mit dem Schloss 🔒/🔓 je Element einstellbar |
-| Amplitude | Ausschlag |
-| Speed von/bis | Tempo in BPM (Durchläufe pro Minute, 0–10); mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
-| Phase | Versatz über die Spiegel wie in der grandMA3: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
-| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Phase 360° und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich |
-| Group | Muster wiederholt sich alle n Spiegel |
-| Fächer | Amplitude wächst entlang der Ordnung, bei Mitte/außen zum Rand hin |
+**3. Ausstellung ohne MA**: Im Einstellungsmenü der App unter **Autostart** „Autostart output“ einschalten, bei Bedarf auch „Autostart Auto“ (siehe [Ausgabe und Output](#ausgabe-und-output)).
 
-**Verteilung** – wo das Muster anfängt und wie es weiterläuft:
+**Updates und Wartung**: Der Schreibschutz muss dafür aus sein. Alles, was bei aktivem Overlay außerhalb von `/daten` geändert wird, ist nach dem Neustart weg.
 
-| Regler | Wirkung |
-|---|---|
-| Ordnung | innerhalb jedes Elements: links → rechts, rechts → links, Mitte → außen, außen → Mitte, verschachtelt (erst gerade, dann ungerade), Zufall (feste Mischung) |
-| Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter), Mitte → außen (erst das mittlere, dann beide äußeren; das erste ist das Spiegelbild des dritten – mit Gegenlauf und Ordnung Mitte → außen ist die ganze Installation symmetrisch) |
-| Element-Phase | aus: die Phase läuft mit der Element-Folge über die Elemente weiter. Sonst läuft die Phase in jedem Element für sich, und die Elemente sind nach der Element-Folge um so viel versetzt (vorn → hinten mit 15°: 0°, 15°, 30°; Mitte → außen: beide äußeren 15° hinter dem mittleren; bei zusammen ohne Wirkung) |
-| Gegenlauf | linke Hälfte jedes Elements gespiegelt, auch der Offset (Offset 30° = links −30°, rechts +30°) |
-| Ping-Pong | Muster läuft hin und wieder zurück |
-| Speed je Element | Speed von → bis gilt für die Elemente statt für die Spiegel: alle Spiegel eines Elements gleich schnell, die Elemente nach der Element-Folge gestaffelt. Bei Phase 90° und 3 → 4 BPM sind alle nach 2 min wieder deckungsgleich |
+```bash
+sudo ParrafraktorControl/pi/wartung.sh aus
+```
 
-Ältere Dateien werden beim Laden umgewandelt: Symmetrie von innen/außen = Ordnung Mitte → außen bzw. außen → Mitte mit Gegenlauf, Richtung zurück = rechts → links, Reihenfolge „je Element“ = Elemente zusammen, „alle 36“ = vorn → hinten. Symmetrie über alle 36 Spiegel gibt es nicht mehr, die Mitte ist jetzt die Mitte jedes Elements. Dreieck und Rechteck sowie die früheren Formen Sägezahn, Puls, Flyout, Blinder und Funkeln werden zum Sinus (ein Flyout spielt man jetzt als Impuls mit Ausbreitung).
+Nach dem Neustart (System beschreibbar): apt-Updates, `git pull`, `npm ci`, Build, Dienst neu starten:
 
-## Impulse
+```bash
+sudo ParrafraktorControl/pi/wartung.sh update
+```
 
-Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben wählt man die **Art**, ausgelöst wird auf dem **Streifen** (Touchstreifen am Stream Deck, Streifen im Client): **Tippen** startet den Impuls an dieser Stelle, **Wischen** lässt ihn vom Rand in Wischrichtung durchlaufen. Danach läuft die Hüllkurve von selbst ab.
+App prüfen, dann den Schreibschutz wieder einschalten (startet neu):
 
-- **Open / Close**: Spiegel auf einen festen Tilt. „Open“ für Licht von hinten, „Close“ für Licht von außen.
-- **Hole**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Aperture: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Bühne zu sehen.
-- **Iris**: wie Loch, wächst aber mit der Hüllkurve aus einem Punkt und schrumpft wieder.
-- Winkel unter Einstellungen → Impulse: Open/Close (Platzhalter 90° und 0°).
-- **Hüllkurve**: Attack (hin), Sustain (bleiben), Release (zurück), Stärke. Im Client die Punkte ziehen: oben links = Attack und Stärke, oben rechts = Ende des Sustain, unten = Ende des Release. Während eines Impulses läuft ein Punkt auf der Kurve mit.
-- **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn.
-- **Stärke**: wie weit zum Ziel (auch als Griff in der Hüllkurve).
-- **Breite**: Getippt wirkt der Impuls nur auf so viele Spiegel um den Startpunkt („alle“ = ganzes Element). Gewischt läuft er immer durch das ganze Element.
-- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt wie beim Gegenlauf (Winkel von Open/Close und Ausschlag umgekehrt).
-- **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich. Bei Loch und Iris: Zeit, die das gewischte Loch quer durchs Bild braucht (aus = die ganze Hüllkurve lang).
-- Mehrere Impulse dürfen sich überlagern; der zuletzt gestartete liegt oben.
+```bash
+sudo ParrafraktorControl/pi/wartung.sh an
+```
 
-Art, Hüllkurve, Element-Folge, Ausbreitung, Breite und Symmetrie werden in `daten/impuls.json` gespeichert. Ideen stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
+`pi/wartung.sh status` zeigt den Zustand. Bekannte Stolperstellen unter Trixie: Nach einem Kernel-Update auf 6.18.29 griff das Overlay bei manchen nicht mehr ([raspi-config#306](https://github.com/RPi-Distro/raspi-config/issues/306)) – deshalb nach jedem Update `pruefen.sh` laufen lassen. Beim Ausschalten bleibt `overlayroot=tmpfs` manchmal in `cmdline.txt` stehen; `wartung.sh aus` entfernt es dann selbst.
 
-## Oberfläche
+**Prüfliste am echten Gerät** (vor der ersten Ausstellung):
 
-Der Client passt ab etwa 1000 × 620 Punkten ohne Scrollen auf eine Fläche, darunter stehen die Module untereinander und es darf gescrollt werden. Module: Vorschau, Pattern, Presets, Bewegung, Verteilung (bei der Öffnung: Bahn) und unten das Impulsband. Unter **Mehr** am Impulsband liegen Element-Folge, Versatz sowie Attack, Sustain und Release.
+1. Einrichten wie oben, `pruefen.sh` ohne Fehler.
+2. Presets speichern, Einstellungen ändern, Autostart output einschalten.
+3. Mehrmals im Betrieb den Strom ziehen, auch **direkt nach dem Speichern eines Presets** (innerhalb einer Sekunde) und während Auto überblendet.
+4. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `pruefen.sh` ist grün.
 
-**Fader** verstellen relativ: Antippen ändert nichts, erst Ziehen verändert den Wert, damit in der Show nichts springt. Doppeltippen auf den Namen setzt den Vorgabewert. Der Knopf **3×** am Offset teilt ihn in je einen Fader pro Element, **1×** führt ihn wieder zusammen.
-
-## Vorschau
-
-Die Vorschau im Client rechnet mit derselben Engine wie der Server. Wie sie aussieht, hängt vom Aufbau ab (Einstellungen → Aufbau):
-
-- **nebeneinander**: Draufsicht, jeder Spiegel als Strich.
-- **hintereinander, gedreht** (wie „Classic“ in der Simulation, Vorgabe vorn 0°, Mitte 45°, hinten 90°): Vorderansicht durch alle drei Elemente, rechts jedes Element einzeln. Die Spitzen des gedrehten Elements dürfen dabei über den Bildrand ragen. Unten links schaltet man um: **Spiegel** zeigt die Spiegel mit Gegenlicht, **Bühne** hart in Schwarz und Weiß nur das Licht, das von hinten durch alle drei Lagen kommt, **Wärmebild** dasselbe Licht unscharf in Falschfarben, also die Form, die man aus der Entfernung wahrnimmt. Die Wahl merkt sich jedes Gerät selbst.
-
-Der Aufbau betrifft nur die Vorschau, nicht die Ausgabe an die Spiegel.
-
-Im Kopf der Vorschau schaltet man zwischen **Simple** (die Ansicht nach Aufbau, siehe oben), **Phaser** und **Reflexion** um. Der Phaser zeigt wie der Phaser-Editor der grandMA3 jeden Spiegel als Punkt: waagrecht seine Lage (Element 1–3, je 12 Spiegel), senkrecht seinen Winkel. Dahinter zieht eine kurze Spur die letzte Bewegung nach, die Achse wächst mit dem größten Ausschlag. Unter jedem Element steht es von oben wie in Simple, jeder Spiegel als Strich unter seinem Punkt. **Reflexion** zeigt wie die Website-Simulation den Raum von oben, nur einfacher: die Elemente nebeneinander und ein Scheinwerfer, den man mit dem Finger verschiebt (er zielt immer auf die Mitte; unten links ein Fader für den Zoom, 4–120° Öffnungswinkel), die Strahlen werden an den Spiegeln reflektiert (bis zu dreimal, Rückseiten schlucken) und leuchten auf den Wänden. Auch diese Wahl merkt sich jedes Gerät.
+Quellen: [Raspberry Pi OS Downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi Dokumentation: Konfiguration (Overlay File System)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, Zweig trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspberrypi-sys-mods, Zweig pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [Forum: Resize unter Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (Watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux-Treiber bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [Whitepaper „Making a more resilient file system“](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).
 
 ## Presets
 
 12 Plätze für Looks: Pattern, Offset, Amplitude, Speed von/bis, Phase, Breite, Group und Reihenfolge (nicht Pause). Abrufen blendet über die eingestellte Überblendzeit von der aktuellen Stellung in den neuen Look, damit die Motoren nicht springen. Im Client: Tippen ruft ab, Halten speichert, unter „Bearbeiten“ umbenennen und löschen.
 
-**Auto** fährt die ausgewählten Presets der Reihe nach ab. Unter „Auswahl“ legt man per Tippen fest, welche mitlaufen (die Marke oben rechts zeigt es), und stellt zwei Zeiten ein: **Überblenden** ist die Dauer des Übergangs, **Halten** die Zeit, die der Look danach steht. Solange Auto läuft, leuchtet der Rahmen des Moduls Presets und daneben steht die Restzeit. Auto braucht mindestens zwei Presets. Es schaltet den Output nicht ein oder aus und startet nach einem Neustart immer aus. Sobald man den Look von Hand verändert oder ein Preset abruft, endet Auto; die Pause hält es nur an. Das gilt auch am Stream Deck, dort startet und stoppt man Auto mit der eigenen Taste im Hauptmenü.
+**Auto** fährt die ausgewählten Presets der Reihe nach ab. Unter „Auswahl“ legt man per Tippen fest, welche mitlaufen (die Marke oben rechts zeigt es), und stellt zwei Zeiten ein: **Überblenden** ist die Dauer des Übergangs, **Halten** die Zeit, die der Look danach steht. Solange Auto läuft, leuchtet der Rahmen des Moduls Presets und daneben steht die Restzeit. Auto braucht mindestens zwei Presets. Es schaltet den Output nicht ein oder aus und startet nach einem Neustart aus, außer „Autostart Auto“ ist eingeschaltet. Sobald man den Look von Hand verändert oder ein Preset abruft, endet Auto; die Pause hält es nur an. Das gilt auch am Stream Deck, dort startet und stoppt man Auto mit der eigenen Taste im Hauptmenü.
 
 ## Ausgabe und Output
 
@@ -248,3 +215,4 @@ Im Einstellungsmenü lassen sich Art-Net, sACN und (später) RS485 einzeln einsc
 - **sACN** sendet mit Priority 150, die MA mit 100. Beim Abgeben schickt die App „Stream Terminated“ und der Node fällt sofort auf die MA zurück. Der Node muss dafür sACN-Priority auswerten.
 - **Art-Net** hat keine Priority. Läuft die MA parallel, entscheidet der Merge im Node. Beim Abgeben hört die App nur auf zu senden.
 - **Überblendung**: Beim Übernehmen und Abgeben blendet die App über die eingestellte Zeit von bzw. zur Stellung der MA. Die liest sie im Netz mit (sACN-Multicast oder Art-Net-Broadcast). Empfängt sie nichts, springen die Spiegel.
+- **Autostart** (Einstellungsmenü, für den Betrieb ohne MA, z. B. in einer Ausstellung): **Autostart output** schaltet den Output nach jedem Neustart des Servers sofort ein, ohne Halten. Weil keine MA mitgelesen wird, gibt es keine Überblendung: Die Spiegel fahren direkt in den Look, so schnell die Motoren es zulassen. Auch mit MA im Netz übernimmt die App dann nach jedem Neustart – deshalb leuchtet im Kopf der App rot „Autostart“, die Gruppe im Einstellungsmenü ist rot, und das Menü zeigt eine Warnung. **Autostart Auto** startet Auto nach dem Neustart (mindestens zwei ausgewählte Presets). Beides ist ab Werk aus und wird in `einstellungen.json` gespeichert.
