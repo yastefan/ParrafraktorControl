@@ -5,7 +5,7 @@
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { StreamDeck } from "@elgato-stream-deck/node";
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI, istOeffnungArt, MODUS_NAME, PARAMETER_VORGABE,
+  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI_WAEHLBAR, istOeffnungArt, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
 import {
   BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
@@ -194,7 +194,7 @@ export class StreamDeckModul implements Eingabemodul {
     if (this.menue === "haupt") {
       switch (taste) {
         case HAUPT.pattern: {
-          const i = MODI.indexOf(s.parameter.modus);
+          const i = Math.max(0, MODI_WAEHLBAR.indexOf(s.parameter.modus));
           return { tippen: () => this.oeffne("pattern", Math.floor(i / PLAETZE.length)) };
         }
         case HAUPT.presets: {
@@ -225,11 +225,11 @@ export class StreamDeckModul implements Eingabemodul {
       }
       return undefined;
     }
-    const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
+    const anzahl = this.menue === "pattern" ? MODI_WAEHLBAR.length : PRESET_ANZAHL;
     if (taste === TASTE_SEITE) return { tippen: () => { this.seite = (this.seite + 1) % seitenAnzahl(anzahl); } };
     const i = eintragAuf(this.seite, taste, anzahl);
     if (i === undefined) return undefined;
-    if (this.menue === "pattern") return { tippen: () => s.waehlePattern(MODI[i]!) };
+    if (this.menue === "pattern") return { tippen: () => s.waehlePattern(MODI_WAEHLBAR[i]!) };
     return {
       tippen: () => s.rufePresetAuf(i),
       halten: {
@@ -436,7 +436,7 @@ export class StreamDeckModul implements Eingabemodul {
       }
       return { titel: "" };
     }
-    const anzahl = this.menue === "pattern" ? MODI.length : PRESET_ANZAHL;
+    const anzahl = this.menue === "pattern" ? MODI_WAEHLBAR.length : PRESET_ANZAHL;
     if (taste === TASTE_SEITE) {
       return seitenAnzahl(anzahl) > 1
         ? eintrag("Seite ›", false, { unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` })
@@ -444,7 +444,7 @@ export class StreamDeckModul implements Eingabemodul {
     }
     const i = eintragAuf(this.seite, taste, anzahl);
     if (i === undefined) return { titel: "" };
-    if (this.menue === "pattern") return eintrag(MODUS_NAME[MODI[i]!], parameter.modus === MODI[i]);
+    if (this.menue === "pattern") return eintrag(MODUS_NAME[MODI_WAEHLBAR[i]!], parameter.modus === MODI_WAEHLBAR[i]);
     const p = presets[i];
     const gespeichert = this.gespeichert?.nr === i && Date.now() < this.gespeichert.bis;
     if (!p) return { titel: String(i + 1), unter: gespeichert ? "gespeichert" : haelt ?? "leer · halten", leise: true, grund: FARBE.feld };

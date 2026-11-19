@@ -1,4 +1,4 @@
-import { MODI, MODUS_NAME, type Modus } from "@parrafraktor/engine";
+import { MODI_WAEHLBAR, MODUS_NAME, type Modus } from "@parrafraktor/engine";
 import { useLaden } from "../laden.js";
 import { Modul } from "./modul.js";
 
@@ -7,7 +7,7 @@ export function Patterns({ modus }: { modus: Modus }) {
   return (
     <Modul titel="01 Pattern" klasse="m-pattern">
       <div class="patterns">
-        {MODI.map((m, n) => (
+        {MODI_WAEHLBAR.map((m, n) => (
           <button
             type="button"
             key={m}

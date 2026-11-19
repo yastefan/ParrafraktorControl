@@ -11,6 +11,9 @@ import { SPIEGEL_GESAMT, SPIEGEL_N, elementGespiegelt, elementRaenge, elementRan
 
 export const MODI = ["sinus", "pendelwelle", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung", "ruhe"] as const;
 export type Modus = (typeof MODI)[number];
+// Was am Pult zur Wahl steht. Pendelwelle (redundant zu Speed von → bis) und Ruhe sind vorerst raus
+// (Wunsch des Users, 2026-11-19), die Engine kennt sie weiter: alte Presets und Dateien laufen wie bisher.
+export const MODI_WAEHLBAR: readonly Modus[] = ["sinus", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung"];
 
 export const MODUS_NAME: Record<Modus, string> = {
   sinus: "Sinus",
