@@ -167,12 +167,8 @@ printf 'Package: nodejs\nPin: origin deb.nodesource.com\nPin-Priority: 1001\n' >
 # npm und node-gyp aus Debian beißen sich mit dem nodejs von NodeSource (das bringt npm mit)
 apt-get remove -y npm node-gyp >/dev/null 2>&1 || true
 apt-get update
-# dnsmasq-base: DHCP/DNS für das eigene WLAN (NetworkManager, ipv4.method shared)
-# build-essential, python3, cmake, libudev-dev: falls node-hid oder jpeg-turbo kein passendes
-# vorgebautes Modul finden, baut npm sie selbst
-# fonts-dejavu-core: Pi OS Lite hat sonst keine Schrift, das Stream Deck zeigte dann keinen Text
-apt-get install -y --no-install-recommends nodejs git dnsmasq-base fonts-dejavu-core \
-  build-essential python3 cmake libudev-dev
+. "$REPO/pi/pakete.sh"
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${PAKETE[@]}"
 NODE_VERSION="$(node -p 'process.versions.node')"
 node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=18)?0:1)' \
   || abbruch "Node $NODE_VERSION ist zu alt (Stream Deck braucht 22.18 oder neuer)"

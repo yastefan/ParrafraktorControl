@@ -188,7 +188,7 @@ sudo ParrafraktorControl/pi/pruefen.sh
 sudo ParrafraktorControl/pi/wartung.sh aus
 ```
 
-Nach dem Neustart (System beschreibbar): apt-Updates, `git pull`, `npm ci`, Build, Dienst neu starten. Ein eigenes WLAN wird dafür kurz ausgeschaltet, damit sich der Pi mit dem gespeicherten WLAN mit Internet verbinden kann (alternativ Internet übers Kabel):
+Nach dem Neustart (System beschreibbar): apt-Updates, nötige Pakete (`pi/pakete.sh`), `git pull`, `npm ci`, Build, Dienst neu starten. Ein eigenes WLAN wird dafür kurz ausgeschaltet, damit sich der Pi mit dem gespeicherten WLAN mit Internet verbinden kann (alternativ Internet übers Kabel). Weil dabei eine SSH-Verbindung über dieses WLAN abreißt, läuft das Update dann losgelöst als Dienst `parrafraktor-update` weiter. Fertig ist es, wenn das eigene WLAN wieder da ist; das Ergebnis zeigt `journalctl -u parrafraktor-update --no-pager | tail -15` (mitlesen mit `-f`, z. B. über das WLAN mit Internet unter `parrafraktor.local`):
 
 ```bash
 sudo ParrafraktorControl/pi/wartung.sh update
