@@ -286,23 +286,41 @@ const GLEICHLAUF_S = 0.4;
 // ---------- Schwarm und Glühwürmchen ----------
 // Gekoppelte Oszillatoren: Jeder Spiegel läuft mit seinem eigenen Tempo (Speed von → bis wie beim Sinus)
 // und zieht die Spiegel mit, die er "sieht" (Reichweite in Plätzen der Auswahl, 0 = alle). Gekoppelt
-// wird die Lage im Durchlauf ψ = Umlauf − Versatz: Ohne Phase suchen sie den Gleichlauf, mit Phase die
-// Welle, die die Phase vorgibt. Kopplung und Rauschen sind auf das mittlere Tempo bezogen, damit das
-// Bild bei jedem Speed gleich aussieht.
+// wird der Umlauf ψ; gezeigt wird wie beim Sinus ψ − Versatz: Ohne Phase suchen sie den Gleichlauf,
+// mit Phase die Welle, die die Phase vorgibt. Kopplung und Rauschen sind auf das Tempo bezogen, damit das Bild bei
+// jedem Speed gleich aussieht.
 //  Schwarm (Kuramoto, mit Rauschen und Reichweite wie im Vicsek-Modell): Jeder Spiegel wird stetig zu
-//    seinen Nachbarn gezogen, dψᵢ/dt = ωᵢ + K · mittel(sin 2π(ψⱼ − ψᵢ)) / 2π + Rauschen.
+//    seinen Nachbarn gezogen, dψᵢ/dt = ωᵢ + K · mittel(sin 2π(ψⱼ − ψᵢ)) + Rauschen.
 //    Kopplung 0 = Speed je Spiegel, viel Kopplung = alle rasten ein, dazwischen Inseln und Ausreißer.
 //  Glühwürmchen (pulsgekoppelt, nach Mirollo und Strogatz): Jeder Spiegel lädt sich im Durchlauf auf,
-//    am Ende "blitzt" er (ein Ausschlag zur Seite und zurück) und stößt die Nachbarn um einen Anteil
-//    ihrer Ladung weiter. Wer dadurch voll ist, blitzt mit: Lawinen, bis alle im Takt blitzen.
+//    am Ende "blitzt" er (ein Ausschlag zur Seite und zurück) und stößt die anderen um einen Anteil
+//    ihrer Ladung weiter. Wer dadurch voll ist, blitzt sofort mit: Lawinen, bis alle im Takt blitzen.
+//    Dazu passen sie ihr Tempo an wie Pteroptyx (nach Ermentrout): Wer kurz nach dem eigenen Blitz einen
+//    sieht, war zu früh und wird langsamer, wer kurz davor einen sieht, wird schneller. Ohne das liefe
+//    ein schnellerer Spiegel den anderen auf Dauer davon, Stöße schieben nur nach vorn.
+// Damit es nach Zusammenspiel aussieht und nicht nach Zufall:
+//  - Kein Spiegel läuft langsamer als TEMPO_MIN × das langsamste Speed oder schneller als TEMPO_MAX ×
+//    das schnellste, auch wenn Kopplung und Rauschen mehr verlangen.
+//  - Rauschen und Anfangsstreuung (beim Wählen, verdeckt von der Überblendung) hängen über
+//    RAUSCHEN_PLAETZE zusammen: Nachbarn werden gemeinsam gestört wie von einer Böe, nicht jeder für sich.
+//  - Glühwürmchen: Stöße wirken sofort, solange ein Spiegel ruht (außerhalb des Blitzes steht er auf
+//    Offset, man sieht es nicht), und höchstens bis zum Blitz; der Blitz selbst läuft immer im eigenen
+//    Tempo, ohne Anpassung und Rauschen – alle Blitze sehen gleich aus. Er dauert die Breite, aber
+//    mindestens BLITZ_MIN (sonst zu schnell) und höchstens BLITZ_MAX des Durchlaufs (damit es eine Ruhe gibt).
 // Der Zustand steckt im Umlauf je Spiegel, die Vorschau gleicht ihn wie sonst mit dem Server ab.
-// Anstöße und die Anfangsstreuung kommen nicht als Sprung, sondern laufen über SCHUB_S weich ein.
-const SCHUB_S = 0.25;
 const SCHRITT_S = 0.02;          // größter Rechenschritt, längere dt werden unterteilt
+const TEMPO_MIN = 0.5;           // nie langsamer als das halbe langsamste Speed (steht nicht, läuft nicht rückwärts)
+const TEMPO_MAX = 1.5;           // höchstens so schnell wie das 1,5-Fache des schnellsten Speeds
 const KOPPLUNG_MAX = 1.5;        // Kopplung 100 % = so viele Durchläufe/s je Durchlauf/s des mittleren Tempos
-const RAUSCHEN_MAX = 6;          // Rauschen 100 %: Störung bis etwa zum Doppelten des mittleren Tempos
-const STOSS_MAX = 1.5;           // Glühwürmchen: Kopplung 100 % = alle Nachbarn zusammen stoßen um das 1,5-Fache der Ladung
+const RAUSCHEN_MAX = 2;          // Rauschen 100 % = Störung etwa so stark wie das mittlere Tempo
+const RAUSCHEN_PLAETZE = 4;      // so viele Plätze breit ist eine Störung
+const STREUUNG = 1;              // Anfangsstreuung beim Wählen (Durchläufe, etwa ± halber Durchlauf)
+const STOSS_MAX = 1.5;
+const ANPASSUNG = 0.6;           // Glühwürmchen: so viel ändert sich das Tempo je Durchlauf voller Blitze (bei Kopplung 100 %)
+const ERHOLUNG_S = 30;           // so schnell kehrt das Tempo ohne Blitze zum eigenen zurück           // Glühwürmchen: Kopplung 100 % = alle anderen zusammen stoßen um das 1,5-Fache der Ladung
 const istGekoppelt = (m: Modus): boolean => m === "schwarm" || m === "gluehwuermchen";
+const BLITZ_MIN = 0.3, BLITZ_MAX = 0.4;
+const blitzBreite = (p: Parameter): number => Math.min(Math.max(p.breite / 100, BLITZ_MIN), BLITZ_MAX);
 
 export class Engine {
   // Durchläufe bei Speed "von": Bezug für den Gleichlauf und Zeit des Winds
@@ -318,8 +336,9 @@ export class Engine {
   // Rotation: mitgezählter Winkel (Grad) und vorgegebene Drehzahl je Spiegel
   private readonly gedreht = new Float64Array(SPIEGEL_GESAMT);
   private readonly drehzahl = new Float64Array(SPIEGEL_GESAMT);
-  // Schwarm und Glühwürmchen: noch ausstehender Anstoß je Spiegel (Durchläufe) und Uhr fürs Rauschen
+  // Glühwürmchen: noch ausstehender Stoß je Spiegel (Durchläufe), Schwarm und Glühwürmchen: Uhr fürs Rauschen
   private readonly schub = new Float64Array(SPIEGEL_GESAMT);
+  private readonly tempo = new Float64Array(SPIEGEL_GESAMT).fill(1);   // Glühwürmchen: angepasstes Tempo (× eigenes)
   private sekunden = 0;
 
   // Zeit weiterlaufen lassen (dt in Sekunden)
@@ -328,8 +347,13 @@ export class Engine {
     // Pendelwelle startet im Gleichlauf, damit man das Auseinanderlaufen sieht
     if (p.modus !== this.letzterModus) {
       if (p.modus === "pendelwelle") this.umlauf.fill(this.umlaufVon);
-      // Schwarm und Glühwürmchen starten verstreut, damit man das Ordnen sieht (immer gleich verstreut)
-      for (let g = 0; g < SPIEGEL_GESAMT; g++) this.schub[g] = istGekoppelt(p.modus) ? gitter(g, 7) - 0.5 : 0;
+      // Schwarm und Glühwürmchen starten verstreut, Nachbarn ähnlich (immer gleich verstreut). Das ist ein
+      // Sprung, aber ein Wechsel der Form wird ohnehin übergeblendet (Steuerung und Vorschau).
+      this.schub.fill(0);
+      this.tempo.fill(1);
+      if (istGekoppelt(p.modus)) {
+        for (let g = 0; g < SPIEGEL_GESAMT; g++) this.umlauf[g] += STREUUNG * rauschen(auswahl(p, g).platz / RAUSCHEN_PLAETZE, 7.7);
+      }
       this.letzterModus = p.modus;
     }
     const [von, bis] = speeds(p);
@@ -375,40 +399,71 @@ export class Engine {
   // Ein Rechenschritt für Schwarm und Glühwürmchen (siehe oben)
   private koppele(p: Parameter, von: number, bis: number, dt: number): void {
     const a = Array.from({ length: SPIEGEL_GESAMT }, (_, g) => auswahl(p, g));
-    const mittel = (von + bis) / 2 / 60;   // mittleres Tempo, Durchläufe/s
+    const mittel = (von + bis) / 2 / 60;                  // mittleres Tempo, Durchläufe/s
+    const grenze = (dt * TEMPO_MAX * Math.max(von, bis)) / 60;
+    const boden = (dt * TEMPO_MIN * Math.min(von, bis)) / 60;
+    const glueh = p.modus === "gluehwuermchen";
+    const b = blitzBreite(p);
+    // Lage im Durchlauf, wie man sie sieht (der Blitz liegt am Anfang)
     const psi = a.map((x, g) => this.umlauf[g]! - x.versatz);
+    const u = this.umlauf;
+    const vorher = Float64Array.from(u);   // Schwarm: alle ziehen am Stand vor diesem Schritt
     const sieht = (i: number, j: number) => j !== i && (p.reichweite <= 0 || Math.abs(a[i]!.platz - a[j]!.platz) <= p.reichweite);
-    const zug = 1 - Math.exp(-dt / SCHUB_S);
+    const ruht = (i: number) => glueh && psi[i]! - Math.floor(psi[i]!) >= b;
     const blitze: number[] = [];
+    // Gekoppelt wird der Umlauf: Ein Spiegel "feuert", wenn sein Umlauf voll ist. Ohne Phase ist das
+    // genau sein Blitz, mit Phase blitzt er um seinen Versatz später – so wird aus dem Takt eine Welle.
+    const schiebe = (i: number, d: number) => {
+      // Wer feuert, fängt von vorn an: Stöße aus dem alten Durchlauf verfallen
+      if (Math.floor(u[i]! + d) > Math.floor(u[i]!)) { blitze.push(i); this.schub[i] = 0; }
+      psi[i]! += d;
+      u[i] += d;
+    };
+    // Glühwürmchen in der Ruhe: Schub sofort, aber nur bis zum Feuern und nicht in den sichtbaren Blitz
+    const springe = (i: number) => {
+      if (this.schub[i]! <= 0) return;
+      const bisFeuer = Math.floor(u[i]!) + 1 + 1e-9 - u[i]!, bisBlitz = Math.floor(psi[i]!) + 1 - psi[i]!;
+      const d = Math.min(this.schub[i]!, bisFeuer, bisBlitz);
+      this.schub[i] -= d;
+      schiebe(i, d);
+    };
     for (let i = 0; i < SPIEGEL_GESAMT; i++) {
-      let d = (dt * (von + (bis - von) * a[i]!.anteil)) / 60;
+      const eigen = (dt * (von + (bis - von) * a[i]!.anteil)) / 60;
+      this.tempo[i] = 1 + (this.tempo[i]! - 1) * Math.exp(-dt / ERHOLUNG_S);
+      // Glühwürmchen im Blitz: immer im eigenen Tempo
+      if (glueh && !ruht(i)) { schiebe(i, eigen); continue; }
+      let d = eigen * this.tempo[i]!;
       if (p.modus === "schwarm" && p.kopplung > 0) {
         let summe = 0, zahl = 0;
         for (let j = 0; j < SPIEGEL_GESAMT; j++) {
-          if (sieht(i, j)) { summe += Math.sin(2 * Math.PI * (psi[j]! - psi[i]!)); zahl++; }
+          if (sieht(i, j)) { summe += Math.sin(2 * Math.PI * (vorher[j]! - vorher[i]!)); zahl++; }
         }
         if (zahl) d += (dt * (p.kopplung / 100) * KOPPLUNG_MAX * mittel * summe) / zahl;
       }
-      // Rauschen: weich (Gradientenrauschen je Spiegel über die Zeit), immer gleich
-      d += dt * (p.rauschen / 100) * RAUSCHEN_MAX * mittel * rauschen(0.7 * this.sekunden, 11.3 + 5.17 * i);
-      const s = this.schub[i]! * zug;
-      this.schub[i] -= s;
-      d += s;
-      if (Math.floor(psi[i]! + d) > Math.floor(psi[i]!)) blitze.push(i);
-      this.umlauf[i] += d;
+      // Rauschen: weich, über die Plätze zusammenhängend und über die Zeit, immer gleich
+      d += dt * (p.rauschen / 100) * RAUSCHEN_MAX * mittel
+        * rauschen(a[i]!.platz / RAUSCHEN_PLAETZE + 0.37 * Math.floor(i / SPIEGEL_N), 0.3 * this.sekunden + 11.3);
+      schiebe(i, Math.min(Math.max(d, boden), grenze));
+      // Glühwürmchen: Stöße, die im Blitz ankamen, wirken in der Ruhe danach
+      if (ruht(i)) springe(i);
     }
-    // Glühwürmchen: Wer geblitzt hat, stößt die anderen an, je mehr sie schon geladen sind, desto mehr
-    if (p.modus === "gluehwuermchen" && p.kopplung > 0) {
-      for (const j of blitze) {
-        let zahl = 0;
-        for (let i = 0; i < SPIEGEL_GESAMT; i++) if (sieht(j, i)) zahl++;
-        if (!zahl) continue;
-        const stoss = ((p.kopplung / 100) * STOSS_MAX) / zahl;
-        for (let i = 0; i < SPIEGEL_GESAMT; i++) {
-          if (!sieht(j, i)) continue;
-          const ladung = this.umlauf[i]! - a[i]!.versatz + this.schub[i]!;
-          this.schub[i] += stoss * (ladung - Math.floor(ladung));
-        }
+    if (!glueh || p.kopplung <= 0) return;
+    // Glühwürmchen: Wer geblitzt hat, stößt die anderen an, je voller sie schon sind, desto mehr. Wer ruht,
+    // springt sofort (höchstens bis zum Blitz) und blitzt dann mit; wer gerade blitzt, springt danach.
+    for (let n = 0; n < blitze.length; n++) {
+      const j = blitze[n]!;
+      let zahl = 0;
+      for (let i = 0; i < SPIEGEL_GESAMT; i++) if (sieht(j, i)) zahl++;
+      if (!zahl) continue;
+      const stoss = ((p.kopplung / 100) * STOSS_MAX) / zahl;
+      for (let i = 0; i < SPIEGEL_GESAMT; i++) {
+        if (!sieht(j, i) || blitze.includes(i)) continue;
+        const ladung = u[i]! - Math.floor(u[i]!);   // wie voll der Umlauf ist
+        this.schub[i] += stoss * ladung;
+        // Tempo anpassen: kurz nach dem eigenen Feuern langsamer, kurz davor schneller
+        this.tempo[i] = Math.min(TEMPO_MAX, Math.max(TEMPO_MIN,
+          this.tempo[i]! - ((p.kopplung / 100) * ANPASSUNG * Math.sin(2 * Math.PI * ladung)) / zahl));
+        if (ruht(i)) springe(i);
       }
     }
   }
@@ -468,8 +523,12 @@ export class Engine {
       case "wind": return seite * A * wind(platz / p.wellenlaenge, this.umlaufVon);
       // Schwarm: Sinus, aber jeder Spiegel mit seinem gekoppelten Umlauf (siehe koppele)
       case "schwarm": return seite * A * Math.sin(2 * Math.PI * schmal(u - versatz, p.breite / 100));
-      // Glühwürmchen: am Anfang jedes Durchlaufs ein Ausschlag zur Seite und zurück (Breite = wie lange)
-      case "gluehwuermchen": return seite * A * 0.5 * (1 - Math.cos(2 * Math.PI * schmal(u - versatz, p.breite / 100)));
+      // Glühwürmchen: am Anfang jedes Durchlaufs ein Ausschlag zur Seite und zurück (Breite, höchstens ½)
+      case "gluehwuermchen": {
+        // (1 − cos) läuft schon weich an und aus, deshalb ohne die Glättung von schmal()
+        const b = blitzBreite(p), x = u - versatz - Math.floor(u - versatz);
+        return x < b ? seite * A * 0.5 * (1 - Math.cos((2 * Math.PI * x) / b)) : 0;
+      }
       case "rotation": return 0;   // läuft über TiltRotate, siehe spiegel()
       case "oeffnung": return 0;   // eigene Rechnung, siehe spiegel()
       case "ruhe": return 0;       // alle auf Offset, nur Impulse bewegen
