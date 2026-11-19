@@ -3,7 +3,7 @@
 // Das Gerät darf jederzeit angesteckt oder abgezogen werden: ohne Gerät wird alle 2 s gesucht.
 // macOS/Windows: Die Elgato-Software muss beendet sein, sonst ist das Gerät belegt.
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
-import type { StreamDeck } from "@elgato-stream-deck/node";
+import type { DeviceModelId, StreamDeck } from "@elgato-stream-deck/core";
 import {
   ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI_WAEHLBAR, istOeffnungArt, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
@@ -20,7 +20,14 @@ import {
 } from "./belegung.js";
 import { FARBE, Maler, TON, type Farbton, type Feld, type TastenInhalt } from "./bilder.js";
 
-type Bibliothek = typeof import("@elgato-stream-deck/node");
+// @elgato-stream-deck/node braucht node-hid (nativ) und ist optional. Typen kommen aus dem reinen
+// JS-Paket @elgato-stream-deck/core, damit der Build auch ohne das native Paket gelingt (z. B. am Pi).
+interface Bibliothek {
+  listStreamDecks(): Promise<{ model: DeviceModelId; path: string }[]>;
+  openStreamDeck(pfad: string, optionen?: { resetToLogoOnClose?: boolean }): Promise<StreamDeck>;
+  DeviceModelId: typeof DeviceModelId;
+}
+const BIBLIOTHEK: string = "@elgato-stream-deck/node";
 
 const SUCHEN_MS = 2000;
 const ZEICHNEN_MS = 50;      // höchstens 20 Bilder pro Sekunde
@@ -62,7 +69,7 @@ export class StreamDeckModul implements Eingabemodul {
 
   async starte(): Promise<void> {
     try {
-      this.lib = await import("@elgato-stream-deck/node");
+      this.lib = (await import(BIBLIOTHEK)) as Bibliothek;
       this.maler = new Maler(await import("@napi-rs/canvas"));
     } catch (e) {
       this.melde("fehler", `packages missing: ${fehlerText(e)}`);

@@ -17,7 +17,7 @@
 # RS485 (UART) wird hier nicht angefasst: serielle Schnittstelle und Konsole bleiben, wie sie sind.
 #
 # Aufruf im Repo auf dem Pi:
-#   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay]
+#   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay] [--ohne-streamdeck]
 #        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band a|bg] [--land DE]]
 # Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen.
 set -euo pipefail
@@ -27,6 +27,7 @@ DATEN_MB=1024
 IP=""
 GATEWAY=""
 OVERLAY=1
+STREAMDECK=1
 DATEN_LABEL=pfdaten
 DATEN_MOUNT=/daten
 SCHNITTSTELLE=eth0
@@ -45,6 +46,7 @@ while [ $# -gt 0 ]; do
     --daten-mb) DATEN_MB="$2"; shift 2 ;;
     --schnittstelle) SCHNITTSTELLE="$2"; shift 2 ;;
     --ohne-overlay) OVERLAY=0; shift ;;
+    --ohne-streamdeck) STREAMDECK=0; shift ;;
     --ap-ssid) AP_SSID="$2"; shift 2 ;;
     --ap-passwort) AP_PASSWORT="$2"; shift 2 ;;
     --ap-adresse) AP_ADRESSE="$2"; shift 2 ;;
@@ -152,12 +154,24 @@ chown -R "$BENUTZER:" "$DATEN"
 schritt "Node und Build"
 apt-get update
 # dnsmasq-base: DHCP/DNS für das eigene WLAN (NetworkManager, ipv4.method shared)
-apt-get install -y --no-install-recommends nodejs npm git dnsmasq-base
+# build-essential, python3, node-gyp, libudev-dev: falls node-hid (Stream Deck) kein passendes
+# vorgebautes Modul findet, baut npm es selbst – ohne diese Pakete fällt das Stream Deck still weg
+apt-get install -y --no-install-recommends nodejs npm git dnsmasq-base \
+  build-essential python3 node-gyp libudev-dev
 NODE_VERSION="$(node -p 'process.versions.node')"
 node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>20||(a===20&&b>=19)?0:1)' \
   || abbruch "Node $NODE_VERSION ist zu alt (Vite braucht 20.19 oder neuer)"
 echo "Node $NODE_VERSION"
 sudo -u "$BENUTZER" -H bash -c "cd '$REPO' && npm ci --no-audit --no-fund && npm run build"
+# Optionale Pakete lässt npm bei Fehlern still weg – hier laut werden
+if [ "$STREAMDECK" -eq 1 ]; then
+  if ! sudo -u "$BENUTZER" -H bash -c "cd '$REPO/server' && node -e 'require(\"node-hid\"); require(\"@napi-rs/canvas\")'" ; then
+    abbruch "Stream-Deck-Pakete fehlen oder laden nicht (node-hid, @napi-rs/canvas).
+  Ursache anzeigen:  cd $REPO && npm rebuild node-hid --foreground-scripts
+  Ohne Stream Deck weiter:  sudo pi/einrichten.sh … --ohne-streamdeck"
+  fi
+  echo "Stream-Deck-Pakete geladen."
+fi
 
 # ---------- 3. Stream Deck + ----------
 schritt "udev-Regel Stream Deck"
