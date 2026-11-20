@@ -4,7 +4,7 @@
 // wer gewinnt. Beim Abgeben hört die App nur auf zu senden; je nach Node bleibt die letzte
 // Stellung einige Sekunden stehen, bis er die Quelle verwirft. Sauberes Umschalten geht mit sACN.
 import { createSocket, type Socket } from "node:dgram";
-import type { ArtnetEinstellungen, ModulStatus } from "@parrafraktor/protokoll";
+import type { ArtnetSettings, ModuleStatus } from "@parrafraktor/protocol";
 import { fehlerText } from "../log.js";
 import type { Ausgabe } from "./ausgabe.js";
 
@@ -34,7 +34,7 @@ export class ArtnetAusgabe implements Ausgabe {
   private fehler = "";
   private sendet = false;
 
-  constructor(private readonly e: ArtnetEinstellungen) {
+  constructor(private readonly e: ArtnetSettings) {
     this.socket = createSocket({ type: "udp4", reuseAddr: true });
     this.socket.on("error", (err) => { this.fehler = fehlerText(err); });
     this.socket.bind({ address: e.quelle || undefined, port: 0 }, () => {
@@ -62,7 +62,7 @@ export class ArtnetAusgabe implements Ausgabe {
     await new Promise<void>((fertig) => this.socket.close(() => fertig()));
   }
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     if (this.fehler) return { name: this.name, art: "ausgabe", zustand: "fehler", text: this.fehler };
     return {
       name: this.name,

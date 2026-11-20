@@ -5,7 +5,7 @@
 // - versucht es sofort wieder, wenn das Gerät online geht oder die App in den Vordergrund kommt
 // Nachrichten werden nicht gepuffert: Ohne Verbindung ist die Bedienung gesperrt, und nach dem
 // Verbinden schickt der Server ohnehin den vollständigen Stand.
-import { WS_PFAD, type ClientNachricht, type ServerNachricht } from "@parrafraktor/protokoll";
+import { WS_PATH, type ClientMessage, type ServerMessage } from "@parrafraktor/protocol";
 
 export type VerbindungsZustand = "verbinde" | "verbunden" | "getrennt";
 
@@ -21,7 +21,7 @@ export class Verbindung {
   private _zustand: VerbindungsZustand = "verbinde";
 
   constructor(
-    private readonly beiNachricht: (n: ServerNachricht) => void,
+    private readonly beiNachricht: (n: ServerMessage) => void,
     private readonly beiZustand: (z: VerbindungsZustand) => void,
   ) {}
 
@@ -42,7 +42,7 @@ export class Verbindung {
     document.addEventListener("visibilitychange", jetztVersuchen);
   }
 
-  sende(n: ClientNachricht): boolean {
+  sende(n: ClientMessage): boolean {
     if (this.ws?.readyState !== WebSocket.OPEN) return false;
     this.ws.send(JSON.stringify(n));
     return true;
@@ -55,7 +55,7 @@ export class Verbindung {
       this.ws.close();
     }
     this.setze("verbinde");
-    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${WS_PFAD}`;
+    const url = `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}${WS_PATH}`;
     const ws = new WebSocket(url);
     this.ws = ws;
     ws.onopen = () => {
@@ -66,7 +66,7 @@ export class Verbindung {
     ws.onmessage = (e) => {
       this.zuletzt = Date.now();
       try {
-        this.beiNachricht(JSON.parse(e.data as string) as ServerNachricht);
+        this.beiNachricht(JSON.parse(e.data as string) as ServerMessage);
       } catch {
         // kaputte Nachricht: ignorieren, der nächste Stand kommt gleich
       }

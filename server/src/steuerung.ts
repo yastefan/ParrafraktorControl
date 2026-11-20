@@ -7,10 +7,10 @@ import {
   type ImpulseKind, type ImpulseSettings, type RunningImpulse, type Mode, type Parameter,
 } from "@parrafraktor/engine";
 import {
-  AUTO_VORGABE, BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeAuto, pruefeEinstellungen,
-  pruefeImpuls, pruefeParameter, verschiebeOffset, vorgabeName, vorgabeWert,
-  type AutoEinstellung, type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
-} from "@parrafraktor/protokoll";
+  AUTO_DEFAULTS, RANGES, IMPULSE_RANGES, STEPPED, clampParameter, impulseValue, lookOf, migrateParameter, withImpulseValue, checkAuto, checkSettings,
+  checkImpulse, checkParameter, shiftOffset, defaultName, defaultValue,
+  type AutoSettings, type Settings, type ImpulseControl, type Presets, type SwitchParameter, type SteppedParameter, type Takeover, type NumericParameter,
+} from "@parrafraktor/protocol";
 
 // Ein gestarteter Impuls
 interface Impuls {
@@ -26,7 +26,7 @@ interface Ereignisse {
   // irgendetwas Sichtbares hat sich geändert (Parameter, Übernahme, Modulstatus)
   aenderung: [];
   // Einstellungen geändert: Ausgaben müssen neu starten, Datei muss gespeichert werden
-  einstellungen: [Einstellungen];
+  einstellungen: [Settings];
   // Parameter geändert: werden gespeichert
   parameter: [Parameter];
   // Presets geändert: werden gespeichert
@@ -36,20 +36,20 @@ interface Ereignisse {
   // Hüllkurve oder Element-Folge geändert: wird gespeichert
   impuls: [ImpulseSettings];
   // Auswahl oder Zeiten von Auto geändert: wird gespeichert
-  auto: [AutoEinstellung];
+  auto: [AutoSettings];
 }
 
 export class Steuerung extends EventEmitter<Ereignisse> {
   private _parameter: Parameter;
-  private _einstellungen: Einstellungen;
+  private _einstellungen: Settings;
   // Übernahme startet aus: nach einem Neustart fährt zuerst die MA – außer mit Autostart (siehe autostart)
-  private _uebernahme: Uebernahme = { soll: false, zustand: "aus", anteil: 0 };
+  private _uebernahme: Takeover = { soll: false, zustand: "aus", anteil: 0 };
   private _rev = 0;
   private _presets: Presets;
   private _letztesPreset: number | null = null;
   private _blende: { id: number; anteil: number } | null = null;
   private _blendeDauerS = 0;
-  private _auto: AutoEinstellung;
+  private _auto: AutoSettings;
   // Auto startet aus (außer mit Autostart). Es fasst den Output nicht an, nur den Look.
   private _autoAn = false;
   private _autoRestS = 0;
@@ -60,11 +60,11 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // uhr: Sekunden, austauschbar für Tests
   constructor(
     parameter: Parameter,
-    einstellungen: Einstellungen,
+    einstellungen: Settings,
     presets: Presets,
     impuls: ImpulseSettings = IMPULSE_DEFAULTS,
     private readonly uhr: () => number = () => performance.now() / 1000,
-    auto: AutoEinstellung = AUTO_VORGABE,
+    auto: AutoSettings = AUTO_DEFAULTS,
   ) {
     super();
     this._parameter = parameter;
@@ -76,15 +76,15 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   get parameter(): Readonly<Parameter> { return this._parameter; }
-  get einstellungen(): Readonly<Einstellungen> { return this._einstellungen; }
-  get uebernahme(): Readonly<Uebernahme> { return this._uebernahme; }
+  get einstellungen(): Readonly<Settings> { return this._einstellungen; }
+  get uebernahme(): Readonly<Takeover> { return this._uebernahme; }
   get rev(): number { return this._rev; }
   get presets(): Readonly<Presets> { return this._presets; }
   get letztesPreset(): number | null { return this._letztesPreset; }
   get blende(): Readonly<{ id: number; anteil: number }> | null { return this._blende; }
   get blendeDauerS(): number { return this._blendeDauerS; }
   get impuls(): Readonly<ImpulseSettings> { return this._impuls; }
-  get auto(): Readonly<AutoEinstellung> { return this._auto; }
+  get auto(): Readonly<AutoSettings> { return this._auto; }
   get autoAn(): boolean { return this._autoAn; }
   get autoRestS(): number { return this._autoRestS; }
   get autoStartbar(): boolean { return this.autoListe().length >= 2; }
@@ -100,7 +100,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // ---------- Aktionen der Bedienungen ----------
 
   setze(teil: Partial<Parameter>): void {
-    const geprueft = pruefeParameter(teil);
+    const geprueft = checkParameter(teil);
     if (geprueft.modus && geprueft.modus !== this._parameter.modus) {
       // Patternwechsel über waehlePattern, damit Phase und Amplitude passen
       this.waehlePattern(geprueft.modus);
@@ -118,8 +118,8 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   // Relativ verstellen, z. B. per Drehregler: schritte × kleinster Schritt
-  verstelle(name: ZahlParameter, schritte: number): void {
-    this.aendere({ [name]: begrenze(name, this._parameter[name] + schritte * BEREICHE[name].schritt) });
+  verstelle(name: NumericParameter, schritte: number): void {
+    this.aendere({ [name]: clampParameter(name, this._parameter[name] + schritte * RANGES[name].step) });
   }
 
   // Offset eines Elements (0 … 2); schaltet „je Element“ ein, wenn es noch aus ist
@@ -128,18 +128,18 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     const alt = p.offsetGetrennt ? p.offsetElemente : p.offsetElemente.map(() => p.offset);
     this.aendere({
       offsetGetrennt: true,
-      offsetElemente: alt.map((w, i) => (i === k ? begrenze("offset", w + schritte * BEREICHE.offset.schritt) : w)),
+      offsetElemente: alt.map((w, i) => (i === k ? clampParameter("offset", w + schritte * RANGES.offset.step) : w)),
     });
   }
 
-  vorgabe(name: ZahlParameter): void {
+  vorgabe(name: NumericParameter): void {
     // Vorgabe beim Offset: auch alle Elemente gleich, „je Element“ aus
     if (name === "offset") {
-      const v = vorgabeWert("offset");
+      const v = defaultValue("offset");
       this.aendere({ offset: v, offsetGetrennt: false, offsetElemente: this._parameter.offsetElemente.map(() => v) });
       return;
     }
-    this.aendere({ [name]: vorgabeWert(name) });
+    this.aendere({ [name]: defaultValue(name) });
   }
 
   schalteLauf(): void {
@@ -147,14 +147,14 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   // Regler mit Stufen (Ordnung, Element-Folge) eine Stufe weiterschalten
-  schalteStufe(name: StufenParameter, schritte = 1): void {
-    const werte: readonly string[] = STUFEN[name].werte;
+  schalteStufe(name: SteppedParameter, schritte = 1): void {
+    const werte: readonly string[] = STEPPED[name].values;
     const n = werte.length;
     const i = werte.indexOf(this._parameter[name]);
     this.aendere({ [name]: werte[(((i + schritte) % n) + n) % n] });
   }
 
-  schalte(name: SchalterParameter): void {
+  schalte(name: SwitchParameter): void {
     this.aendere({ [name]: !this._parameter[name] });
   }
 
@@ -185,16 +185,16 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   setzeImpuls(roh: unknown): void {
-    this.aendereImpuls(pruefeImpuls(roh, this._impuls));
+    this.aendereImpuls(checkImpulse(roh, this._impuls));
   }
 
-  verstelleImpuls(name: ImpulsRegler, schritte: number): void {
-    const wert = impulsWert(this._impuls, name) + schritte * IMPULS_BEREICHE[name].schritt;
-    this.aendereImpuls(mitImpulsWert(this._impuls, name, wert));
+  verstelleImpuls(name: ImpulseControl, schritte: number): void {
+    const wert = impulseValue(this._impuls, name) + schritte * IMPULSE_RANGES[name].step;
+    this.aendereImpuls(withImpulseValue(this._impuls, name, wert));
   }
 
-  vorgabeImpuls(name: ImpulsRegler): void {
-    this.aendereImpuls(mitImpulsWert(this._impuls, name, impulsWert(IMPULSE_DEFAULTS, name)));
+  vorgabeImpuls(name: ImpulseControl): void {
+    this.aendereImpuls(withImpulseValue(this._impuls, name, impulseValue(IMPULSE_DEFAULTS, name)));
   }
 
   private aendereImpuls(neu: ImpulseSettings): void {
@@ -231,9 +231,9 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   speicherePreset(nr: number): void {
-    const look = lookAus(this._parameter);
+    const look = lookOf(this._parameter);
     // Name bleibt beim Überschreiben erhalten, sonst nach dem Pattern
-    const name = this._presets[nr]?.name ?? vorgabeName(look);
+    const name = this._presets[nr]?.name ?? defaultName(look);
     this.setzePreset(nr, { name, look });
     this._letztesPreset = nr;
     this.geaendert();
@@ -289,7 +289,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   stelleAuto(roh: unknown): void {
-    const neu = pruefeAuto(roh, this._auto);
+    const neu = checkAuto(roh, this._auto);
     if (JSON.stringify(neu) === JSON.stringify(this._auto)) return;
     this._auto = neu;
     this.emit("auto", neu);
@@ -317,7 +317,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   setzeEinstellungen(roh: unknown): void {
-    const neu = pruefeEinstellungen(roh, this._einstellungen);
+    const neu = checkSettings(roh, this._einstellungen);
     if (JSON.stringify(neu) === JSON.stringify(this._einstellungen)) return;
     this._einstellungen = neu;
     this.emit("einstellungen", neu);
@@ -327,7 +327,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // ---------- Meldungen der Module ----------
 
   // Der Takt meldet, wie weit die Übernahme ist
-  meldeUebernahme(zustand: Uebernahme["zustand"], anteil: number): void {
+  meldeUebernahme(zustand: Takeover["zustand"], anteil: number): void {
     const u = this._uebernahme;
     if (u.zustand === zustand && u.anteil === anteil) return;
     this._uebernahme = { soll: u.soll, zustand, anteil };
@@ -352,7 +352,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   private aendere(teil: Partial<Parameter>, preset: number | null = null, vonPreset = false): void {
     // Nur der gemeinsame Offset bei getrennten Elementen: alle mitverschieben (Abstände bleiben)
     if (teil.offset !== undefined && teil.offsetElemente === undefined && teil.offsetGetrennt === undefined) {
-      teil = { ...teil, ...verschiebeOffset(this._parameter, teil.offset) };
+      teil = { ...teil, ...shiftOffset(this._parameter, teil.offset) };
     }
     const neu = { ...this._parameter, ...teil };
     const pauseOderGleich = Object.keys(teil).every((k) => k === "laeuft");
@@ -365,4 +365,4 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 }
 
-export const parameterAus = (roh: unknown): Parameter => ({ ...PARAMETER_DEFAULTS, ...pruefeParameter(migriereParameter(roh)) });
+export const parameterAus = (roh: unknown): Parameter => ({ ...PARAMETER_DEFAULTS, ...checkParameter(migrateParameter(roh)) });

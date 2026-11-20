@@ -8,8 +8,8 @@ import {
   ELEMENT_ORDERS, ELEMENT_ORDER_NAME, IMPULSE_NAME, MODES_SELECTABLE, isApertureKind, MODE_NAME, PARAMETER_DEFAULTS,
 } from "@parrafraktor/engine";
 import {
-  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, offsetVerschieden, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
-} from "@parrafraktor/protokoll";
+  RANGES, IMPULSE_RANGES, PRESET_COUNT, isUsed, offsetsDiffer, SWITCHES, STEPPED, impulseValue, formatImpulse, formatValue, type ModuleStatus,
+} from "@parrafraktor/protocol";
 import { fehlerText, log } from "../../log.js";
 import { PRAEFIXE, gleicherWunsch, zeigeAdresse, type Netz, type NetzWunsch } from "../../netz.js";
 import type { Steuerung } from "../../steuerung.js";
@@ -47,7 +47,7 @@ export class StreamDeckModul implements Eingabemodul {
   private maler: Maler | null = null;
   private deck: StreamDeck | null = null;
   private suchTimer: NodeJS.Timeout | undefined;
-  private zustand: ModulStatus["zustand"] = "bereit";
+  private zustand: ModuleStatus["zustand"] = "bereit";
   private text = "looking for device …";
   private beendet = false;
 
@@ -108,7 +108,7 @@ export class StreamDeckModul implements Eingabemodul {
     }
   }
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     return { name: this.name, art: "eingabe", zustand: this.zustand, text: this.text };
   }
 
@@ -165,7 +165,7 @@ export class StreamDeckModul implements Eingabemodul {
     this.suchTimer = setTimeout(() => void this.suche(), SUCHEN_MS);
   }
 
-  private melde(zustand: ModulStatus["zustand"], text: string): void {
+  private melde(zustand: ModuleStatus["zustand"], text: string): void {
     if (this.zustand === zustand && this.text === text) return;
     this.zustand = zustand;
     this.text = text;
@@ -326,7 +326,7 @@ export class StreamDeckModul implements Eingabemodul {
       }
       return undefined;
     }
-    const anzahl = this.menue === "pattern" ? MODES_SELECTABLE.length : PRESET_ANZAHL;
+    const anzahl = this.menue === "pattern" ? MODES_SELECTABLE.length : PRESET_COUNT;
     if (taste === TASTE_SEITE) return { tippen: () => { this.seite = (this.seite + 1) % seitenAnzahl(anzahl); } };
     const i = eintragAuf(this.seite, taste, anzahl);
     if (i === undefined) return undefined;
@@ -397,9 +397,9 @@ export class StreamDeckModul implements Eingabemodul {
     const r = this.regler(index);
     if (!r) return;
     if (r.art === "zahl") {
-      const b = BEREICHE[r.name];
+      const b = RANGES[r.name];
       // Bei großen Bereichen mit feinem Schritt (Speed) wirkt schnelles Drehen stärker
-      const faktor = schnell ? (b.schritt < 1 ? 10 : 5) : 1;
+      const faktor = schnell ? (b.step < 1 ? 10 : 5) : 1;
       this.steuerung.verstelle(r.name, schritte * faktor);
     } else if (r.art === "stufe") {
       this.steuerung.schalteStufe(r.name, Math.sign(schritte));
@@ -412,7 +412,7 @@ export class StreamDeckModul implements Eingabemodul {
   // Grundbewegung den Offset benutzt
   private offsetModus(): boolean {
     if (!this.offsetJeElement) return false;
-    if (["impulse", "code", "netz"].includes(this.menue) || !benutzt(this.steuerung.parameter.modus, "offset")) {
+    if (["impulse", "code", "netz"].includes(this.menue) || !isUsed(this.steuerung.parameter.modus, "offset")) {
       this.offsetJeElement = false;
       return false;
     }
@@ -587,9 +587,9 @@ export class StreamDeckModul implements Eingabemodul {
         }
         // bei Ruhe wirken Ordnung und Elemente nicht: gedämpft
         case HAUPT.ordnung:
-          return { titel: "Order", unter: STUFEN.ordnung.text[parameter.ordnung], leise: !benutzt(parameter.modus, "ordnung") };
+          return { titel: "Order", unter: STEPPED.ordnung.text[parameter.ordnung], leise: !isUsed(parameter.modus, "ordnung") };
         case HAUPT.elemente:
-          return { titel: "Elements", unter: STUFEN.elementFolge.text[parameter.elementFolge], leise: !benutzt(parameter.modus, "elementFolge") };
+          return { titel: "Elements", unter: STEPPED.elementFolge.text[parameter.elementFolge], leise: !isUsed(parameter.modus, "elementFolge") };
         case HAUPT.pause: return parameter.laeuft ? { titel: "Pause" } : { titel: "Resume", rahmen: FARBE.akzent };
         case HAUPT.output:
           switch (uebernahme.zustand) {
@@ -622,7 +622,7 @@ export class StreamDeckModul implements Eingabemodul {
       }
       return { titel: "" };
     }
-    const anzahl = this.menue === "pattern" ? MODES_SELECTABLE.length : PRESET_ANZAHL;
+    const anzahl = this.menue === "pattern" ? MODES_SELECTABLE.length : PRESET_COUNT;
     if (taste === TASTE_SEITE) {
       return seitenAnzahl(anzahl) > 1
         ? eintrag("Page ›", false, { unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` })
@@ -697,17 +697,17 @@ export class StreamDeckModul implements Eingabemodul {
       return [0, 1, 2, 3].map((i): Feld => {
         const name = this.impulsRegler(i);
         if (!name) return { titel: "", wert: "", anteil: null };
-        const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
-        return { titel: b.kurz, wert: zeigeImpuls(name, w), anteil: (w - b.min) / (b.max - b.min) };
+        const b = IMPULSE_RANGES[name], w = impulseValue(e, name);
+        return { titel: b.short, wert: formatImpulse(name, w), anteil: (w - b.min) / (b.max - b.min) };
       });
     }
     const p = this.steuerung.parameter;
     if (this.offsetModus()) {
-      const b = BEREICHE.offset;
+      const b = RANGES.offset;
       const werte = [...(p.offsetGetrennt ? p.offsetElemente : p.offsetElemente.map(() => p.offset)), p.offset];
       return werte.map((w, i): Feld => ({
         titel: i < 3 ? `Off. ${i + 1}` : "Off. all",
-        wert: zeigeWert("offset", w),
+        wert: formatValue("offset", w),
         anteil: (w - b.min) / (b.max - b.min),
       }));
     }
@@ -715,13 +715,13 @@ export class StreamDeckModul implements Eingabemodul {
       const r = this.regler(i);
       if (!r) return { titel: "", wert: "", anteil: null };
       if (r.art === "zahl") {
-        const b = BEREICHE[r.name];
+        const b = RANGES[r.name];
         // Offset je Element im Spiel: kenntlich machen, langer Druck zeigt die drei
-        const titel = r.name === "offset" && offsetVerschieden(p) ? "Offset 1–3" : b.kurz;
-        return { titel, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
+        const titel = r.name === "offset" && offsetsDiffer(p) ? "Offset 1–3" : b.short;
+        return { titel, wert: formatValue(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
       }
-      if (r.art === "schalter") return { titel: SCHALTER[r.name], wert: p[r.name] ? "on" : "off", anteil: null };
-      const st = STUFEN[r.name];
+      if (r.art === "schalter") return { titel: SWITCHES[r.name], wert: p[r.name] ? "on" : "off", anteil: null };
+      const st = STEPPED[r.name];
       return { titel: st.name, wert: (st.text as Record<string, string>)[p[r.name]] ?? "", anteil: null };
     });
   }

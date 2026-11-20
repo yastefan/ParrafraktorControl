@@ -9,7 +9,7 @@ import { createServer as http, type IncomingMessage, type Server, type ServerRes
 import { createServer as https } from "node:https";
 import { extname, join, normalize, sep } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
-import { STAND_INTERVALL_MS, WS_PFAD, leseClientNachricht, type ClientNachricht, type ServerNachricht, type Stand } from "@parrafraktor/protokoll";
+import { STATE_INTERVAL_MS, WS_PATH, parseClientMessage, type ClientMessage, type ServerMessage, type State } from "@parrafraktor/protocol";
 import { log } from "../log.js";
 import type { Steuerung } from "../steuerung.js";
 
@@ -63,7 +63,7 @@ export class WebServer {
   constructor(
     private readonly o: WebOptionen,
     private readonly steuerung: Steuerung,
-    private readonly stand: () => Stand,
+    private readonly stand: () => State,
   ) {
     const anfrage = (req: IncomingMessage, res: ServerResponse) =>
       o.vitePort ? this.weiterleiten(req, res, o.vitePort) : this.datei(req, res);
@@ -76,7 +76,7 @@ export class WebServer {
     this.wss.on("connection", (ws) => this.verbunden(ws));
     for (const server of this.servers()) {
       server.on("upgrade", (req, socket, kopf) => {
-        if (new URL(req.url ?? "/", "http://x").pathname !== WS_PFAD) {
+        if (new URL(req.url ?? "/", "http://x").pathname !== WS_PATH) {
           socket.destroy();
           return;
         }
@@ -102,7 +102,7 @@ export class WebServer {
     if (this.httpServer) await lausche(this.httpServer, this.o.httpPort!);
     this.steuerung.on("aenderung", this.beiAenderung);
     // Auch ohne Änderung regelmäßig senden: Takt für die Vorschau und Lebenszeichen für den Client
-    this.intervall = setInterval(() => this.sendeAlle(), STAND_INTERVALL_MS);
+    this.intervall = setInterval(() => this.sendeAlle(), STATE_INTERVAL_MS);
     this.herzschlag = setInterval(() => {
       for (const ws of this.wss.clients) {
         if (!this.lebendig.has(ws)) { ws.terminate(); continue; }
@@ -132,7 +132,7 @@ export class WebServer {
     ws.on("pong", () => this.lebendig.add(ws));
     ws.on("message", (daten, binaer) => {
       if (binaer) return;
-      const n = leseClientNachricht(daten.toString());
+      const n = parseClientMessage(daten.toString());
       if (n) this.verarbeite(ws, n);
     });
     ws.on("error", () => ws.terminate());
@@ -141,7 +141,7 @@ export class WebServer {
     ws.on("close", () => this.steuerung.geaendert());
   }
 
-  private verarbeite(ws: WebSocket, n: ClientNachricht): void {
+  private verarbeite(ws: WebSocket, n: ClientMessage): void {
     const s = this.steuerung;
     switch (n.typ) {
       case "setze": s.setze(n.parameter); break;
@@ -182,7 +182,7 @@ export class WebServer {
     }
   }
 
-  private schicke(ws: WebSocket, n: ServerNachricht): void {
+  private schicke(ws: WebSocket, n: ServerMessage): void {
     if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(n));
   }
 

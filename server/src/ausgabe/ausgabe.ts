@@ -1,7 +1,7 @@
 // Gemeinsame Schnittstelle aller DMX-Ausgaben (Art-Net, sACN, später RS485 am Raspberry Pi).
 // Der Takt ruft sende() rund 40-mal pro Sekunde auf, solange die App die Spiegel fährt,
 // und gibFrei() einmal, wenn sie an die MA zurückgibt.
-import type { ModulStatus } from "@parrafraktor/protokoll";
+import type { ModuleStatus } from "@parrafraktor/protocol";
 
 export interface Ausgabe {
   readonly name: string;
@@ -10,5 +10,5 @@ export interface Ausgabe {
   // Übernahme beendet: die Spiegel wieder der MA überlassen
   gibFrei(): void;
   schliesse(): Promise<void>;
-  status(): ModulStatus;
+  status(): ModuleStatus;
 }

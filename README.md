@@ -6,7 +6,7 @@ Steuer-App für den Parrafraktor, eine Lichtinstallation von Friedrich Gobbesso 
 
 ```
 packages/engine      Pattern-Engine und DMX-Abbildung (ohne Abhängigkeiten, läuft im Server und im Browser)
-packages/protokoll   gemeinsame Typen: Parameter-Bereiche, Einstellungen, WebSocket-Nachrichten
+packages/protocol    gemeinsame Typen: Parameter-Bereiche, Einstellungen, WebSocket-Nachrichten
 server/              Node-Server
   src/takt.ts          40 Hz: Engine weiterrechnen, Übernahme/Überblendung, an die Ausgaben senden
   src/steuerung.ts     zentraler Zustand; alle Bedienungen ändern ihn nur über diese Aktionen

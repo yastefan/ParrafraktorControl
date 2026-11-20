@@ -3,7 +3,7 @@
 // Geplant: UDP-Port (z. B. 8000) mit Adressen wie /parrafraktor/pattern <name>,
 // /parrafraktor/offset <grad>, /parrafraktor/uebernahme <0|1>. Werte laufen über
 // pruefeParameter bzw. die Aktionen der Steuerung, damit dieselben Grenzen gelten wie überall.
-import type { ModulStatus } from "@parrafraktor/protokoll";
+import type { ModuleStatus } from "@parrafraktor/protocol";
 import type { Steuerung } from "../steuerung.js";
 import type { Eingabemodul } from "./eingabe.js";
 
@@ -16,7 +16,7 @@ export class OscModul implements Eingabemodul {
 
   async schliesse(): Promise<void> {}
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     return { name: this.name, art: "eingabe", zustand: "aus", text: "not implemented yet" };
   }
 }

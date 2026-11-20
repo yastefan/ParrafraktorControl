@@ -3,7 +3,7 @@
 // Auto fährt die ausgewählten Presets ab; Auswahl und Zeiten gibt es unter „Auswahl“. Solange Auto
 // läuft, leuchtet der Rahmen des Moduls.
 import { useRef, useState } from "preact/hooks";
-import { AUTO_BEREICHE, PRESET_NAME_MAX, type Preset } from "@parrafraktor/protokoll";
+import { AUTO_RANGES, PRESET_NAME_MAX, type Preset } from "@parrafraktor/protocol";
 import { useLaden } from "../laden.js";
 import { Modul } from "./modul.js";
 
@@ -77,13 +77,13 @@ function AutoRegler({ name, feld, wert }: { name: string; feld: "halteS" | "blen
   const l = useLaden();
   // Beim Ziehen zählt der eigene Wert, damit ein älterer Stand den Griff nicht zurückspringen lässt
   const [zieht, setZieht] = useState<number | null>(null);
-  const b = AUTO_BEREICHE[feld];
+  const b = AUTO_RANGES[feld];
   const w = zieht ?? wert;
   return (
     <label class="band-regler">
       <span class="name">{name}</span>
       <input
-        type="range" min={b.min} max={b.max} step={b.schritt} value={w} disabled={!l.bedienbar}
+        type="range" min={b.min} max={b.max} step={b.step} value={w} disabled={!l.bedienbar}
         style={{ "--fuellung": `${((w - b.min) / (b.max - b.min)) * 100}%` }}
         onInput={(ev) => {
           const neu = Number(ev.currentTarget.value);

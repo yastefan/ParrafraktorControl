@@ -6,7 +6,7 @@ import {
   ELEMENT_ORDERS, ELEMENT_ORDER_NAME, IMPULSE_KINDS, IMPULSE_NAME, envelopeValue, isApertureKind, smooth,
   type ImpulseSettings,
 } from "@parrafraktor/engine";
-import { IMPULS_BEREICHE, begrenzeImpuls, impulsWert, mitImpulsWert, zeigeImpuls, type ImpulsRegler } from "@parrafraktor/protokoll";
+import { IMPULSE_RANGES, clampImpulse, impulseValue, withImpulseValue, formatImpulse, type ImpulseControl } from "@parrafraktor/protocol";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { laden, useLaden } from "../laden.js";
 import { Modul } from "./modul.js";
@@ -100,19 +100,19 @@ export function Impulse() {
   );
 }
 
-function Schieber({ name, e, setze, fertig }: { name: ImpulsRegler } & HuelleProps) {
+function Schieber({ name, e, setze, fertig }: { name: ImpulseControl } & HuelleProps) {
   const l = useLaden();
-  const b = IMPULS_BEREICHE[name], w = impulsWert(e, name);
+  const b = IMPULSE_RANGES[name], w = impulseValue(e, name);
   return (
     <label class="band-regler">
-      <span class="name">{b.kurz}</span>
+      <span class="name">{b.short}</span>
       <input
-        type="range" min={b.min} max={b.max} step={b.schritt} value={w} disabled={!l.bedienbar}
+        type="range" min={b.min} max={b.max} step={b.step} value={w} disabled={!l.bedienbar}
         style={{ "--fuellung": `${((w - b.min) / (b.max - b.min)) * 100}%` }}
-        onInput={(ev) => setze(mitImpulsWert(e, name, Number((ev.currentTarget as HTMLInputElement).value)))}
+        onInput={(ev) => setze(withImpulseValue(e, name, Number((ev.currentTarget as HTMLInputElement).value)))}
         onChange={fertig}
       />
-      <output>{zeigeImpuls(name, w)}</output>
+      <output>{formatImpulse(name, w)}</output>
     </label>
   );
 }
@@ -168,7 +168,7 @@ function Streifen({ name }: { name: string }) {
 const B = 320, H = 72, RAND = 8;
 const BREITE = B - 2 * RAND;
 const BA = BREITE * 0.28, BS = BREITE * 0.24, BR = BREITE * 0.48;
-const MAX = { attackS: IMPULS_BEREICHE.attackS.max, sustainS: IMPULS_BEREICHE.sustainS.max, releaseS: IMPULS_BEREICHE.releaseS.max };
+const MAX = { attackS: IMPULSE_RANGES.attackS.max, sustainS: IMPULSE_RANGES.sustainS.max, releaseS: IMPULSE_RANGES.releaseS.max };
 const wurzel = (t: number, max: number) => Math.sqrt(Math.min(Math.max(t, 0), max) / max);
 const y = (anteil: number) => RAND + (H - 2 * RAND) * (1 - anteil);
 const xAttack = (t: number) => RAND + BA * wurzel(t, MAX.attackS);
@@ -254,13 +254,13 @@ function Huelle({ e, setze, fertig }: HuelleProps) {
       const staerke = Math.min(1, Math.max(0, 1 - (py - RAND) / (H - 2 * RAND))) * 100;
       setze({ ...ee, huelle: {
         ...h,
-        attackS: begrenzeImpuls("attackS", zeit(px, RAND, BA, MAX.attackS)),
-        staerke: begrenzeImpuls("staerke", staerke),
+        attackS: clampImpulse("attackS", zeit(px, RAND, BA, MAX.attackS)),
+        staerke: clampImpulse("staerke", staerke),
       } });
     } else if (griff.current === "sustain") {
-      setze({ ...ee, huelle: { ...h, sustainS: begrenzeImpuls("sustainS", zeit(px, xAttack(h.attackS), BS, MAX.sustainS)) } });
+      setze({ ...ee, huelle: { ...h, sustainS: clampImpulse("sustainS", zeit(px, xAttack(h.attackS), BS, MAX.sustainS)) } });
     } else {
-      setze({ ...ee, huelle: { ...h, releaseS: begrenzeImpuls("releaseS", zeit(px, xSustain(ee, h.sustainS), BR, MAX.releaseS)) } });
+      setze({ ...ee, huelle: { ...h, releaseS: clampImpulse("releaseS", zeit(px, xSustain(ee, h.sustainS), BR, MAX.releaseS)) } });
     }
   };
 

@@ -3,37 +3,37 @@
 // gewählte Grundbewegung nicht benutzt, sind ausgeblendet.
 import { ELEMENTS, type Parameter } from "@parrafraktor/engine";
 import {
-  BEREICHE, SCHALTER, STUFEN, ZAHL_PARAMETER, begrenze, benutzt, offsetVerschieden, verschiebeOffset, zeigeWert,
-  type SchalterParameter, type StufenParameter, type ZahlParameter,
-} from "@parrafraktor/protokoll";
+  RANGES, SWITCHES, STEPPED, NUMERIC_PARAMETERS, clampParameter, isUsed, offsetsDiffer, shiftOffset, formatValue,
+  type SwitchParameter, type SteppedParameter, type NumericParameter,
+} from "@parrafraktor/protocol";
 import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import { useLaden } from "../laden.js";
 import { Fader } from "./fader.js";
 import { Modul } from "./modul.js";
 
-const OEFFNUNG_FOLGE: ZahlParameter[] = ["groesse", "weite", "speedVon", "kante", "wabern", "puls", "nachlauf"];
+const OEFFNUNG_FOLGE: NumericParameter[] = ["groesse", "weite", "speedVon", "kante", "wabern", "puls", "nachlauf"];
 
 export function Bewegung({ parameter: p }: { parameter: Parameter }) {
   const namen = p.modus === "oeffnung"
     ? OEFFNUNG_FOLGE
-    : ZAHL_PARAMETER.filter((n) => n !== "offset" && benutzt(p.modus, n));
+    : NUMERIC_PARAMETERS.filter((n) => n !== "offset" && isUsed(p.modus, n));
   // Offset je Element aufgeklappt: drei Fader, dann wird es eng und es gelten die kurzen Namen
   const [aufgeklappt, setAufgeklappt] = useState(false);
-  const dicht = aufgeklappt && benutzt(p.modus, "offset");
+  const dicht = aufgeklappt && isUsed(p.modus, "offset");
   return (
     <Modul titel="03 Motion" klasse="m-bewegung">
       <div class={`bank ${dicht ? "dicht" : ""}`}>
-        {benutzt(p.modus, "offset") && <Offset p={p} aufgeklappt={aufgeklappt} klappe={setAufgeklappt} />}
-        {namen.map((name) => <ZahlFader key={name} name={name} wert={p[name]} titel={dicht ? BEREICHE[name].kurz : undefined} />)}
+        {isUsed(p.modus, "offset") && <Offset p={p} aufgeklappt={aufgeklappt} klappe={setAufgeklappt} />}
+        {namen.map((name) => <ZahlFader key={name} name={name} wert={p[name]} titel={dicht ? RANGES[name].short : undefined} />)}
       </div>
     </Modul>
   );
 }
 
 // Stufen und Schalter, die die Grundbewegung benutzt; bei Ruhe gibt es keine
-const stufenVon = (p: Parameter) => (Object.keys(STUFEN) as StufenParameter[]).filter((n) => benutzt(p.modus, n));
-const schalterVon = (p: Parameter) => (Object.keys(SCHALTER) as SchalterParameter[]).filter((n) => benutzt(p.modus, n));
+const stufenVon = (p: Parameter) => (Object.keys(STEPPED) as SteppedParameter[]).filter((n) => isUsed(p.modus, n));
+const schalterVon = (p: Parameter) => (Object.keys(SWITCHES) as SwitchParameter[]).filter((n) => isUsed(p.modus, n));
 export const hatVerteilung = (p: Parameter): boolean => stufenVon(p).length + schalterVon(p).length > 0;
 
 export function Verteilung({ parameter: p }: { parameter: Parameter }) {
@@ -51,7 +51,7 @@ export function Verteilung({ parameter: p }: { parameter: Parameter }) {
                 type="button" key={name} class={`stufe ${p[name] ? "aktiv" : ""}`} disabled={!l.bedienbar}
                 aria-pressed={p[name]} onClick={() => l.setze({ [name]: !p[name] })}
               >
-                {SCHALTER[name]}
+                {SWITCHES[name]}
               </button>
             ))}
           </div>
@@ -66,7 +66,7 @@ export function Verteilung({ parameter: p }: { parameter: Parameter }) {
 // Elemente stehen. Doppeltippen auf den Namen: Vorgabe, alle wieder gleich.
 function Offset({ p, aufgeklappt, klappe }: { p: Parameter; aufgeklappt: boolean; klappe: (auf: boolean) => void }) {
   const l = useLaden();
-  const verschieden = offsetVerschieden(p);
+  const verschieden = offsetsDiffer(p);
   const schloss: ComponentChildren = (
     <button
       type="button"
@@ -90,7 +90,7 @@ function Offset({ p, aufgeklappt, klappe }: { p: Parameter; aufgeklappt: boolean
       <ZahlFader
         name="offset" wert={p.offset} zusatz={schloss}
         marken={verschieden ? p.offsetElemente : undefined}
-        setze={(v) => l.setze(verschiebeOffset(p, v))}
+        setze={(v) => l.setze(shiftOffset(p, v))}
         vorgabe={() => l.sende({ typ: "vorgabe", name: "offset" })}
       />
     );
@@ -109,7 +109,7 @@ function Offset({ p, aufgeklappt, klappe }: { p: Parameter; aufgeklappt: boolean
 }
 
 interface ZahlProps {
-  name: ZahlParameter;
+  name: NumericParameter;
   wert: number;
   titel?: string;
   zusatz?: ComponentChildren;
@@ -120,26 +120,26 @@ interface ZahlProps {
 
 function ZahlFader({ name, wert, titel, zusatz, marken, setze, vorgabe }: ZahlProps) {
   const l = useLaden();
-  const b = BEREICHE[name];
+  const b = RANGES[name];
   return (
     <Fader
-      titel={titel ?? b.name} wert={wert} min={b.min} max={b.max} schritt={b.schritt}
-      anzeige={zeigeWert(name, wert)} gesperrt={!l.bedienbar} zusatz={zusatz} marken={marken}
+      titel={titel ?? b.name} wert={wert} min={b.min} max={b.max} schritt={b.step}
+      anzeige={formatValue(name, wert)} gesperrt={!l.bedienbar} zusatz={zusatz} marken={marken}
       setze={setze ?? ((v) => l.setze({ [name]: v }))}
-      vorgabe={vorgabe ?? (() => (setze ? setze(begrenze(name, b.min + (b.max - b.min) / 2)) : l.sende({ typ: "vorgabe", name })))}
+      vorgabe={vorgabe ?? (() => (setze ? setze(clampParameter(name, b.min + (b.max - b.min) / 2)) : l.sende({ typ: "vorgabe", name })))}
     />
   );
 }
 
-function Stufen({ name, wert, ohneName }: { name: StufenParameter; wert: string; ohneName?: boolean }) {
+function Stufen({ name, wert, ohneName }: { name: SteppedParameter; wert: string; ohneName?: boolean }) {
   const l = useLaden();
-  const st = STUFEN[name];
+  const st = STEPPED[name];
   const text = st.text as Record<string, string>;
   return (
     <div class={`stufen stufen-${name}`}>
       {!ohneName && <span class="stufen-name">{st.name}</span>}
       <div class="stufen-raster">
-        {st.werte.map((w) => (
+        {st.values.map((w) => (
           <button
             type="button" key={w} class={`stufe ${wert === w ? "aktiv" : ""}`} disabled={!l.bedienbar}
             aria-pressed={wert === w} onClick={() => l.setze({ [name]: w })}

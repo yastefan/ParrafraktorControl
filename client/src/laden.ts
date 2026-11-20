@@ -4,7 +4,7 @@
 // Deshalb gilt eine lokale Änderung so lange, bis der Server sie bestätigt oder sie 1 s alt ist.
 import { useEffect, useState } from "preact/hooks";
 import type { Parameter } from "@parrafraktor/engine";
-import type { ClientNachricht, ServerNachricht, Stand } from "@parrafraktor/protokoll";
+import type { ClientMessage, ServerMessage, State } from "@parrafraktor/protocol";
 import { Verbindung, type VerbindungsZustand } from "./verbindung.js";
 
 const LOKAL_MS = 1000;
@@ -12,7 +12,7 @@ const LOKAL_MS = 1000;
 type Lokal = { [K in keyof Parameter]?: { wert: Parameter[K]; zeit: number } };
 
 class Laden {
-  stand: Stand | null = null;
+  stand: State | null = null;
   // performance.now() beim Empfang des Stands: Impulse laufen von da an lokal weiter
   standZeit = 0;
   verbindung: VerbindungsZustand = "verbinde";
@@ -59,7 +59,7 @@ class Laden {
     this.melde();
   }
 
-  sende(n: ClientNachricht): void {
+  sende(n: ClientMessage): void {
     if (this.bedienbar) this.ws.sende(n);
   }
 
@@ -73,7 +73,7 @@ class Laden {
     return () => this.hoerer.delete(f);
   }
 
-  private empfange(n: ServerNachricht): void {
+  private empfange(n: ServerMessage): void {
     if (n.typ !== "stand") return;
     this.stand = n;
     this.standZeit = performance.now();

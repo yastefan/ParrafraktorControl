@@ -15,9 +15,9 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CHANNELS_PER_ELEMENT } from "@parrafraktor/engine";
 import {
-  PROTOKOLL_VERSION, patchWarnung, pruefeEinstellungen, pruefeAuto, pruefeImpuls, pruefePresets,
-  type Einstellungen, type ModulStatus, type Netzwerkschnittstelle, type Stand,
-} from "@parrafraktor/protokoll";
+  PROTOCOL_VERSION, patchWarning, checkSettings, checkAuto, checkImpulse, checkPresets,
+  type Settings, type ModuleStatus, type NetworkInterface, type State,
+} from "@parrafraktor/protocol";
 import { erstelleAusgaben, type Ausgabe } from "./ausgabe/index.js";
 import type { Eingabemodul } from "./eingabe/eingabe.js";
 import { StreamDeckModul } from "./eingabe/streamdeck/index.js";
@@ -38,11 +38,11 @@ const tls = process.env.TLS_CERT && process.env.TLS_KEY ? { cert: process.env.TL
 const speicher = new Speicher(datenVerzeichnis);
 const steuerung = new Steuerung(
   parameterAus(speicher.lies("parameter.json")),
-  pruefeEinstellungen(speicher.lies("einstellungen.json")),
-  pruefePresets(speicher.lies("presets.json")),
-  pruefeImpuls(speicher.lies("impuls.json")),
+  checkSettings(speicher.lies("einstellungen.json")),
+  checkPresets(speicher.lies("presets.json")),
+  checkImpulse(speicher.lies("impuls.json")),
   undefined,
-  pruefeAuto(speicher.lies("auto.json")),
+  checkAuto(speicher.lies("auto.json")),
 );
 
 // ---------- Ausgaben und Mitlesen: bei jeder Änderung der Einstellungen neu ----------
@@ -51,7 +51,7 @@ let ausgaben: Ausgabe[] = [];
 let mitlesen: Mitlesen | null = null;
 let neustart = Promise.resolve();
 
-function starteAusgaben(e: Einstellungen): void {
+function starteAusgaben(e: Settings): void {
   neustart = neustart.then(async () => {
     const alt = ausgaben, altMitlesen = mitlesen;
     ausgaben = [];
@@ -83,30 +83,30 @@ if (process.env.STREAMDECK !== "aus") eingaben.push(new StreamDeckModul(steuerun
 
 // ---------- Stand für die Clients ----------
 
-const netzwerk = (): Netzwerkschnittstelle[] =>
+const netzwerk = (): NetworkInterface[] =>
   Object.entries(networkInterfaces()).flatMap(([name, liste]) =>
     (liste ?? []).filter((a) => a.family === "IPv4" && !a.internal).map((a) => ({ name, adresse: a.address })),
   );
 
 let web: WebServer;
 
-function stand(): Stand {
+function stand(): State {
   const e = steuerung.einstellungen;
-  const module: ModulStatus[] = [
+  const module: ModuleStatus[] = [
     ...ausgaben.map((a) => a.status()),
     ...(mitlesen ? [mitlesen.status()] : []),
     ...eingaben.map((m) => m.status()),
     { name: "Clients", art: "eingabe", zustand: web?.anzahlClients ? "aktiv" : "bereit", text: `${web?.anzahlClients ?? 0} connected` },
   ];
   const warnungen: string[] = [];
-  const patch = patchWarnung(e.patch, CHANNELS_PER_ELEMENT);
+  const patch = patchWarning(e.patch, CHANNELS_PER_ELEMENT);
   if (patch) warnungen.push(patch);
   if (!ausgaben.length) warnungen.push("No output active – the mirrors receive nothing.");
   if (e.artnet.an && e.sacn.an) warnungen.push("Art-Net and sACN active at the same time.");
   if (e.autostart.output) warnungen.push("Autostart output is on: after every restart the app drives the mirrors at once, the MA cannot take them.");
   return {
     typ: "stand",
-    version: PROTOKOLL_VERSION,
+    version: PROTOCOL_VERSION,
     rev: steuerung.rev,
     parameter: { ...steuerung.parameter },
     uebernahme: { ...steuerung.uebernahme },
@@ -138,7 +138,7 @@ steuerung.on("impuls", (i) => speicher.schreibeSpaeter("impuls.json", i));
 steuerung.on("auto", (a) => speicher.schreibeSpaeter("auto.json", a));
 // Ausgaben nur neu starten, wenn sich Netz oder Patch ändern. Ein Neustart gibt bei sACN kurz
 // an die MA ab – das darf nicht passieren, nur weil jemand die Überblendung oder die Vorschau verstellt.
-const ausgabeTeil = (e: Einstellungen) => JSON.stringify([e.artnet, e.sacn, e.rs485, e.patch]);
+const ausgabeTeil = (e: Settings) => JSON.stringify([e.artnet, e.sacn, e.rs485, e.patch]);
 let letzteAusgabe = ausgabeTeil(steuerung.einstellungen);
 steuerung.on("einstellungen", (e) => {
   speicher.schreibeSpaeter("einstellungen.json", e);

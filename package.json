@@ -6,7 +6,7 @@
   "description": "Steuerung für den Parrafraktor: Server mit Pattern-Engine, Art-Net/sACN-Ausgabe, Stream Deck+ und PWA-Client",
   "workspaces": [
     "packages/engine",
-    "packages/protokoll",
+    "packages/protocol",
     "server",
     "client"
   ],
@@ -15,7 +15,7 @@
   },
   "scripts": {
     "dev": "node scripts/dev.mjs",
-    "build": "npm run build -w @parrafraktor/engine -w @parrafraktor/protokoll -w @parrafraktor/server -w @parrafraktor/client",
+    "build": "npm run build -w @parrafraktor/engine -w @parrafraktor/protocol -w @parrafraktor/server -w @parrafraktor/client",
     "start": "node server/dist/index.js",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",

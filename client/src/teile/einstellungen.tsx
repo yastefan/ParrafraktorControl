@@ -4,11 +4,11 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { ELEMENTS } from "@parrafraktor/engine";
-import { GRENZEN, istIpv4, type Anordnung, type Einstellungen as E, type Stand } from "@parrafraktor/protokoll";
+import { LIMITS, isIpv4, type Arrangement, type Settings as E, type State } from "@parrafraktor/protocol";
 import { laden } from "../laden.js";
 
 interface Props {
-  stand: Stand;
+  stand: State;
   schliessen: () => void;
 }
 
@@ -61,7 +61,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
           <label class="feldzeile">
             <span class="name">Elements</span>
             <select value={entwurf.aufbau.anordnung} onChange={(ev) => sofort({
-              aufbau: { ...entwurf.aufbau, anordnung: (ev.currentTarget as HTMLSelectElement).value as Anordnung },
+              aufbau: { ...entwurf.aufbau, anordnung: (ev.currentTarget as HTMLSelectElement).value as Arrangement },
             })}>
               <option value="reihe">side by side (top view)</option>
               <option value="hintereinander">one behind the other, rotated (front view)</option>
@@ -74,7 +74,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
                 {Array.from({ length: ELEMENTS }, (_, k) => (
                   <Zahl
                     key={k} name={k === 0 ? "1 front" : k === ELEMENTS - 1 ? `${k + 1} back` : String(k + 1)}
-                    grenzen={GRENZEN.drehung} wert={entwurf.aufbau.drehung[k] ?? 0} schmal
+                    grenzen={LIMITS.drehung} wert={entwurf.aufbau.drehung[k] ?? 0} schmal
                     setze={(v) => sofort({ aufbau: { ...entwurf.aufbau, drehung: entwurf.aufbau.drehung.map((d, i) => (i === k ? v : d)) } })}
                   />
                 ))}
@@ -89,7 +89,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
 
         <Gruppe titel="Crossfade">
           <Schieber
-            name="Duration" einheit=" s" schritt={0.1} grenzen={GRENZEN.ueberblendungS}
+            name="Duration" einheit=" s" schritt={0.1} grenzen={LIMITS.ueberblendungS}
             wert={entwurf.ueberblendungS} setze={(v) => sofort({ ueberblendungS: v })}
             hilfe="When switching the pattern, recalling a preset and switching the output on or off. For the output the app fades from or to the position of the MA – only if it can read the MA, otherwise the mirrors jump."
           />
@@ -97,7 +97,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
 
         <Gruppe titel="Mirrors">
           <Schieber
-            name="TiltRotate max." einheit=" rpm" schritt={1} grenzen={GRENZEN.rotateMaxUpm}
+            name="TiltRotate max." einheit=" rpm" schritt={1} grenzen={LIMITS.rotateMaxUpm}
             wert={entwurf.rotateMaxUpm} setze={(v) => sofort({ rotateMaxUpm: v })}
             hilfe="Speed at DMX 0 or 255. Placeholder until the mirror firmware is known."
           />
@@ -105,11 +105,11 @@ export function Einstellungen({ stand, schliessen }: Props) {
 
         <Gruppe titel="Impulses">
           <Schieber
-            name="Open" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            name="Open" einheit="°" schritt={1} grenzen={LIMITS.tilt}
             wert={entwurf.flash.auf} setze={(v) => sofort({ flash: { ...entwurf.flash, auf: v } })}
           />
           <Schieber
-            name="Close" einheit="°" schritt={1} grenzen={GRENZEN.tilt}
+            name="Close" einheit="°" schritt={1} grenzen={LIMITS.tilt}
             wert={entwurf.flash.zu} setze={(v) => sofort({ flash: { ...entwurf.flash, zu: v } })}
             hilfe="Tilt the impulses Open and Close move the mirrors to. “Open” for light from behind, “Close” for light from outside. Placeholder until the angles are determined on site."
           />
@@ -120,11 +120,11 @@ export function Einstellungen({ stand, schliessen }: Props) {
             <div class="feldzeile" key={k}>
               <span class="name">Element {k + 1}</span>
               <Zahl
-                name="Universe" grenzen={GRENZEN.universe} wert={entwurf.patch[k]!.universe}
+                name="Universe" grenzen={LIMITS.universe} wert={entwurf.patch[k]!.universe}
                 setze={(v) => aendere((e) => { e.patch[k]!.universe = v; return e; })}
               />
               <Zahl
-                name="Address" grenzen={GRENZEN.adresse} wert={entwurf.patch[k]!.adresse}
+                name="Address" grenzen={LIMITS.adresse} wert={entwurf.patch[k]!.adresse}
                 setze={(v) => aendere((e) => { e.patch[k]!.adresse = v; return e; })}
               />
             </div>
@@ -151,7 +151,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
 
         <Gruppe titel="sACN">
           <Schalter name="Send" an={entwurf.sacn.an} setze={(an) => aendere((e) => { e.sacn.an = an; return e; })} />
-          <Zahl name="Priority" grenzen={GRENZEN.priority} wert={entwurf.sacn.priority}
+          <Zahl name="Priority" grenzen={LIMITS.priority} wert={entwurf.sacn.priority}
             setze={(v) => aendere((e) => { e.sacn.priority = v; return e; })} />
           <Schalter name="Multicast" an={entwurf.sacn.multicast} setze={(an) => aendere((e) => { e.sacn.multicast = an; return e; })} />
           {!entwurf.sacn.multicast && (
@@ -193,8 +193,8 @@ export function Einstellungen({ stand, schliessen }: Props) {
 }
 
 function pruefe(e: E): string | null {
-  if (!istIpv4(e.artnet.ziel)) return "Art-Net: target IP invalid";
-  if (e.sacn.an && !e.sacn.multicast && !istIpv4(e.sacn.ziel)) return "sACN: target IP for unicast missing";
+  if (!isIpv4(e.artnet.ziel)) return "Art-Net: target IP invalid";
+  if (e.sacn.an && !e.sacn.multicast && !isIpv4(e.sacn.ziel)) return "sACN: target IP for unicast missing";
   return null;
 }
 
@@ -270,7 +270,7 @@ function Schalter(p: { name: string; an: boolean; setze: (an: boolean) => void }
   );
 }
 
-function Schnittstelle(p: { stand: Stand; wert: string; setze: (v: string) => void }) {
+function Schnittstelle(p: { stand: State; wert: string; setze: (v: string) => void }) {
   const bekannt = p.stand.netzwerk.some((n) => n.adresse === p.wert);
   return (
     <label class="feldzeile">
