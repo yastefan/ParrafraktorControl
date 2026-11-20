@@ -25,7 +25,7 @@
 // Touchstreifen im Impulse-Menü: Tippen = gewählte Art von dort aus, Wischen = sie läuft in
 // Wischrichtung durch. Wie schnell, sagt die Ausbreitung.
 //
-// Netz-Menü (nur auf dem Pi, wenn pi/einrichten.sh es mit --netz-code einschaltet):
+// Netz-Menü (nur auf dem Pi, wenn pi/setup.sh es mit --netz-code einschaltet):
 // Im Hauptmenü Output drücken und halten, innerhalb von 0,6 s Order dazu, beide 2 s halten – Output
 // schaltet dabei nicht um, Order nicht weiter. Dann vier Tasten als Code (oben links 1 … unten rechts 8).
 //   ┌──────────┬──────────┬──────────┬──────────┐
