@@ -75,7 +75,7 @@ const takt = new Takt(steuerung, { ausgaben: () => ausgaben, mitlesen: () => mit
 // ---------- Bedienungen am Rechner ----------
 
 const eingaben: Eingabemodul[] = [];
-// Netz-Menü am Stream Deck nur, wenn pi/einrichten.sh es eingeschaltet hat (PARRAFRAKTOR_NETZ_CODE)
+// Netz-Menü am Stream Deck nur, wenn pi/setup.sh es eingeschaltet hat (PARRAFRAKTOR_NETZ_CODE)
 const netz = netzAusUmgebung(speicher);
 if (netz) log("netz", "Netz-Menü am Stream Deck an");
 if (process.env.STREAMDECK !== "aus") eingaben.push(new StreamDeckModul(steuerung, netz));

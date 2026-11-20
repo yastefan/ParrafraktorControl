@@ -1,4 +1,4 @@
-# Prüft jeden PR und jeden Push auf main auf allen Plattformen (siehe docs/plattformen.md).
+# Prüft jeden PR und jeden Push auf main auf allen Plattformen (siehe docs/platforms.md).
 # Linux ARM steht für den Raspberry Pi: dort fiel das Stream-Deck-Paket schon einmal still weg,
 # weil eine native Abhängigkeit eine neuere Node-Version verlangte.
 name: Prüfen
@@ -9,6 +9,15 @@ on:
     branches: [main]
 
 jobs:
+  pi:
+    # Pi tools without a Pi: shellcheck and the dry run with fake nmcli/systemctl/raspi-config
+    name: Pi scripts (shellcheck, dry run)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -S warning -x -P SCRIPTDIR/.. pi/parrafraktor pi/*.sh pi/test/run.sh
+      - run: pi/test/run.sh
+
   pruefen:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}

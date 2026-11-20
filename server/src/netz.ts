@@ -1,11 +1,11 @@
 // Netz-Einstellungen des Pi, bedient über das Netz-Menü am Stream Deck: eigenes WLAN an/aus,
 // LAN-Buchse per DHCP (mit Rückfall auf die feste IP) oder fest, feste IP.
 //
-// Nur aktiv, wenn pi/einrichten.sh es einschaltet (PARRAFRAKTOR_NETZ_CODE); der Server fragt nie,
-// auf welchem System er läuft (docs/plattformen.md).
+// Nur aktiv, wenn pi/setup.sh es einschaltet (PARRAFRAKTOR_NETZ_CODE); der Server fragt nie,
+// auf welchem System er läuft (docs/platforms.md).
 //
 // Der Server merkt sich nur den Wunsch (netz.json im Datenverzeichnis, überlebt den Schreibschutz).
-// Anwenden tut ein kleines Hilfsprogramm als root (/usr/local/sbin/parrafraktor-netz, aus pi/netz.sh),
+// Anwenden tut ein kleines Hilfsprogramm als root (/usr/local/sbin/parrafraktor-netz, aus pi/network.sh),
 // das der Dienst per sudo aufrufen darf – nur dieses eine, mit festem Argument. Es liest netz.json
 // selbst und prüft jeden Wert; beim Hochfahren wendet derselbe Befehl den Wunsch erneut an.
 import { execFile } from "node:child_process";
@@ -146,7 +146,7 @@ export class NetzPi implements Netz {
   }
 }
 
-// Aus der Umgebung (pi/einrichten.sh setzt sie im Dienst); ohne gültigen Code kein Netz-Menü
+// Aus der Umgebung (pi/setup.sh setzt sie im Dienst); ohne gültigen Code kein Netz-Menü
 export function netzAusUmgebung(speicher: Speicher, env: NodeJS.ProcessEnv = process.env): Netz | null {
   const code = env.PARRAFRAKTOR_NETZ_CODE ?? "";
   if (!code) return null;

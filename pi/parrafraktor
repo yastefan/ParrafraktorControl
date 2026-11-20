@@ -1,138 +1,482 @@
 #!/usr/bin/env bash
-# parrafraktor – ein Befehl für alles rund um den Pi, damit man sich keine Einzelbefehle merken muss.
-# pi/einrichten.sh legt ihn als /usr/local/bin/parrafraktor an (Verweis auf diese Datei im Repo).
+# parrafraktor – one command for everything around the Pi, so nobody has to remember single steps.
+# pi/setup.sh links it as /usr/local/bin/parrafraktor (symlink to this file in the repository).
 #
-#   parrafraktor                    Auswahlmenü (im Terminal), sonst diese Hilfe
-#   parrafraktor hilfe              diese Hilfe
-#   parrafraktor status             Überblick: Schreibschutz, Daten, Dienst, Netz
-#   parrafraktor pruefen            alle Prüfungen (pi/pruefen.sh)
-#   parrafraktor schreibschutz aus  Schreibschutz aus, Neustart → System beschreibbar (für Updates)
-#   parrafraktor schreibschutz an   Schreibschutz an, Neustart → wieder geschützt
-#   parrafraktor update             apt, git pull, Build, Dienst neu (Schreibschutz muss aus sein)
-#   parrafraktor internet an        eigenes WLAN aus, Pi verbindet sich mit dem gespeicherten WLAN mit Internet
-#   parrafraktor internet aus       eigenes WLAN wieder an
-#   parrafraktor log [update|netz]  Log live mitlesen (Strg-C beendet): Dienst, Update oder Netz
-#   parrafraktor neustart           nur den Dienst neu starten
-#   parrafraktor einrichten [...]   pi/einrichten.sh; ohne Optionen mit denen vom letzten Mal
+#   parrafraktor                     menu (in a terminal), otherwise this help
+#   parrafraktor help                this help
+#   parrafraktor status              overview: protection, data, service, network, version, last update
+#   parrafraktor check               all checks (protection, data, watchdog, service, Wi-Fi, Stream Deck)
+#   parrafraktor update              update everything in one go, continues across reboots by itself:
+#                                    protection off → reboot → own Wi-Fi off (internet via the saved
+#                                    Wi-Fi) → apt, git pull, packages, npm ci, build, setup refresh →
+#                                    protection on → reboot → check → own Wi-Fi on.
+#                                    An SSH session over the own Wi-Fi drops; that does not matter.
+#   parrafraktor update abort        forget an update that is stuck (does not change protection)
+#   parrafraktor protect on|off      write protection on/off permanently (reboots; --no-reboot: later)
+#   parrafraktor protect             show protection now and after the next reboot
+#   parrafraktor hotspot off|on      own Wi-Fi off (Pi joins the saved Wi-Fi with internet) / on again
+#   parrafraktor log [update|network]  follow a log (Ctrl-C ends): service, update or network
+#   parrafraktor restart             restart the service only
+#   parrafraktor setup [...]         pi/setup.sh; without options: the ones from last time
 #
-# Was root braucht, fragt selbst nach sudo.
+# Commands that need root ask for sudo themselves. The old German commands (hilfe, pruefen,
+# schreibschutz an|aus, internet an|aus, neustart, einrichten) still work.
 set -uo pipefail
 
-SELBST="$(readlink -f "$0")"
-REPO="$(cd "$(dirname "$SELBST")/.." && pwd)"
-KONFIG=/etc/parrafraktor/einrichten.conf
+SELF="$(readlink -f "$0")"
+REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
+# shellcheck source=pi/lib.sh
+. "$REPO/pi/lib.sh"
 
-hilfe() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$SELBST"; }
-# Für Befehle, die root brauchen: sich selbst per sudo neu starten (SUDO_USER bleibt erhalten)
-als_root() { [ "$(id -u)" -eq 0 ] || exec sudo "$SELBST" "$@"; }
-overlay_aktiv() { grep -q "overlayroot=tmpfs" /proc/cmdline; }
-ap_an() { nmcli -t -f NAME connection show --active 2>/dev/null | grep -x parrafraktor-ap >/dev/null; }
+STATE="$PF_UPDATE_DIR/state"     # update in progress
+LAST="$PF_UPDATE_DIR/last"       # result of the last update
+ULOG="$PF_UPDATE_DIR/update.log" # journald is in RAM only, this log survives the reboots
+UNIT="$PF_SYSTEMD/parrafraktor-update.service"
+
+help() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$SELF"; }
+# Commands that need root restart themselves via sudo (SUDO_USER is kept)
+as_root() { [ "$(id -u)" -eq 0 ] || exec sudo "$SELF" "$@"; }
+log() { printf '%s  %s\n' "$(date '+%F %T')" "$*"; }
+
+# ---------- update state (KEY=value, shell-quoted; root only) ----------
+U_PHASE="" U_AP=0 U_TARGET=on U_OLD_REV="" U_NEW_REV="" U_ERROR="" U_RUNS=0 U_VERIFY=0
+U_STARTED="" U_FINISHED="" U_RESULT=""
+save_state() {
+  local v
+  { for v in U_PHASE U_AP U_TARGET U_OLD_REV U_NEW_REV U_ERROR U_RUNS U_VERIFY U_STARTED U_FINISHED U_RESULT; do
+      printf '%s=%q\n' "$v" "${!v}"
+    done; } > "$STATE.tmp" && sync "$STATE.tmp" 2>/dev/null; mv "$STATE.tmp" "$STATE"; sync "$PF_UPDATE_DIR" 2>/dev/null || true
+}
+# shellcheck disable=SC1090 # written by save_state, directory belongs to root
+load_state() { [ -f "${1:-$STATE}" ] && . "${1:-$STATE}"; }
+add_error() { U_ERROR="${U_ERROR:+$U_ERROR; }$*"; log "ERROR: $*"; }
+
+update_line() {
+  if [ -f "$STATE" ]; then
+    ( load_state; echo "IN PROGRESS (step: $U_PHASE, started $U_STARTED) – parrafraktor log update" )
+  elif [ -f "$LAST" ]; then
+    ( load_state "$LAST"
+      if [ "$U_RESULT" = ok ]; then echo "last one ok ($U_FINISHED, ${U_OLD_REV:0:7} → ${U_NEW_REV:0:7})"
+      else echo "LAST ONE FAILED ($U_FINISHED): $U_ERROR – parrafraktor log update"; fi )
+  else echo "none yet"; fi
+}
+
+# ---------- status, check ----------
+protect_line() { echo "$(protect_word protect_active) now, $(protect_word protect_configured) after reboot"; }
 
 status() {
   local d
-  if overlay_aktiv; then echo "Schreibschutz:  AN (Änderungen außerhalb von /daten gehen beim Neustart verloren)"
-  else echo "Schreibschutz:  AUS (System beschreibbar – danach wieder einschalten)"; fi
-  if findmnt /daten >/dev/null 2>&1; then echo "Daten:          /daten eingebunden"; else echo "Daten:          /daten NICHT eingebunden"; fi
-  echo "Dienst:         $(systemctl is-active parrafraktor 2>/dev/null)"
-  if ap_an; then echo "Eigenes WLAN:   an"; else echo "Eigenes WLAN:   aus"; fi
+  echo "Protection:     $(protect_line)"
+  protect_active || echo "                (system writable – changes outside /daten stay; turn it on again: parrafraktor protect on)"
+  protect_requested && ! protect_active && echo "                WARNING: protection was requested at boot but is not active (raspi-config#306) – parrafraktor protect on"
+  if findmnt "$PF_DATA_MOUNT" >/dev/null 2>&1; then echo "Data:           $PF_DATA_MOUNT mounted"; else echo "Data:           $PF_DATA_MOUNT NOT mounted"; fi
+  echo "Service:        $(systemctl is-active parrafraktor 2>/dev/null)"
+  if ap_active; then echo "Own Wi-Fi:      on"; elif ap_exists; then echo "Own Wi-Fi:      off"; else echo "Own Wi-Fi:      not set up"; fi
   for d in eth0 wlan0; do
     [ -e "/sys/class/net/$d" ] || continue
     printf '%-15s %s\n' "$d:" "$(ip -4 -o addr show dev "$d" 2>/dev/null | awk '{print $4}' | paste -sd ' ' -)"
   done
-  echo "Stand:          $(git -C "$REPO" log -1 --format='%h %s (%cr)' 2>/dev/null) [$(git -C "$REPO" branch --show-current 2>/dev/null)]"
+  echo "Version:        $(git -C "$REPO" log -1 --format='%h %s (%cr)' 2>/dev/null) [$(git -C "$REPO" branch --show-current 2>/dev/null)]"
+  echo "Update:         $(update_line)"
 }
 
-internet() {
+check() {
+  local failed=0
+  good() { printf '\033[32m ok \033[0m  %s\n' "$*"; }
+  bad() { printf '\033[31mFAIL\033[0m  %s\n' "$*"; failed=1; }
+  probe() { local text="$1"; shift; if "$@" >/dev/null 2>&1; then good "$text"; else bad "$text"; fi; }
+
+  probe "Root write-protected (overlay active)" protect_active
+  probe "Protection stays on after reboot" protect_configured
+  probe "Overlay for root only (recurse=0)" grep "overlayroot=tmpfs:recurse=0" "$PF_PROC_CMDLINE"
+  probe "Overlay module in the initramfs (raspi-config#306)" grep -x overlay "$PF_INITRAMFS_MODULES"
+  probe "Boot partition read-only" sh -c "findmnt -no OPTIONS '$PF_BOOT' | grep -E '(^|,)ro(,|$)'"
+  probe "Data partition $PF_DATA_MOUNT mounted and writable" sh -c "findmnt -no FSTYPE '$PF_DATA_MOUNT' | grep ext4 && t='$PF_DATA_MOUNT/.writetest' && touch \"\$t\" && rm \"\$t\""
+  probe "Service parrafraktor running" systemctl is-active --quiet parrafraktor
+  probe "Service uses $PF_DATA_MOUNT" sh -c "systemctl show -p Environment parrafraktor | grep PARRAFRAKTOR_DATEN=$PF_DATA_MOUNT/"
+  probe "Update unit installed" systemctl is-enabled --quiet parrafraktor-update
+  if [ -f "$STATE" ]; then bad "No update in progress ($(update_line))"
+  elif [ -f "$LAST" ]; then probe "Last update succeeded" bash -c ". '$LAST'; [ \"\$U_RESULT\" = ok ]"; fi
+  probe "Watchdog device present" test -e /dev/watchdog0
+  probe "systemd feeds the watchdog" sh -c 'systemctl show -p RuntimeWatchdogUSec | grep -v "=0$\|=infinity$"'
+  probe "Journal in RAM only" sh -c '! test -d /var/log/journal || [ -z "$(ls -A /var/log/journal 2>/dev/null)" ]; journalctl --header 2>/dev/null | grep /run/log/journal'
+  if ap_exists; then probe "Own Wi-Fi ($PF_AP) active" ap_active; fi
+  if lsusb 2>/dev/null | grep -i 0fd9 >/dev/null; then
+    probe "Stream Deck: hidraw device for plugdev" sh -c 'for d in /dev/hidraw*; do udevadm info -q property -n $d | grep -q ID_VENDOR_ID=0fd9 && stat -c %G $d | grep -q plugdev && exit 0; done; exit 1'
+  else
+    printf ' --   Stream Deck not plugged in, not checked\n'
+  fi
+  echo
+  echo "Watchdog:"; wdctl 2>/dev/null | sed 's/^/  /' || true
+  echo "$PF_DATA_MOUNT:"; findmnt "$PF_DATA_MOUNT" 2>/dev/null | sed 's/^/  /' || echo "  not mounted"
+  echo "Partitions:"; lsblk -o NAME,SIZE,FSTYPE,LABEL,MOUNTPOINTS 2>/dev/null | sed 's/^/  /'
+  echo "Latest service messages:"; journalctl -u parrafraktor -n 8 --no-pager 2>/dev/null | sed 's/^/  /'
+  return "$failed"
+}
+
+# ---------- protection ----------
+protect() {
+  local action="${1:-status}" reboot=1
+  [ "${2:-}" = --no-reboot ] && reboot=0
+  case "$action" in
+    status) echo "Protection: $(protect_line)"; return 0 ;;
+    on|off) ;;
+    *) echo "parrafraktor protect on|off [--no-reboot]" >&2; return 2 ;;
+  esac
+  [ -f "$STATE" ] && { echo "An update is in progress and handles protection itself ($(update_line))." >&2; return 1; }
+  if [ "$action" = on ]; then
+    if protect_active && protect_configured; then echo "Protection is already on."; return 0; fi
+    protect_enable || return 1
+    echo "Protection is configured and applies after the reboot."
+  else
+    if ! protect_active && ! protect_configured; then echo "Protection is already off."; return 0; fi
+    protect_disable || return 1
+    echo "Protection removed; after the reboot the system is writable (until: parrafraktor protect on)."
+  fi
+  if [ "$reboot" = 1 ]; then echo "Rebooting …"; sleep 2; systemctl reboot
+  else echo "Not rebooting (--no-reboot): it applies after the next reboot."; fi
+}
+
+# ---------- own Wi-Fi ----------
+hotspot() {
+  ap_exists || { echo "No own Wi-Fi set up (pi/setup.sh --ap-ssid)." >&2; return 1; }
   case "${1:-}" in
-    an)
-      echo "Eigenes WLAN aus – eine SSH-Verbindung darüber reißt jetzt ab."
-      echo "Danach im WLAN mit Internet neu verbinden: ssh $(id -un 2>/dev/null)@$(hostname).local"
+    off)
+      echo "Own Wi-Fi off – an SSH session over it drops now."
+      echo "Then reconnect over the Wi-Fi with internet: ssh $(id -un 2>/dev/null)@$(hostname).local"
       sleep 2
-      nmcli connection down parrafraktor-ap
-      ;;
-    aus) nmcli connection up parrafraktor-ap ;;
-    *) echo "parrafraktor internet an|aus" >&2; return 2 ;;
+      nmcli connection down "$PF_AP" ;;
+    on) nmcli connection up "$PF_AP" ;;
+    *) echo "parrafraktor hotspot off|on" >&2; return 2 ;;
   esac
 }
 
-einrichten() {
-  if [ $# -eq 0 ]; then
-    [ -r "$KONFIG" ] || { echo "Keine gespeicherten Optionen ($KONFIG) – Optionen angeben, siehe: $REPO/pi/einrichten.sh --help" >&2; return 2; }
-    # Datei gehört root und ist nur für root lesbar (einrichten.sh schreibt sie mit printf %q)
-    eval "set -- $(cat "$KONFIG")"
-    local a geheim=0 zeigen=""
-    for a in "$@"; do
-      if [ "$geheim" = 1 ]; then zeigen+=" ***"; geheim=0; continue; fi
-      case "$a" in --ap-passwort|--netz-code) geheim=1 ;; esac
-      zeigen+=" $a"
-    done
-    echo "Mit den Optionen vom letzten Mal (Passwort und Code ausgeblendet):"
-    echo " $zeigen"
-  fi
-  "$REPO/pi/einrichten.sh" "$@"
+# ---------- update ----------
+# The update is a small state machine in $STATE on /daten (writable with and without protection),
+# driven by parrafraktor-update.service, which runs at every boot while $STATE exists:
+#   disabling  protection removed, rebooting into a writable system
+#   working    apt, git pull, setup refresh (after an error: roll the repository back)
+#   enabling   protection configured, rebooting into the protected system
+#   (end)      check protection, own Wi-Fi back on, result in $LAST, $STATE removed
+# Whatever goes wrong, the run continues to the end, so the Pi is left protected and with its
+# own Wi-Fi again; the error shows in "parrafraktor status" and the log.
+
+as_user() { sudo -u "$(repo_user "$REPO")" -H "$@"; }
+
+target_protect() {
+  local o
+  o="$(saved_setup_options 2>/dev/null)" || { echo on; return; }
+  case " $o " in *" --no-overlay "*|*" --ohne-overlay "*) echo off ;; *) echo on ;; esac
 }
 
-ausfuehren() {
-  local befehl="${1:-}"
+update_start() {
+  [ -d "$REPO/.git" ] || { echo "Not a git checkout: $REPO" >&2; return 1; }
+  findmnt "$PF_DATA_MOUNT" >/dev/null 2>&1 || { echo "$PF_DATA_MOUNT is not mounted – the update keeps its state there." >&2; return 1; }
+  if [ -f "$STATE" ]; then
+    echo "An update is already in progress: $(update_line)" >&2
+    echo "Stuck? parrafraktor update abort" >&2
+    return 1
+  fi
+  if [ ! -f "$UNIT" ]; then
+    if protect_active; then
+      cat >&2 <<EOF
+This Pi was set up with an older version, which cannot continue an update across reboots yet.
+Once, by hand:
+  parrafraktor protect off      (old version: parrafraktor schreibschutz aus) – reboots
+  git -C $REPO pull
+  parrafraktor update
+EOF
+      return 1
+    fi
+    install_update_unit
+  fi
+  install -d -m 0755 "$PF_UPDATE_DIR"
+  [ -f "$ULOG" ] && mv -f "$ULOG" "$ULOG.1"
+  : > "$ULOG"
+  U_AP=0; ap_active && U_AP=1
+  U_TARGET="$(target_protect)"
+  U_OLD_REV="$(git -C "$REPO" rev-parse HEAD)"
+  U_STARTED="$(date '+%F %T')"
+  if protect_active; then
+    U_PHASE=disabling; save_state
+    if ! protect_disable >>"$ULOG" 2>&1; then
+      rm -f "$STATE"; echo "Could not turn protection off (see $ULOG) – nothing changed." >&2; return 1
+    fi
+    log "Update started: protection off, rebooting." | tee -a "$ULOG"
+    cat <<EOF
+The Pi reboots now and continues the update by itself (about 10–20 minutes, two reboots).
+An SSH session over the own Wi-Fi drops; the own Wi-Fi is back when everything is done.
+Follow it (e.g. over the Wi-Fi with internet, ssh $(id -un 2>/dev/null)@$(hostname).local):  parrafraktor log update
+Result:  parrafraktor status
+EOF
+    sleep 3; systemctl reboot
+    return 0
+  fi
+  U_PHASE=working; save_state
+  log "Update started (system already writable)." | tee -a "$ULOG"
+  systemctl start --no-block parrafraktor-update.service
+  cat <<EOF
+The update runs in the background (service parrafraktor-update) and reboots at the end.
+An SSH session over the own Wi-Fi drops; that does not stop it. Ctrl-C only stops following the log.
+EOF
+  [ -t 1 ] || return 0
+  # Follow the log until the update finishes or the Pi reboots
+  tail -n +1 -F "$ULOG" 2>/dev/null &
+  local t=$!
+  trap 'kill $t 2>/dev/null; exit 0' INT TERM
+  while [ -f "$STATE" ] && [ "$( (load_state; echo "$U_PHASE") )" = working ]; do sleep 2; done
+  sleep 2; kill "$t" 2>/dev/null
+  echo; echo "Update: $(update_line)"
+}
+
+update_abort() {
+  [ -f "$STATE" ] || { echo "No update in progress."; return 0; }
+  if systemctl is-active --quiet parrafraktor-update; then
+    echo "The update is running right now ($(update_line)). Let it finish; parrafraktor log update shows where it is." >&2
+    return 1
+  fi
+  load_state
+  add_error "aborted by hand in step $U_PHASE" >> "$ULOG"
+  finish
+  echo "Update aborted. Protection: $(protect_line)."
+  protect_active || echo "Turn protection on again: parrafraktor protect on"
+  ap_exists && ! ap_active && echo "Own Wi-Fi is off: parrafraktor hotspot on"
+  return 0
+}
+
+finish() {
+  U_FINISHED="$(date '+%F %T')"
+  if [ -z "$U_ERROR" ]; then U_RESULT=ok; else U_RESULT=failed; fi
+  U_PHASE="done"; save_state
+  mv -f "$STATE" "$LAST"; sync "$PF_UPDATE_DIR" 2>/dev/null || true
+  if [ "$U_RESULT" = ok ]; then log "Update finished: ${U_OLD_REV:0:7} → ${U_NEW_REV:0:7}"
+  else log "Update FAILED: $U_ERROR"; fi
+}
+
+ap_restore() {
+  [ "$U_AP" = 1 ] || return 0
+  local i
+  for i in 1 2 3; do
+    ap_active && return 0
+    log "Own Wi-Fi on (attempt $i)"
+    nmcli --wait 30 connection up "$PF_AP" && return 0
+    sleep 5
+  done
+  ap_active || add_error "own Wi-Fi did not come back on"
+}
+
+reboot_now() { log "Rebooting …"; sync; systemctl reboot; exit 0; }
+
+# Protection on and reboot – or, without protection as target, finish right here
+wrap_up_work() {
+  systemctl restart parrafraktor || add_error "service did not restart"
+  if [ "$U_TARGET" = on ]; then
+    log "Turning protection on"
+    protect_enable || add_error "turning protection on failed"
+    U_PHASE=enabling; save_state
+    reboot_now
+  fi
+  ap_restore
+  finish
+}
+
+work() {
+  U_RUNS=$((U_RUNS + 1)); U_PHASE=working; save_state
+  if [ "$U_RUNS" -gt 2 ]; then
+    add_error "update was interrupted twice (power loss?) – giving up"
+    wrap_up_work; return
+  fi
+  if protect_active; then
+    add_error "system is still protected – cannot update"
+    ap_restore; finish; return
+  fi
+  boot_rw   # kernel updates write there; fstab may still say ro from the protected system
+  if ap_active; then
+    log "Own Wi-Fi off, so the Pi can join the saved Wi-Fi with internet"
+    nmcli connection down "$PF_AP" || true
+  fi
+  log "Waiting for internet …"
+  if ! wait_internet 90; then
+    add_error "no internet (saved Wi-Fi with internet, or LAN cable with a gateway, needed)"
+    wrap_up_work; return
+  fi
+
+  export DEBIAN_FRONTEND=noninteractive
+  log "== System packages (apt)"
+  if ! { apt-get update && apt-get -y -o Dpkg::Options::=--force-confold full-upgrade; }; then
+    add_error "apt failed"
+    dpkg --configure -a || true
+  fi
+
+  log "== New version (git pull)"
+  if as_user git -C "$REPO" pull --ff-only; then
+    U_NEW_REV="$(git -C "$REPO" rev-parse HEAD)"; save_state
+    log "Version ${U_OLD_REV:0:7} → ${U_NEW_REV:0:7}"
+    log "== Setup refresh (packages, npm ci, build, service, network menu)"
+    local opts
+    # shellcheck disable=SC2086 # opts is the shell-quoted line written by setup.sh
+    if ! opts="$(saved_setup_options)"; then
+      # Without the saved options setup would remove the network menu – only build
+      add_error "no saved setup options ($PF_SETUP_CONF) – only built; run parrafraktor setup with options once"
+      as_user bash -c "cd '$REPO' && npm ci --no-audit --no-fund && npm run build" || { add_error "build failed"; rollback; }
+    elif ! eval "SUDO_USER=$(printf %q "$(repo_user "$REPO")") \"\$REPO/pi/setup.sh\" --refresh $opts"; then
+      add_error "setup refresh failed"
+      rollback
+    fi
+  else
+    add_error "git pull failed"
+  fi
+  wrap_up_work
+}
+
+# Back to the version before the update, so the service runs what ran before
+rollback() {
+  [ -n "$U_OLD_REV" ] || return 0
+  log "== Rolling back to ${U_OLD_REV:0:7}"
+  if as_user git -C "$REPO" reset --keep "$U_OLD_REV" \
+     && as_user bash -c "cd '$REPO' && npm ci --no-audit --no-fund && npm run build"; then
+    U_NEW_REV="$U_OLD_REV"; save_state
+    log "Rolled back to ${U_OLD_REV:0:7}"
+  else
+    add_error "rollback failed – service may not start"
+  fi
+}
+
+# After the last reboot: is the protection really there?
+verify() {
+  log "== Checking after reboot"
+  if [ "$U_TARGET" = on ] && ! protect_active; then
+    if [ "$U_VERIFY" -lt 1 ]; then
+      U_VERIFY=1; save_state
+      log "Protection is not active (raspi-config#306?) – rebuilding the initramfs and trying once more"
+      boot_rw
+      protect_enable || add_error "turning protection on failed (second try)"
+      reboot_now
+    fi
+    add_error "protection is NOT active after reboot – check: parrafraktor check"
+  fi
+  [ "$U_TARGET" = on ] && protect_active && log "Protection active (root is overlay)"
+  ap_restore
+  local i
+  for i in $(seq 30); do systemctl is-active --quiet parrafraktor && break; sleep 2; done
+  systemctl is-active --quiet parrafraktor || add_error "service parrafraktor is not running"
+  finish
+}
+
+update_resume() {
+  [ -f "$STATE" ] || exit 0
+  install -d -m 0755 "$PF_UPDATE_DIR"
+  exec > >(tee -a "$ULOG") 2>&1
+  load_state
+  log "Update continues (step: $U_PHASE)"
+  case "$U_PHASE" in
+    disabling)
+      if protect_active; then add_error "protection could not be turned off – nothing updated"; ap_restore; finish
+      else work; fi ;;
+    working) work ;;
+    enabling) verify ;;
+    *) add_error "unknown step '$U_PHASE'"; finish ;;
+  esac
+}
+
+update() {
+  case "${1:-}" in
+    "") as_root update; update_start ;;
+    --resume) [ "$(id -u)" -eq 0 ] || { echo "only as root (parrafraktor-update.service)" >&2; return 1; }; update_resume ;;
+    abort) as_root update abort; update_abort ;;
+    *) echo "parrafraktor update [abort]" >&2; return 2 ;;
+  esac
+}
+
+# ---------- setup ----------
+setup() {
+  if [ $# -eq 0 ]; then
+    local line
+    line="$(saved_setup_options)" || { echo "No saved options ($PF_SETUP_CONF) – give options, see: $REPO/pi/setup.sh --help" >&2; return 2; }
+    # Belongs to root, readable by root only (setup.sh writes it with printf %q)
+    eval "set -- $line"
+    local a secret=0 shown=""
+    for a in "$@"; do
+      if [ "$secret" = 1 ]; then shown+=" ***"; secret=0; continue; fi
+      case "$a" in --ap-password|--net-code|--ap-passwort|--netz-code) secret=1 ;; esac
+      shown+=" $a"
+    done
+    echo "With the options from last time (password and code hidden):"
+    echo " $shown"
+  fi
+  "$REPO/pi/setup.sh" "$@"
+}
+
+# ---------- dispatch ----------
+run() {
+  local cmd="${1:-}"
   shift || true
-  case "$befehl" in
-    hilfe|help|-h|--help) hilfe ;;
+  # Old German commands (before 2026-11)
+  case "$cmd" in
+    hilfe) cmd=help ;; pruefen) cmd=check ;; neustart) cmd=restart ;; einrichten) cmd=setup ;;
+    schreibschutz) cmd=protect; case "${1:-}" in an) set -- on ;; aus) set -- off ;; esac ;;
+    internet) cmd=hotspot; case "${1:-}" in an) set -- off ;; aus) set -- on ;; esac ;;
+  esac
+  case "$cmd" in
+    help|-h|--help) help ;;
     status) status ;;
-    pruefen) als_root pruefen; "$REPO/pi/pruefen.sh" ;;
-    schreibschutz)
+    check) as_root check; check ;;
+    protect)
       case "${1:-status}" in
-        an|aus) als_root schreibschutz "$1"; "$REPO/pi/wartung.sh" "$1" ;;
-        status) "$REPO/pi/wartung.sh" status ;;
-        *) echo "parrafraktor schreibschutz an|aus|status" >&2; return 2 ;;
+        status) protect status ;;
+        *) as_root protect "$@"; protect "$@" ;;
       esac ;;
-    update) als_root update; "$REPO/pi/wartung.sh" update ;;
-    internet) als_root internet "$@"; internet "$@" ;;
+    update) update "$@" ;;
+    hotspot) as_root hotspot "$@"; hotspot "$@" ;;
     log)
       case "${1:-}" in
-        update) journalctl -u parrafraktor-update -f ;;
-        netz) journalctl -u parrafraktor-netz -u NetworkManager -f ;;
+        update) [ -f "$ULOG" ] || { echo "No update log yet ($ULOG)."; return 0; }; tail -n 100 -F "$ULOG" ;;
+        network|netz) journalctl -u parrafraktor-netz -u NetworkManager -f ;;
         *) journalctl -u parrafraktor -f ;;
       esac ;;
-    neustart) als_root neustart; systemctl restart parrafraktor && echo "Dienst neu gestartet." ;;
-    einrichten) als_root einrichten "$@"; einrichten "$@" ;;
-    menue|"") menue ;;
-    *) echo "Unbekannter Befehl: $befehl" >&2; echo >&2; hilfe >&2; return 2 ;;
+    restart) as_root restart; systemctl restart parrafraktor && echo "Service restarted." ;;
+    setup) as_root setup "$@"; setup "$@" ;;
+    menu|"") menu ;;
+    *) echo "Unknown command: $cmd" >&2; echo >&2; help >&2; return 2 ;;
   esac
 }
 
-# Auswahlmenü mit whiptail (wie raspi-config). Ohne Terminal oder whiptail: Hilfe.
-menue() {
-  if ! [ -t 0 ] || ! command -v whiptail >/dev/null; then hilfe; return; fi
-  local wahl schutz wlan
+# Menu with whiptail (like raspi-config). Without a terminal or whiptail: help.
+menu() {
+  if ! [ -t 0 ] || ! command -v whiptail >/dev/null; then help; return; fi
+  local choice wifi prot_item prot_text
   while true; do
-    if overlay_aktiv; then schutz=AN; else schutz=AUS; fi
-    if ap_an; then wlan=an; else wlan=aus; fi
-    wahl=$(whiptail --title "Parrafraktor" --cancel-button "Ende" --menu \
-      "Schreibschutz: $schutz   ·   Eigenes WLAN: $wlan" 20 74 11 \
-      status          "Überblick" \
-      pruefen         "Alle Prüfungen" \
-      log             "Log des Dienstes live (Strg-C beendet)" \
-      neustart        "Dienst neu starten" \
-      "schreibschutz aus" "Schreibschutz aus (Neustart) – für Updates" \
-      update          "Update: apt, git pull, Build (Schreibschutz aus)" \
-      "schreibschutz an"  "Schreibschutz wieder an (Neustart)" \
-      "internet an"   "Eigenes WLAN aus, WLAN mit Internet verbinden" \
-      "internet aus"  "Eigenes WLAN wieder an" \
-      einrichten      "Einrichtung erneut, mit den Optionen vom letzten Mal" \
-      hilfe           "Alle Befehle" \
+    if ap_active; then wifi=on; elif ap_exists; then wifi=off; else wifi="not set up"; fi
+    if protect_configured; then prot_item="protect off"; prot_text="Protection off for good (reboots)"
+    else prot_item="protect on"; prot_text="Protection on for good (reboots)"; fi
+    choice=$(whiptail --title "Parrafraktor" --cancel-button "Exit" --menu \
+      "Protection: $(protect_line)\nOwn Wi-Fi: $wifi\nUpdate: $(update_line)" 22 78 11 \
+      status          "Overview" \
+      check           "All checks" \
+      update          "Update everything (two reboots, ~10–20 min)" \
+      "log update"    "Follow the update (Ctrl-C ends)" \
+      "$prot_item"    "$prot_text" \
+      log             "Follow the service log (Ctrl-C ends)" \
+      restart         "Restart the service" \
+      "hotspot off"   "Own Wi-Fi off, join the saved Wi-Fi (internet)" \
+      "hotspot on"    "Own Wi-Fi on again" \
+      setup           "Run setup again with the options from last time" \
+      help            "All commands" \
       3>&1 1>&2 2>&3) || return 0
-    case "$wahl" in
-      "schreibschutz an"|"schreibschutz aus")
-        whiptail --title "Parrafraktor" --yesno "$wahl: Der Pi startet danach neu. Weiter?" 8 60 || continue ;;
-      "internet an")
-        whiptail --title "Parrafraktor" --yesno "Eigenes WLAN aus: Eine SSH-Verbindung darüber reißt ab. Weiter?" 8 70 || continue ;;
+    case "$choice" in
+      "protect on"|"protect off"|update)
+        whiptail --title "Parrafraktor" --yesno "$choice: the Pi reboots. Continue?" 8 60 || continue ;;
+      "hotspot off")
+        whiptail --title "Parrafraktor" --yesno "Own Wi-Fi off: an SSH session over it drops. Continue?" 8 70 || continue ;;
     esac
     clear
-    # shellcheck disable=SC2086 # Menüeintrag ist Befehl + Argument
-    ( ausfuehren $wahl )
+    # shellcheck disable=SC2086 # menu entry is command + argument
+    ( run $choice )
     echo
-    read -rp "Weiter mit Enter … " _
+    read -rp "Press Enter to continue … " _
   done
 }
 
-ausfuehren "$@"
+main() { run "$@"; }
+# Read to the end before running: git pull may replace this file during an update
+main "$@"; exit
