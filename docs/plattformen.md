@@ -8,7 +8,7 @@ Der Server fragt nie, auf welchem System er läuft. Unterschiede kommen nur von 
 
 | Umgebungsvariable | Mac/Windows (Entwicklung) | Pi (`pi/einrichten.sh`) |
 |---|---|---|
-| `PORT` | 8080 | 443 mit Zertifikat, sonst 80 |
+| `PORT` | 8080 | 8443 (HTTPS) mit Zertifikat, sonst 80 |
 | `HTTP_PORT` | – | 80 (nur mit Zertifikat) |
 | `TLS_CERT`, `TLS_KEY` | – | `zertifikate/server*.pem`, wenn vorhanden |
 | `PARRAFRAKTOR_DATEN` | `./daten` (`npm start`), `server/daten` (`npm run dev`) | `/daten/parrafraktor` |
@@ -27,7 +27,7 @@ Der Server fragt nie, auf welchem System er läuft. Unterschiede kommen nur von 
 | Absturz, Hänger | – | – | systemd `Restart=always`, Hardware-Watchdog | `pi/einrichten.sh` |
 | Logs | Konsole | Konsole | journald nur im RAM | `pi/einrichten.sh` |
 | Netz | wie eingestellt | wie eingestellt | feste IP im Lichtnetz, eigenes WLAN (5 GHz) | `pi/einrichten.sh` |
-| HTTPS | mkcert, Port wählbar | mkcert, Port wählbar | 443 + HTTP 80 als Rückfall | `pi/einrichten.sh` |
+| HTTP/HTTPS | mkcert, Port wählbar | mkcert, Port wählbar | HTTP auf 80 für alle Browser, HTTPS auf 8443 nur für die iPad-App (nicht 443: Browser probieren dort zuerst HTTPS und bleiben am mkcert-Zertifikat hängen) | `pi/einrichten.sh` |
 | Ohne MA starten | Einstellung „Autostart output“ | ebenso | ebenso, Dienst startet beim Hochfahren | Client (Einstellungen) |
 | Updates | `git pull`, `npm ci` | ebenso | `pi/wartung.sh aus` → `update` → `an` | `pi/wartung.sh` |
 | RS485 (DMX über UART) | – | – | geplant, Benutzer schon in `dialout` | – |

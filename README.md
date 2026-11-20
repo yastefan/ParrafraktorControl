@@ -157,7 +157,7 @@ git clone https://github.com/yastefan/ParrafraktorControl.git && cd Parrafraktor
 
 Der Dienst läuft unter diesem Benutzer direkt aus dem geklonten Verzeichnis (die Befehle unten gehen vom Heimverzeichnis aus).
 
-Optional vorher die Zertifikate (siehe oben) nach `zertifikate/` kopieren. Dann läuft der Dienst per HTTPS auf Port 443 und zusätzlich per HTTP auf Port 80, sonst nur per HTTP auf Port 80 – am iPad reicht die Adresse ohne Portnummer. IP und Präfix für das Lichtnetz einsetzen:
+Der Dienst läuft per HTTP auf Port 80, die nackte Adresse (z. B. `192.168.4.1`) geht also in jedem Browser. Optional vorher die Zertifikate (siehe oben) nach `zertifikate/` kopieren, dann läuft er zusätzlich per HTTPS auf Port 8443 – für die iPad-App mit Offline-Cache (`https://192.168.4.1:8443`). Bewusst nicht 443: Firefox und Chrome probieren bei eingetippten Adressen zuerst HTTPS auf 443 und blieben dann am Zertifikat hängen, statt auf HTTP zurückzufallen. IP und Präfix für das Lichtnetz einsetzen:
 
 ```bash
 sudo pi/einrichten.sh --ip 2.0.0.50/8
@@ -169,7 +169,7 @@ Soll der Pi ein eigenes WLAN fürs iPad aufmachen, Name und Passwort (8–63 Zei
 sudo pi/einrichten.sh --ip 2.0.0.50/8 --ap-ssid Parrafraktor --ap-passwort 'geheimes-passwort'
 ```
 
-Das iPad findet die App dann unter https://192.168.4.1 bzw. http://192.168.4.1 (`--ap-adresse`, Vorgabe `192.168.4.1/24`) oder unter parrafraktor.local. Vorgabe ist 5 GHz auf Kanal 36, meist ruhiger in Räumen mit vielen Netzen; `--ap-band bg` nimmt 2,4 GHz (Kanal 6), das reicht weiter und durch Wände. Der Ländercode (`--land`, Vorgabe DE) gibt die erlaubten Kanäle vor. Der WLAN-Chip des Pi kann nicht gleichzeitig Access Point und mit einem anderen WLAN verbunden sein: Das WLAN, über das man einrichtet, bleibt gespeichert, kommt aber erst wieder, wenn der Access Point aus ist (`wartung.sh update` macht das selbst). Ins Lichtnetz wird nichts weitergeleitet. Für HTTPS die Adresse des Access Points beim `mkcert`-Aufruf mit angeben (z. B. `192.168.4.1`).
+Das iPad findet die App dann unter https://192.168.4.1:8443 bzw. http://192.168.4.1 (`--ap-adresse`, Vorgabe `192.168.4.1/24`) oder unter parrafraktor.local. Vorgabe ist 5 GHz auf Kanal 36, meist ruhiger in Räumen mit vielen Netzen; `--ap-band bg` nimmt 2,4 GHz (Kanal 6), das reicht weiter und durch Wände. Der Ländercode (`--land`, Vorgabe DE) gibt die erlaubten Kanäle vor. Der WLAN-Chip des Pi kann nicht gleichzeitig Access Point und mit einem anderen WLAN verbunden sein: Das WLAN, über das man einrichtet, bleibt gespeichert, kommt aber erst wieder, wenn der Access Point aus ist (`wartung.sh update` macht das selbst). Ins Lichtnetz wird nichts weitergeleitet. Für HTTPS die Adresse des Access Points beim `mkcert`-Aufruf mit angeben (z. B. `192.168.4.1`).
 
 Das Skript vergrößert die Systempartition auf 8 GiB (`--root-gb`), legt dahinter die Datenpartition mit 1 GiB an (`--daten-mb`), installiert Node, baut die App, richtet Dienst, Watchdog, Logs, udev und Netz ein und schaltet zum Schluss den Schreibschutz ein. Mit `--gateway` bekommt das Lichtnetz eine Standardroute, sonst bleibt das Internet beim WLAN. Ein erneuter Aufruf schadet nicht. Danach:
 
