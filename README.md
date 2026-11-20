@@ -118,6 +118,7 @@ Impulse (Live-Seite)
 | Touchstreifen im Impulse-Menü | **Tippen** = gewählte Art von dieser Stelle aus, **Wischen** = sie läuft in Wischrichtung durch |
 | Output | **gedrückt halten** (0,6 s): App fährt die Spiegel an bzw. gibt an die MA ab |
 | Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf, Element-Phase), **Fein** (Group, Ping-Pong, Speed je Element). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
+| Offset-Regler lange drücken (0,6 s) | **Offset je Element**: die Regler stellen Off. 1, 2, 3 und alle zusammen (verschiebt alle, Abstände bleiben). Drücken setzt ein Element auf den gemeinsamen Offset, der vierte Regler gedrückt macht alle gleich (Vorgabe). Lange drücken oder Wischen: zurück. Haben die Elemente verschiedene Offsets, heißt das Feld „Offset 1–3“ |
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
 | Output halten, Order dazu, 2 s | nur auf dem Pi mit Netz-Menü: Code-Eingabe, siehe [Netz-Menü](#netz-menü-am-stream-deck-nur-pi) |
@@ -260,6 +261,99 @@ parrafraktor schreibschutz an
 5. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `parrafraktor pruefen` ist grün.
 
 Quellen: [Raspberry Pi OS Downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi Dokumentation: Konfiguration (Overlay File System)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, Zweig trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspberrypi-sys-mods, Zweig pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [Forum: Resize unter Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (Watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux-Treiber bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [NetworkManager: nmcli-Einstellungen (wifi, `ipv4.method shared`)](https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html), [Whitepaper „Making a more resilient file system“](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [NodeSource-Distributionen](https://github.com/nodesource/distributions), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).
+
+## Begriffe am Pult
+
+Die Oberfläche (Client und Stream Deck) ist englisch, diese Anleitung deutsch. Die wichtigsten Begriffe:
+
+| Pult | hier |
+|---|---|
+| Motion / Distribution / Fine | Bewegung / Verteilung / Fein |
+| Speed from / Speed to | Speed von / Speed bis |
+| Width, Fan, Return, Wavelength | Breite, Fächer, Wiederkehr, Wellenlänge |
+| Element phase, Counter-motion, Speed per element | Element-Phase, Gegenlauf, Speed je Element |
+| Order, Elements (together, front → back, back → front, center → out) | Ordnung, Element-Folge (zusammen, vorn → hinten, hinten → vorn, Mitte → außen) |
+| Coupling, Noise, Range | Kopplung, Rauschen, Reichweite |
+| Path (Circle, Line, Iris, Drift), Size, Travel, Edge, Wobble, Pulse, Lag | Bahn (Kreis, Linie, Iris, Drift), Größe, Weite, Kante, Wabern, Puls, Nachlauf |
+| Impulses: Open, Close, Hole, Iris; Strength, Spread, Element delay, Envelope | Impulse: Flash auf, Flash zu, Loch, Iris; Stärke, Ausbreitung, Element-Versatz, Hülle |
+| Settings: Layout, Crossfade, Read MA | Einstellungen: Aufbau, Überblendung, MA mitlesen |
+| Preview: Reflection, Haze, Mirror / Stage / Thermal | Vorschau: Reflexion, Nebel, Spiegel / Bühne / Wärmebild |
+| „mir.“ als Einheit | Spiegel |
+
+## Pattern und Regler
+
+Ein Pattern ist die Grundbewegung, die dauerhaft läuft:
+
+- **Sine** (Sinus): die klassische Welle.
+- **Pendulum wave** (Pendelwelle, vorerst nicht am Pult wählbar, nur noch über alte Presets): Jeder Spiegel schwingt etwas schneller als sein Vorgänger, wie bei einer Pendelwelle aus echten Pendeln. Die Reihe läuft aus dem Gleichlauf in Schlangen und scheinbares Chaos und wieder zusammen, wenn der erste Spiegel so oft geschwungen hat, wie **Wiederkehr** sagt (dann hat jeder folgende einen Schwung mehr geschafft). Speed ist das Tempo des ersten Spiegels und beschleunigt das ganze Bild; je kleiner die Wiederkehr, desto schneller laufen die hinteren Spiegel. Startet beim Wählen im Gleichlauf.
+- **Wind**: Böen ziehen entlang der Ordnung durch die Spiegel und verändern sich dabei langsam, wiederholt sich nie. **Wellenlänge** = wie viele Spiegel eine Böe breit ist, Speed = Tempo (eine Wellenlänge je Durchlauf).
+- **Swarm** (Schwarm): Jeder Spiegel läuft wie beim Sinus, aber mit eigenem Tempo (Speed von → bis), und zieht die anderen zu sich (Kuramoto-Modell, mit Rauschen und Reichweite wie ein Vogelschwarm im Vicsek-Modell). **Kopplung** aus = jeder für sich wie Speed je Spiegel, ab etwa 30 % rasten sie ein, dazwischen bilden sich Inseln und Ausreißer. Mit Phase rasten sie nicht in den Gleichlauf, sondern in die Welle der Phase ein. **Rauschen** stört jeden Spiegel für sich und bricht die Ordnung wieder auf (ab etwa 50 % deutlich). **Reichweite** = wie viele Plätze je Seite ein Spiegel sieht (aus = alle): klein gibt wandernde Fronten statt einem Gleichlauf. Startet beim Wählen verstreut (Nachbarn ähnlich, verdeckt von der Überblendung). Kein Spiegel läuft langsamer als das halbe oder schneller als das 1,5-fache Speed, auch wenn Kopplung oder Rauschen mehr verlangen; das Rauschen trifft immer mehrere Nachbarn zusammen wie eine Böe.
+- **Flash** (Glühwürmchen): Jeder Spiegel lädt sich im Durchlauf auf und „blitzt“: ein Ausschlag zur Seite und zurück, so lang wie die **Breite** (wirkt zwischen 30 und 40 %, darunter wäre er zu schnell, darüber fehlt die Pause). Wer blitzt, stößt die anderen weiter, je voller sie schon sind, desto mehr. Wer dadurch voll ist, blitzt mit: Lawinen, bis alle im Takt blitzen (meist nach ½–1 min). Dazu passen sie ihr Tempo an: Wer kurz nach dem eigenen Blitz einen sieht, wird langsamer, wer kurz davor einen sieht, schneller. Alles das passiert nur in der Pause, man sieht es nicht; jeder Blitz läuft im eigenen Tempo und sieht gleich aus. Mit Phase wandert der Blitz als Welle durch. Kopplung, Rauschen und Reichweite wie bei Swarm.
+- **Rotation**: endlos über TiltRotate. **Phase** dreht die Spiegel gegeneinander versetzt, **Breite** lässt jeden Spiegel eine Umdrehung in Schüben machen und dann stehen, **Fächer** staffelt die Drehzahl entlang der Ordnung, **Group** wiederholt das Muster in Gruppen, **Gegenlauf** dreht die linke Hälfte andersherum. TiltRotate kennt nur eine Drehzahl, deshalb rechnet die App den Winkel nur mit: Am echten Aufbau kann er abweichen. Die Breite kann nicht kleiner werden, als die Einstellung „TiltRotate max.“ erlaubt: bei 10 U/min und 3 BPM etwa 56 %.
+- **Aperture** (Öffnung): für den Aufbau hintereinander. Ein Loch wandert durch alle drei Elemente: Jedes Element öffnet nur einen Schlitz, die drei Schlitze kreuzen sich im Loch. **Bahn** = Kreis, Linie (waagrecht), Iris (geht in der Mitte auf und zu) oder Drift (zieht frei umher). **Größe** = Radius, **Weite** = wie weit es wandert (Iris: um so viel geht es auf), **Kante** = hart bis weich, **Wabern** = atmet, driftet und verformt sich (zufällig), **Puls** = die Größe schwankt im Takt der Bahn, zweimal je Umlauf um ± so viel Prozent (bleibt periodisch, anders als Wabern), **Nachlauf** = die Elemente laufen einander nach, das Loch wird schief und geht zu und auf. Offset, Amplitude, Phase und Verteilung gelten hier nicht; zu = 0°, offen = 90°. Die Rechnung nutzt die Drehung aus Einstellungen → Aufbau, die muss also zum echten Aufbau passen. Wandert das Loch weit nach außen (ab etwa 37 cm), blitzen an den Spitzen des gedrehten Elements kleine Dreiecke auf, weil dort nur dieses eine Element abdeckt.
+- **Rest** (Ruhe, vorerst nicht am Pult wählbar, nur noch über alte Presets): alle Spiegel stehen auf Offset, nur Impulse bewegen sie.
+
+Alle Formen fahren ohne Sprünge an und ab; ein Wechsel der Form blendet über die eingestellte Überblendzeit über. Regler, die eine Form nicht benutzt, blendet der Client aus.
+
+| Regler | Wirkung |
+|---|---|
+| Offset | Grundstellung. Mit **3×** je Element einstellbar (siehe [Oberfläche](#oberfläche)), am Stream Deck durch langes Drücken des Offset-Reglers |
+| Amplitude | Ausschlag |
+| Speed von/bis | Tempo in BPM (Durchläufe pro Minute, 0–10); mit „bis“ läuft der letzte Spiegel anders schnell als der erste |
+| Phase | Versatz über die Spiegel wie in der grandMA3: 0° alle gleich, 360° eine Welle über alle, 720° zwei |
+| Breite | nur Sinus, wie Width im Phaser der grandMA3: unter 100 % bewegt sich jeder Spiegel nur in diesem Anteil des Durchlaufs und steht sonst auf Offset – eine schmale Welle zieht über die ruhenden Spiegel. Mit Phase 360° und Breite 10 % bewegen sich etwa 10 % der Spiegel zugleich |
+| Group | Muster wiederholt sich alle n Spiegel |
+| Fächer | Amplitude wächst entlang der Ordnung, bei Mitte/außen zum Rand hin |
+
+**Verteilung** – wo das Muster anfängt und wie es weiterläuft:
+
+| Regler | Wirkung |
+|---|---|
+| Ordnung | innerhalb jedes Elements: links → rechts, rechts → links, Mitte → außen, außen → Mitte, verschachtelt (erst gerade, dann ungerade), Zufall (feste Mischung) |
+| Elemente | zusammen (alle drei gleich), vorn → hinten oder hinten → vorn (das Muster läuft über alle 36 weiter), Mitte → außen (erst das mittlere, dann beide äußeren; das erste ist das Spiegelbild des dritten – mit Gegenlauf und Ordnung Mitte → außen ist die ganze Installation symmetrisch) |
+| Element-Phase | aus: die Phase läuft mit der Element-Folge über die Elemente weiter. Sonst läuft die Phase in jedem Element für sich, und die Elemente sind nach der Element-Folge um so viel versetzt (vorn → hinten mit 15°: 0°, 15°, 30°; Mitte → außen: beide äußeren 15° hinter dem mittleren; bei zusammen ohne Wirkung) |
+| Gegenlauf | linke Hälfte jedes Elements gespiegelt, auch der Offset (Offset 30° = links −30°, rechts +30°) |
+| Ping-Pong | Muster läuft hin und wieder zurück |
+| Speed je Element | Speed von → bis gilt für die Elemente statt für die Spiegel: alle Spiegel eines Elements gleich schnell, die Elemente nach der Element-Folge gestaffelt. Bei Phase 90° und 3 → 4 BPM sind alle nach 2 min wieder deckungsgleich |
+
+Ältere Dateien werden beim Laden umgewandelt: Symmetrie von innen/außen = Ordnung Mitte → außen bzw. außen → Mitte mit Gegenlauf, Richtung zurück = rechts → links, Reihenfolge „je Element“ = Elemente zusammen, „alle 36“ = vorn → hinten. Symmetrie über alle 36 Spiegel gibt es nicht mehr, die Mitte ist jetzt die Mitte jedes Elements. Dreieck und Rechteck sowie die früheren Formen Sägezahn, Puls, Flyout, Blinder und Funkeln werden zum Sinus (ein Flyout spielt man jetzt als Impuls mit Ausbreitung).
+
+## Impulse
+
+Live-Ereignisse über dem laufenden Pattern, wie Flash-Tasten am Lichtpult. Oben wählt man die **Art**, ausgelöst wird auf dem **Streifen** (Touchstreifen am Stream Deck, Streifen im Client): **Tippen** startet den Impuls an dieser Stelle, **Wischen** lässt ihn vom Rand in Wischrichtung durchlaufen. Danach läuft die Hüllkurve von selbst ab.
+
+- **Open / Close**: Spiegel auf einen festen Tilt. „Open“ für Licht von hinten, „Close“ für Licht von außen.
+- **Hole**: Alle Spiegel schließen sich bis auf ein Loch, wie bei der Grundbewegung Aperture: Getippt geht es an dieser Stelle auf (waagrecht, in der Bildmitte), gewischt fährt es quer durchs Bild. **Größe** ist sein Radius. Am besten mit dem Aufbau hintereinander in der Ansicht Bühne zu sehen.
+- **Iris**: wie Loch, wächst aber mit der Hüllkurve aus einem Punkt und schrumpft wieder.
+- Winkel unter Einstellungen → Impulse: Open/Close (Platzhalter 90° und 0°).
+- **Hüllkurve**: Attack (hin), Sustain (bleiben), Release (zurück), Stärke. Im Client die Punkte ziehen: oben links = Attack und Stärke, oben rechts = Ende des Sustain, unten = Ende des Release. Während eines Impulses läuft ein Punkt auf der Kurve mit.
+- **Element-Folge**: zusammen, vorn → hinten oder hinten → vorn, mit Element-Versatz. Element 1 ist vorn.
+- **Stärke**: wie weit zum Ziel (auch als Griff in der Hüllkurve).
+- **Breite**: Getippt wirkt der Impuls nur auf so viele Spiegel um den Startpunkt („alle“ = ganzes Element). Gewischt läuft er immer durch das ganze Element.
+- **Symmetrisch**: Der Impuls startet zugleich am gespiegelten Punkt, die linke Hälfte ist gespiegelt wie beim Gegenlauf (Winkel von Open/Close und Ausschlag umgekehrt).
+- **Ausbreitung**: Zeit, bis der Impuls ein Element durchquert hat. Aus = alle Spiegel zugleich. Bei Loch und Iris: Zeit, die das gewischte Loch quer durchs Bild braucht (aus = die ganze Hüllkurve lang).
+- Mehrere Impulse dürfen sich überlagern; der zuletzt gestartete liegt oben.
+
+Art, Hüllkurve, Element-Folge, Ausbreitung, Breite und Symmetrie werden in `daten/impuls.json` gespeichert. Ideen stehen in [docs/konzept-bewegung.md](docs/konzept-bewegung.md).
+
+## Oberfläche
+
+Der Client passt ab etwa 1000 × 620 Punkten ohne Scrollen auf eine Fläche, darunter stehen die Module untereinander und es darf gescrollt werden. Module: Vorschau, Pattern, Presets, Bewegung, Verteilung (bei der Öffnung: Bahn) und unten das Impulsband. Unter **Mehr** am Impulsband liegen Element-Folge, Versatz sowie Attack, Sustain und Release.
+
+**Fader** verstellen relativ: Antippen ändert nichts, erst Ziehen verändert den Wert, damit in der Show nichts springt. Am Rechner geht auch das **Mausrad** über dem Fader: je Rastung 2 % des Bereichs, mit Umschalttaste der kleinste Schritt. Doppeltippen auf den Namen setzt den Vorgabewert.
+
+**Offset je Element**: Der Knopf **3×** am Offset klappt je einen Fader pro Element auf, **1×** wieder zu. Zugeklappt bleiben die Werte der Elemente erhalten: Der Knopf leuchtet, und die Marken **1, 2, 3** auf der Spur zeigen, wo die Elemente stehen. Bewegt man ihn, verschieben sich alle Elemente um denselben Betrag – die Abstände bleiben (am Rand des Bereichs bleibt er stehen). Doppeltippen auf den Namen setzt die Vorgabe und macht alle Elemente wieder gleich.
+
+## Vorschau
+
+Die Vorschau im Client rechnet mit derselben Engine wie der Server. Wie sie aussieht, hängt vom Aufbau ab (Einstellungen → Aufbau):
+
+- **nebeneinander**: Draufsicht, jeder Spiegel als Strich.
+- **hintereinander, gedreht** (wie „Classic“ in der Simulation, Vorgabe vorn 0°, Mitte 45°, hinten 90°): Vorderansicht durch alle drei Elemente, rechts jedes Element einzeln. Die Spitzen des gedrehten Elements dürfen dabei über den Bildrand ragen. Unten links schaltet man um: **Spiegel** zeigt die Spiegel mit Gegenlicht, **Bühne** hart in Schwarz und Weiß nur das Licht, das von hinten durch alle drei Lagen kommt, **Wärmebild** dasselbe Licht unscharf in Falschfarben, also die Form, die man aus der Entfernung wahrnimmt. Die Wahl merkt sich jedes Gerät selbst.
+
+Der Aufbau betrifft nur die Vorschau, nicht die Ausgabe an die Spiegel.
+
+Im Kopf der Vorschau schaltet man zwischen **Simple** (die Ansicht nach Aufbau, siehe oben), **Phaser** und **Reflexion** um. Der Phaser zeigt wie der Phaser-Editor der grandMA3 jeden Spiegel als Punkt: waagrecht seine Lage (Element 1–3, je 12 Spiegel), senkrecht seinen Winkel. Dahinter zieht eine kurze Spur die letzte Bewegung nach, die Achse wächst mit dem größten Ausschlag. Unter jedem Element steht es von oben wie in Simple, jeder Spiegel als Strich unter seinem Punkt. **Reflexion** zeigt wie die Website-Simulation den Raum von oben, nur einfacher: die Elemente nebeneinander und ein Scheinwerfer, den man mit dem Finger verschiebt (er zielt immer auf die Mitte; unten links ein Fader für den Zoom, 4–120° Öffnungswinkel), die Strahlen werden an den Spiegeln reflektiert (bis zu dreimal, Rückseiten schlucken) und leuchten auf den Wänden. Auch diese Wahl merkt sich jedes Gerät.
 
 ## Presets
 
