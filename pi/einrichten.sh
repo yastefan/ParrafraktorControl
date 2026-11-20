@@ -198,12 +198,14 @@ usermod -aG plugdev,dialout "$BENUTZER"
 
 # ---------- 4. Dienst ----------
 schritt "systemd-Dienst"
-# Standardports, damit am iPad die Adresse ohne Portnummer reicht. Mit Zertifikat HTTPS auf 443 und
-# zusätzlich HTTP auf 80 als Rückfall (fremder Rechner, Firefox ohne mkcert-Zertifizierungsstelle).
+# HTTP auf dem Standardport 80: Die nackte Adresse (192.168.4.1) geht in jedem Browser. HTTPS bewusst
+# NICHT auf 443, sondern auf 8443 nur für die iPad-App (Offline-Cache): Firefox und Chrome versuchen
+# bei einer eingetippten Adresse zuerst HTTPS auf 443 und bleiben dort an der mkcert-Zertifizierungsstelle
+# hängen, statt auf HTTP zurückzufallen. Antwortet auf 443 niemand, fallen sie still auf 80 zurück.
 TLS_ZEILEN="Environment=PORT=80"
 if [ -f "$REPO/zertifikate/server.pem" ] && [ -f "$REPO/zertifikate/server-key.pem" ]; then
-  TLS_ZEILEN="Environment=PORT=443 HTTP_PORT=80 TLS_CERT=zertifikate/server.pem TLS_KEY=zertifikate/server-key.pem"
-  echo "Zertifikate gefunden: HTTPS auf Port 443, HTTP auf Port 80"
+  TLS_ZEILEN="Environment=PORT=8443 HTTP_PORT=80 TLS_CERT=zertifikate/server.pem TLS_KEY=zertifikate/server-key.pem"
+  echo "Zertifikate gefunden: HTTP auf Port 80, HTTPS auf Port 8443 (iPad-App)"
 fi
 cat > /etc/systemd/system/parrafraktor.service <<EOF
 [Unit]
@@ -328,7 +330,7 @@ schritt "Fertig"
 cat <<EOF
 Jetzt neu starten:   sudo reboot
 Danach prüfen:       sudo $REPO/pi/pruefen.sh
-Weboberfläche:       http://<IP> (mit Zertifikat auch https://<IP>)${AP_SSID:+
-iPad:                WLAN „$AP_SSID“, dann https://${AP_ADRESSE%/*} bzw. http://${AP_ADRESSE%/*}}
+Weboberfläche:       http://<IP> (mit Zertifikat für die iPad-App https://<IP>:8443)${AP_SSID:+
+iPad:                WLAN „$AP_SSID“, dann https://${AP_ADRESSE%/*}:8443 (bzw. http://${AP_ADRESSE%/*})}
 Daten:               $DATEN
 EOF
