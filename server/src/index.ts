@@ -141,7 +141,10 @@ steuerung.on("einstellungen", (e) => {
   starteAusgaben(e);
 });
 
-web = new WebServer({ port, clientVerzeichnis, tls }, steuerung, stand);
+// npm run dev setzt PARRAFRAKTOR_VITE_PORT: dann leitet dieser Port Seitenaufrufe an Vite weiter
+const vitePort = Number(process.env.PARRAFRAKTOR_VITE_PORT) || undefined;
+web = new WebServer({ port, clientVerzeichnis, tls, vitePort }, steuerung, stand);
+if (vitePort) log("web", `Dev-Betrieb: Seiten auf diesem Port leiten an Vite weiter (Port ${vitePort})`);
 starteAusgaben(steuerung.einstellungen);
 // Autostart (Betrieb ohne MA) vor dem ersten Takt, damit sofort gesendet wird
 for (const t of steuerung.autostart()) log("autostart", t);

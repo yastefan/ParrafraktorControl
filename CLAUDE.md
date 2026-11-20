@@ -6,7 +6,7 @@ Sprache im Projekt: Deutsch (Bezeichner, Kommentare, Doku) – wie in der Simula
 
 ## Befehle
 
-- `npm run dev` – Server (tsx watch, Port 8080) + Vite (Port 5173, Proxy für `/ws`)
+- `npm run dev` – Server (tsx watch, Port 8080) + Vite (Port 5173 fest, Proxy für `/ws`); 8080 leitet dann Seitenaufrufe an Vite weiter (`PARRAFRAKTOR_VITE_PORT`, liefert ein `sw.js`, das alte Service Worker abmeldet), Daten in `server/daten/`
 - `npm test` – Vitest: Engine gegen Simulation, Pakete, Übernahme
 - `npm run typecheck`, `npm run build`, `npm start` (gebauter Server liefert `client/dist` aus)
 - `npm run icons` – App-Icons nach `client/public`

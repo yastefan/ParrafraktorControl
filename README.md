@@ -21,7 +21,7 @@ Der Server schickt den Clients bei jeder Änderung und sonst jede Sekunde den ga
 
 ## Entwickeln
 
-Node.js 20.11 oder neuer.
+Node.js 22.18 oder neuer (empfohlen 24; das Stream Deck braucht 22.18).
 
 ```bash
 npm install
@@ -31,7 +31,7 @@ npm install
 npm run dev
 ```
 
-Startet den Server (Port 8080) und Vite (Port 5173, im LAN erreichbar). Den Client unter http://localhost:5173 öffnen.
+Startet den Server (Port 8080) und Vite (Port 5173, im LAN erreichbar). Den Client unter http://localhost:5173 öffnen. Wer im Dev-Betrieb Port 8080 öffnet, wird zu Vite weitergeleitet, statt einen alten Build aus `client/dist` zu sehen; ein dort früher angemeldeter Service Worker meldet sich dabei ab. Die Daten liegen im Dev-Betrieb in `server/daten/`, bei `npm start` in `daten/`.
 
 ```bash
 npm test
