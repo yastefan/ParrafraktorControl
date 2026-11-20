@@ -119,6 +119,22 @@ export function pruefeParameter(roh: unknown): Partial<Parameter> {
 
 export const vorgabeWert = (name: ZahlParameter): number => PARAMETER_VORGABE[name];
 
+// ---------- Offset je Element ----------
+// Hat jedes Element seinen Offset (offsetGetrennt), verschiebt der gemeinsame Offset alle Elemente um
+// denselben Betrag: die Abstände bleiben (wie ein Gruppen-Fader). Am Rand des Bereichs bleibt er stehen,
+// statt die Abstände zu stauchen. Gilt für Client, Stream Deck und Server gleich.
+export function verschiebeOffset(p: Parameter, neu: number): Partial<Parameter> {
+  const ziel = begrenze("offset", neu);
+  if (!p.offsetGetrennt) return { offset: ziel };
+  const b = BEREICHE.offset;
+  const d = Math.min(b.max - Math.max(...p.offsetElemente), Math.max(b.min - Math.min(...p.offsetElemente), ziel - p.offset));
+  return { offset: begrenze("offset", p.offset + d), offsetElemente: p.offsetElemente.map((w) => begrenze("offset", w + d)) };
+}
+
+// Elemente unterscheiden sich gerade im Offset (sonst ist „je Element“ ohne Wirkung)
+export const offsetVerschieden = (p: Parameter): boolean =>
+  p.offsetGetrennt && p.offsetElemente.some((w) => w !== p.offsetElemente[0]);
+
 // ---------- Alte Dateien ----------
 // Gespeicherte Parameter und Presets in die heutige Form bringen. Nur für Dateien, nicht für Nachrichten.
 //  1. Pattern aus der Zeit vor Symmetrie/Richtung/Fächer (damals eigene Pattern)

@@ -8,7 +8,7 @@ import {
 } from "@parrafraktor/engine";
 import {
   AUTO_VORGABE, BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeAuto, pruefeEinstellungen,
-  pruefeImpuls, pruefeParameter, vorgabeName, vorgabeWert,
+  pruefeImpuls, pruefeParameter, verschiebeOffset, vorgabeName, vorgabeWert,
   type AutoEinstellung, type Einstellungen, type ImpulsRegler, type Presets, type SchalterParameter, type StufenParameter, type Uebernahme, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 
@@ -122,7 +122,23 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     this.aendere({ [name]: begrenze(name, this._parameter[name] + schritte * BEREICHE[name].schritt) });
   }
 
+  // Offset eines Elements (0 … 2); schaltet „je Element“ ein, wenn es noch aus ist
+  verstelleOffsetElement(k: number, schritte: number): void {
+    const p = this._parameter;
+    const alt = p.offsetGetrennt ? p.offsetElemente : p.offsetElemente.map(() => p.offset);
+    this.aendere({
+      offsetGetrennt: true,
+      offsetElemente: alt.map((w, i) => (i === k ? begrenze("offset", w + schritte * BEREICHE.offset.schritt) : w)),
+    });
+  }
+
   vorgabe(name: ZahlParameter): void {
+    // Vorgabe beim Offset: auch alle Elemente gleich, „je Element“ aus
+    if (name === "offset") {
+      const v = vorgabeWert("offset");
+      this.aendere({ offset: v, offsetGetrennt: false, offsetElemente: this._parameter.offsetElemente.map(() => v) });
+      return;
+    }
     this.aendere({ [name]: vorgabeWert(name) });
   }
 
@@ -334,6 +350,10 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // preset: Nummer, wenn die Änderung ein Preset abruft; sonst gilt kein Preset mehr als aktiv
   // vonPreset: Abruf eines Presets; jede andere Änderung am Look ist Handbetrieb und beendet Auto
   private aendere(teil: Partial<Parameter>, preset: number | null = null, vonPreset = false): void {
+    // Nur der gemeinsame Offset bei getrennten Elementen: alle mitverschieben (Abstände bleiben)
+    if (teil.offset !== undefined && teil.offsetElemente === undefined && teil.offsetGetrennt === undefined) {
+      teil = { ...teil, ...verschiebeOffset(this._parameter, teil.offset) };
+    }
     const neu = { ...this._parameter, ...teil };
     const pauseOderGleich = Object.keys(teil).every((k) => k === "laeuft");
     if (!pauseOderGleich || preset !== null) this._letztesPreset = preset;
