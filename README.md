@@ -8,11 +8,11 @@ Steuer-App für den Parrafraktor, eine Lichtinstallation von Friedrich Gobbesso 
 packages/engine      Pattern-Engine und DMX-Abbildung (ohne Abhängigkeiten, läuft im Server und im Browser)
 packages/protocol    gemeinsame Typen: Parameter-Bereiche, Einstellungen, WebSocket-Nachrichten
 server/              Node-Server
-  src/takt.ts          40 Hz: Engine weiterrechnen, Übernahme/Überblendung, an die Ausgaben senden
-  src/steuerung.ts     zentraler Zustand; alle Bedienungen ändern ihn nur über diese Aktionen
-  src/ausgabe/         Art-Net, sACN, RS485 (Platzhalter)
-  src/eingabe/         Stream Deck+, MIDI und OSC (Platzhalter)
-  src/mitlesen.ts      liest die MA mit, damit die Überblendung bei ihrer Stellung beginnt
+  src/ticker.ts        40 Hz: Engine weiterrechnen, Übernahme/Überblendung, an die Ausgaben senden
+  src/controller.ts    zentraler Zustand; alle Bedienungen ändern ihn nur über diese Aktionen
+  src/output/          Art-Net, sACN, RS485 (Platzhalter)
+  src/input/           Stream Deck+, MIDI und OSC (Platzhalter)
+  src/ma-listener.ts   liest die MA mit, damit die Überblendung bei ihrer Stellung beginnt
   src/web/             liefert den Client aus, WebSocket /ws
 client/              PWA (Preact + Vite): Vorschau, Pattern, Regler, Einstellungen
 ```
@@ -61,7 +61,7 @@ Der Server liefert den gebauten Client selbst aus: http://<rechner>:8080. Einste
 | `HTTP_PORT` | mit HTTPS zusätzlich unverschlüsselt auf diesem Port, als Rückfall, wenn das Zertifikat Ärger macht |
 | `PARRAFRAKTOR_DATEN` | Datenverzeichnis, Vorgabe `./daten` |
 | `TLS_CERT`, `TLS_KEY` | Zertifikat und Schlüssel (PEM) für HTTPS |
-| `STREAMDECK=aus` | Stream Deck nicht ansprechen |
+| `STREAMDECK=off` | Stream Deck nicht ansprechen |
 
 ### iPad: HTTPS für den Offline-Cache
 
@@ -273,7 +273,7 @@ For maintenance by hand (other changes to the system): `parrafraktor protect off
 4. With own Wi-Fi: the iPad reconnects by itself after every start and reaches the app.
 5. With network menu: Wi-Fi off/on, LAN to DHCP (without DHCP server: fixed IP after about 15 s), another fixed IP – each still so after a reboot.
 6. `parrafraktor update` from start to end, also with SSH over the own Wi-Fi: afterwards `parrafraktor status` shows protection ON/ON, own Wi-Fi on, the new version and "last one ok"; `parrafraktor check` is green.
-7. After every start: presets and settings are there (the log `journalctl -u parrafraktor` may say "Sicherung … verwendet"), the Stream Deck runs, the output starts by itself, `parrafraktor check` is green.
+7. After every start: presets and settings are there (the log `journalctl -u parrafraktor` may say "backup … used"), the Stream Deck runs, the output starts by itself, `parrafraktor check` is green.
 
 Sources: [Raspberry Pi OS downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi documentation: configuration (overlay file system)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, branch trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspi-config#306 (overlay missing after kernel update)](https://github.com/RPi-Distro/raspi-config/issues/306), [raspberrypi-sys-mods, branch pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [forum: resize on Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux driver bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [NetworkManager: nmcli settings (wifi, `ipv4.method shared`)](https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html), [white paper "Making a more resilient file system"](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [NodeSource distributions](https://github.com/nodesource/distributions), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).
 
