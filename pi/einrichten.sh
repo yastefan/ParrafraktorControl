@@ -10,6 +10,7 @@
 #   - udev-Regel fürs Stream Deck + (Zugriff ohne root)
 #   - feste IP im Lichtnetz (NetworkManager), wenn --ip angegeben
 #   - eigenes WLAN (Access Point) fürs iPad, wenn --ap-ssid angegeben
+#   - Netz-Menü am Stream Deck (WLAN, LAN DHCP/fest, IP), wenn --netz-code angegeben
 #   - zum Schluss: System schreibgeschützt (Overlay-Dateisystem über raspi-config)
 #
 # Voraussetzung: Vor dem ersten Start auf der Bootpartition in cmdline.txt das Wort „resize“
@@ -19,6 +20,7 @@
 # Aufruf im Repo auf dem Pi:
 #   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay] [--ohne-streamdeck]
 #        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band a|bg] [--land DE]]
+#        [--netz-code NNNN]   vier Ziffern 1–8 (Tasten oben links 1 … unten rechts 8)
 # Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen.
 set -euo pipefail
 
@@ -37,6 +39,7 @@ AP_PASSWORT=""
 AP_ADRESSE=192.168.4.1/24
 AP_BAND=a
 LAND=DE
+NETZ_CODE=""
 
 hilfe() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit "${1:-0}"; }
 while [ $# -gt 0 ]; do
@@ -53,6 +56,7 @@ while [ $# -gt 0 ]; do
     --ap-adresse) AP_ADRESSE="$2"; shift 2 ;;
     --ap-band) AP_BAND="$2"; shift 2 ;;
     --land) LAND="$2"; shift 2 ;;
+    --netz-code) NETZ_CODE="$2"; shift 2 ;;
     -h|--help) hilfe 0 ;;
     *) echo "Unbekannte Option: $1" >&2; hilfe 1 ;;
   esac
@@ -73,6 +77,9 @@ REPO="$(cd "$(dirname "$0")/.." && pwd)"
 if [ -n "$AP_SSID" ]; then
   [ ${#AP_PASSWORT} -ge 8 ] && [ ${#AP_PASSWORT} -le 63 ] || abbruch "--ap-passwort braucht 8 bis 63 Zeichen (WPA2)"
   case "$AP_BAND" in bg|a) ;; *) abbruch "--ap-band ist bg (2,4 GHz) oder a (5 GHz)" ;; esac
+fi
+if [ -n "$NETZ_CODE" ] && ! [[ "$NETZ_CODE" =~ ^[1-8]{4}$ ]]; then
+  abbruch "--netz-code braucht vier Ziffern von 1 bis 8 (eine je Taste)"
 fi
 if grep -q "overlayroot=tmpfs" /proc/cmdline; then
   abbruch "Overlay ist aktiv – erst ausschalten: sudo pi/wartung.sh aus"
@@ -207,6 +214,12 @@ if [ -f "$REPO/zertifikate/server.pem" ] && [ -f "$REPO/zertifikate/server-key.p
   TLS_ZEILEN="Environment=PORT=8443 HTTP_PORT=80 TLS_CERT=zertifikate/server.pem TLS_KEY=zertifikate/server-key.pem"
   echo "Zertifikate gefunden: HTTP auf Port 80, HTTPS auf Port 8443 (iPad-App)"
 fi
+# Mit Netz-Menü ruft der Dienst das Hilfsprogramm per sudo auf; ein CapabilityBoundingSet ließe sudo
+# nicht mehr root werden, deshalb dann ohne. Ohne Netz-Menü bleibt der Dienst auf dieses eine Recht beschränkt.
+RECHTE_ZEILEN="CapabilityBoundingSet=CAP_NET_BIND_SERVICE"
+if [ -n "$NETZ_CODE" ]; then
+  RECHTE_ZEILEN="Environment=PARRAFRAKTOR_NETZ_CODE=$NETZ_CODE PARRAFRAKTOR_NETZ_SCHNITTSTELLE=$SCHNITTSTELLE"
+fi
 cat > /etc/systemd/system/parrafraktor.service <<EOF
 [Unit]
 Description=ParrafraktorControl
@@ -223,7 +236,7 @@ Environment=NODE_ENV=production PARRAFRAKTOR_DATEN=$DATEN
 $TLS_ZEILEN
 # Ports unter 1024 ohne root: nur dieses eine Recht
 AmbientCapabilities=CAP_NET_BIND_SERVICE
-CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+$RECHTE_ZEILEN
 ExecStart=/usr/bin/node server/dist/index.js
 Restart=always
 RestartSec=2
@@ -308,6 +321,60 @@ if [ -n "$AP_SSID" ]; then
   hinweis "Wer gerade per WLAN verbunden ist, kommt nach dem Neustart über „$AP_SSID“ auf ${AP_ADRESSE%/*}."
 else
   echo "Kein --ap-ssid: kein eigenes WLAN."
+fi
+
+# ---------- 7c. Netz-Menü am Stream Deck ----------
+schritt "Netz-Menü"
+NETZ_BEFEHL=/usr/local/sbin/parrafraktor-netz
+if [ -n "$NETZ_CODE" ]; then
+  # Hilfsprogramm root gehörend außerhalb des Repos: Läge es im Repo, könnte der Benutzer es ändern
+  # und per sudo als root ausführen
+  sed -e "s#@DATEN@#$DATEN#" -e "s#@SCHNITTSTELLE@#$SCHNITTSTELLE#" "$REPO/pi/netz.sh" > "$NETZ_BEFEHL.neu"
+  install -o root -g root -m 0755 "$NETZ_BEFEHL.neu" "$NETZ_BEFEHL"
+  rm -f "$NETZ_BEFEHL.neu"
+  SUDOERS=/etc/sudoers.d/parrafraktor-netz
+  printf '%s ALL=(root) NOPASSWD: %s anwenden\n' "$BENUTZER" "$NETZ_BEFEHL" > "$SUDOERS.neu"
+  visudo -cf "$SUDOERS.neu" >/dev/null || abbruch "sudoers-Regel ungültig"
+  install -o root -g root -m 0440 "$SUDOERS.neu" "$SUDOERS"
+  rm -f "$SUDOERS.neu"
+  # Anfangswerte, wenn es noch keine gibt: wie oben eingerichtet
+  if [ ! -f "$DATEN/netz.json" ]; then
+    START_IP="${IP:-2.0.0.50/8}"
+    AP_JSON=false; [ -n "$AP_SSID" ] && AP_JSON=true
+    MODUS_JSON=fest; [ -z "$IP" ] && MODUS_JSON=dhcp
+    python3 -I - "$START_IP" "$AP_JSON" "$MODUS_JSON" > "$DATEN/netz.json" <<'PY'
+import json, sys
+adresse, praefix = sys.argv[1].split("/")
+print(json.dumps({"ap": sys.argv[2] == "true", "lan": {"modus": sys.argv[3],
+  "adresse": [int(x) for x in adresse.split(".")], "praefix": int(praefix)}}, indent=2))
+PY
+    chown "$BENUTZER:" "$DATEN/netz.json"
+  fi
+  # Beim Hochfahren anwenden: nmcli-Änderungen liegen mit Schreibschutz im RAM
+  cat > /etc/systemd/system/parrafraktor-netz.service <<EOF
+[Unit]
+Description=ParrafraktorControl: Netz-Einstellungen aus $DATEN/netz.json anwenden
+After=NetworkManager.service daten.mount
+Wants=NetworkManager.service daten.mount
+
+[Service]
+Type=oneshot
+ExecStart=$NETZ_BEFEHL anwenden
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable parrafraktor-netz.service
+  echo "Netz-Menü an: im Hauptmenü Output halten, Order dazu, 2 s halten, dann den Code."
+else
+  rm -f "$NETZ_BEFEHL" /etc/sudoers.d/parrafraktor-netz
+  if [ -f /etc/systemd/system/parrafraktor-netz.service ]; then
+    systemctl disable parrafraktor-netz.service || true
+    rm -f /etc/systemd/system/parrafraktor-netz.service
+    systemctl daemon-reload
+  fi
+  echo "Kein --netz-code: kein Netz-Menü."
 fi
 
 # ---------- 8. Schreibschutz ----------

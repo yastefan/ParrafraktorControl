@@ -120,6 +120,7 @@ Impulse (Live-Seite)
 | Drehregler | Seiten je nach Grundbewegung, nur mit Reglern, die sie benutzt: **Bewegung** (Offset, Amplitude, Speed und Wellen bzw. Wiederkehr bzw. Wellenlänge; beim Sinus auf der zweiten Seite Breite und Speed bis), **Verteilung** (Ordnung, Elemente, Fächer, Gegenlauf, Element-Phase), **Fein** (Group, Ping-Pong, Speed je Element). Leere Seiten fallen weg, bei Ruhe bleibt nur Offset. Schalter: rechts drehen = an, drücken = umschalten |
 | Regler drücken / Streifen antippen | Vorgabewert (außer im Impulse-Menü) |
 | Touchstreifen wischen | Reglerseite wechseln (außer im Impulse-Menü) |
+| Output halten, Order dazu, 2 s | nur auf dem Pi mit Netz-Menü: Code-Eingabe, siehe [Netz-Menü](#netz-menü-am-stream-deck-nur-pi) |
 
 ### Raspberry Pi als Steuergerät
 
@@ -169,6 +170,8 @@ Soll der Pi ein eigenes WLAN fürs iPad aufmachen, Name und Passwort (8–63 Zei
 sudo pi/einrichten.sh --ip 2.0.0.50/8 --ap-ssid Parrafraktor --ap-passwort 'geheimes-passwort'
 ```
 
+Mit `--netz-code NNNN` kommt das [Netz-Menü am Stream Deck](#netz-menü-am-stream-deck-nur-pi) dazu.
+
 Das iPad findet die App dann unter https://192.168.4.1:8443 bzw. http://192.168.4.1 (`--ap-adresse`, Vorgabe `192.168.4.1/24`) oder unter parrafraktor.local. Vorgabe ist 5 GHz auf Kanal 36, meist ruhiger in Räumen mit vielen Netzen; `--ap-band bg` nimmt 2,4 GHz (Kanal 6), das reicht weiter und durch Wände. Der Ländercode (`--land`, Vorgabe DE) gibt die erlaubten Kanäle vor. Der WLAN-Chip des Pi kann nicht gleichzeitig Access Point und mit einem anderen WLAN verbunden sein: Das WLAN, über das man einrichtet, bleibt gespeichert, kommt aber erst wieder, wenn der Access Point aus ist (`wartung.sh update` macht das selbst). Ins Lichtnetz wird nichts weitergeleitet. Für HTTPS die Adresse des Access Points beim `mkcert`-Aufruf mit angeben (z. B. `192.168.4.1`).
 
 Das Skript vergrößert die Systempartition auf 8 GiB (`--root-gb`), legt dahinter die Datenpartition mit 1 GiB an (`--daten-mb`), installiert Node, baut die App, richtet Dienst, Watchdog, Logs, udev und Netz ein und schaltet zum Schluss den Schreibschutz ein. Mit `--gateway` bekommt das Lichtnetz eine Standardroute, sonst bleibt das Internet beim WLAN. Ein erneuter Aufruf schadet nicht. Danach:
@@ -182,6 +185,34 @@ sudo ParrafraktorControl/pi/pruefen.sh
 ```
 
 `pruefen.sh` zeigt, ob Overlay, Datenpartition, Dienst, Watchdog, Logs und Stream Deck stimmen.
+
+**Netz-Menü am Stream Deck (nur Pi)**
+
+Mit `--netz-code NNNN` beim Einrichten (vier Ziffern 1–8) gibt es am Stream Deck ein Netz-Menü – ohne Rechner, auch wenn WLAN oder LAN gerade falsch stehen. Den Code nur beim Einrichten angeben, nicht ins Repo schreiben.
+
+1. Im Hauptmenü **Output** drücken und halten, innerhalb von 0,6 s **Order** dazu, beide 2 s halten. Output schaltet dabei nicht um, Order nicht weiter; beide Tasten zeigen „Network · hold …“.
+2. Code über die Tasten: oben links 1 … oben rechts 4, unten links 5 … unten rechts 8. Der Streifen zeigt die Eingabe als Punkte. Falscher Code oder 10 s ohne Eingabe: zurück ins Hauptmenü.
+3. Im Menü:
+
+```
+┌──────────┬──────────┬──────────┬──────────┐
+│  WLAN    │  LAN     │  Mask    │  Apply   │
+├──────────┼──────────┼──────────┼──────────┤
+│‹ Back    │  Reset   │ LAN jetzt│WLAN jetzt│
+└──────────┴──────────┴──────────┴──────────┘
+```
+
+| Bedienteil | Funktion |
+|---|---|
+| WLAN | eigenes WLAN an/aus |
+| LAN | **DHCP** (antwortet binnen 15 s kein DHCP-Server, gilt die feste IP) oder **fixed IP** |
+| Mask | Netzmaske /8, /16, /24 |
+| Drehregler | je einer für die vier Zahlen der festen IP (schnell drehen: Zehnerschritte), Drücken: Zahl wie gespeichert |
+| Apply | wendet den Entwurf an (leuchtet, wenn es Änderungen gibt) |
+| Reset | Entwurf verwerfen |
+| LAN jetzt, WLAN jetzt | aktueller Stand: Adresse der LAN-Buchse (oder „no cable“), WLAN an/aus |
+
+Gespeichert wird in `/daten/parrafraktor/netz.json`; beim Hochfahren wendet `parrafraktor-netz.service` die Einstellungen erneut an, weil der Schreibschutz Änderungen am System sonst verwirft. Angewendet wird von `/usr/local/sbin/parrafraktor-netz` (aus `pi/netz.sh`), das der Dienst per sudo aufrufen darf – nur dieses eine Programm. Ändert sich das Lichtnetz, im Einstellungsmenü der App die Ziel-IP von Art-Net/sACN prüfen.
 
 **3. Ausstellung ohne MA**: Im Einstellungsmenü der App unter **Autostart** „Autostart output“ einschalten, bei Bedarf auch „Autostart Auto“ (siehe [Ausgabe und Output](#ausgabe-und-output)).
 
@@ -211,6 +242,7 @@ sudo ParrafraktorControl/pi/wartung.sh an
 2. Presets speichern, Einstellungen ändern, Autostart output einschalten.
 3. Mehrmals im Betrieb den Strom ziehen, auch **direkt nach dem Speichern eines Presets** (innerhalb einer Sekunde) und während Auto überblendet.
 4. Mit eigenem WLAN: iPad verbindet sich nach jedem Start von selbst und erreicht die App.
+5. Mit Netz-Menü: WLAN aus/an, LAN auf DHCP (ohne DHCP-Server: feste IP nach etwa 15 s), andere feste IP – jeweils auch nach einem Neustart noch so.
 5. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `pruefen.sh` ist grün.
 
 Quellen: [Raspberry Pi OS Downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi Dokumentation: Konfiguration (Overlay File System)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, Zweig trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspberrypi-sys-mods, Zweig pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [Forum: Resize unter Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (Watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux-Treiber bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [NetworkManager: nmcli-Einstellungen (wifi, `ipv4.method shared`)](https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html), [Whitepaper „Making a more resilient file system“](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [NodeSource-Distributionen](https://github.com/nodesource/distributions), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).

@@ -11,10 +11,11 @@ import {
   BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
 } from "@parrafraktor/protokoll";
 import { fehlerText, log } from "../../log.js";
+import { PRAEFIXE, gleicherWunsch, zeigeAdresse, type Netz, type NetzWunsch } from "../../netz.js";
 import type { Steuerung } from "../../steuerung.js";
 import type { Eingabemodul } from "../eingabe.js";
 import {
-  HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, TASTE_ELEMENT_FOLGE,
+  CODE_WARTEN_MS, HAUPT, HALTEN_MS, IMPULS_ARTEN_TASTEN, NETZ_TASTEN, IMPULS_REGLER_SEITEN, PLAETZE, TASTE_ELEMENT_FOLGE,
   TASTE_IMPULS_REGLER, TASTE_SEITE, TASTE_SYMMETRISCH, TASTE_ZURUECK,
   eintragAuf, reglerSeiten, seitenAnzahl, type Menue, type Regler, type ReglerSeite,
 } from "./belegung.js";
@@ -58,6 +59,13 @@ export class StreamDeckModul implements Eingabemodul {
   private halten: { taste: number; tippen?: () => void; timer: NodeJS.Timeout; ausgeloest: boolean } | null = null;
   private gespeichert: { nr: number; bis: number } | null = null;
 
+  // Netz-Menü (nur mit netz): Tastenkombination, Code, Entwurf der Einstellungen
+  private kombi: NodeJS.Timeout | null = null;
+  private code = "";
+  private codeTimer: NodeJS.Timeout | undefined;
+  private entwurf: NetzWunsch | null = null;
+  private netzTimer: NodeJS.Timeout | undefined;
+
   // Zuletzt gezeichnete Bilder, damit nur Geändertes zum Gerät geht
   private gezeichnet = new Map<string, string>();
   private zeichnet = false;
@@ -65,7 +73,7 @@ export class StreamDeckModul implements Eingabemodul {
   private zeichenTimer: NodeJS.Timeout | undefined;
   private readonly beiAenderung = () => this.zeichneBald();
 
-  constructor(private readonly steuerung: Steuerung) {}
+  constructor(private readonly steuerung: Steuerung, private readonly netz: Netz | null = null) {}
 
   async starte(): Promise<void> {
     try {
@@ -83,6 +91,9 @@ export class StreamDeckModul implements Eingabemodul {
     this.beendet = true;
     clearTimeout(this.suchTimer);
     clearTimeout(this.zeichenTimer);
+    clearTimeout(this.codeTimer);
+    clearInterval(this.netzTimer);
+    if (this.kombi) clearTimeout(this.kombi);
     this.steuerung.off("aenderung", this.beiAenderung);
     const deck = this.deck;
     this.deck = null;
@@ -159,6 +170,19 @@ export class StreamDeckModul implements Eingabemodul {
   // ---------- Bedienung ----------
 
   private tasteRunter(taste: number): void {
+    // Output halten, dann Order dazu: Output schaltet nicht um, Order nicht weiter; nach 2 s Code
+    const output = this.halten;
+    if (this.netz && this.menue === "haupt" && taste === HAUPT.ordnung && output?.taste === HAUPT.output && !output.ausgeloest) {
+      clearTimeout(output.timer);
+      this.halten = null;
+      this.kombi = setTimeout(() => {
+        this.kombi = null;
+        this.oeffne("code");
+        this.zeichneBald();
+      }, HALTEN_MS.netz);
+      this.zeichneBald();
+      return;
+    }
     const aktion = this.aktion(taste);
     if (!aktion) return;
     if (!aktion.halten) {
@@ -183,6 +207,12 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private tasteHoch(taste: number): void {
+    if (this.kombi && (taste === HAUPT.output || taste === HAUPT.ordnung)) {
+      clearTimeout(this.kombi);   // zu früh losgelassen
+      this.kombi = null;
+      this.zeichneBald();
+      return;
+    }
     const h = this.halten;
     if (!h || h.taste !== taste) return;
     clearTimeout(h.timer);
@@ -194,6 +224,63 @@ export class StreamDeckModul implements Eingabemodul {
   private oeffne(menue: Menue, seite = 0): void {
     this.menue = menue;
     this.seite = seite;
+    clearTimeout(this.codeTimer);
+    clearInterval(this.netzTimer);
+    this.netzTimer = undefined;
+    if (menue === "code") {
+      this.code = "";
+      this.codeTimer = setTimeout(() => { this.oeffne("haupt"); this.zeichneBald(); }, CODE_WARTEN_MS);
+    }
+    if (menue === "netz" && this.netz) {
+      const netz = this.netz;
+      this.entwurf = structuredClone(netz.wunsch);
+      const auffrischen = () => void netz.aktualisiere().then(() => this.zeichneBald(), () => {});
+      auffrischen();
+      this.netzTimer = setInterval(auffrischen, 2000);
+    }
+  }
+
+  private codeZiffer(ziffer: number): void {
+    this.code += String(ziffer);
+    clearTimeout(this.codeTimer);
+    if (this.code.length < 4) {
+      this.codeTimer = setTimeout(() => { this.oeffne("haupt"); this.zeichneBald(); }, CODE_WARTEN_MS);
+      return;
+    }
+    if (this.code === this.netz?.code) {
+      log("streamdeck", "Netz-Menü geöffnet");
+      this.oeffne("netz");
+    } else {
+      log("streamdeck", "Netz-Menü: falscher Code");
+      this.oeffne("haupt");
+    }
+  }
+
+  private netzAktion(taste: number): Aktion | undefined {
+    const netz = this.netz, e = this.entwurf;
+    if (!netz || !e) return undefined;
+    switch (taste) {
+      case NETZ_TASTEN.wlan: return { tippen: () => { e.ap = !e.ap; } };
+      case NETZ_TASTEN.lan: return { tippen: () => { e.lan.modus = e.lan.modus === "dhcp" ? "fest" : "dhcp"; } };
+      case NETZ_TASTEN.praefix: return {
+        tippen: () => {
+          const i = (PRAEFIXE as readonly number[]).indexOf(e.lan.praefix);
+          e.lan.praefix = PRAEFIXE[(i + 1) % PRAEFIXE.length]!;
+        },
+      };
+      case NETZ_TASTEN.uebernehmen: return {
+        tippen: () => {
+          if (netz.wendetAn || gleicherWunsch(e, netz.wunsch)) return;
+          void netz.setze(structuredClone(e)).then(() => {
+            if (this.menue === "netz") this.entwurf = structuredClone(netz.wunsch);
+            this.zeichneBald();
+          });
+        },
+      };
+      case NETZ_TASTEN.zurueck: return { tippen: () => this.oeffne("haupt") };
+      case NETZ_TASTEN.verwerfen: return { tippen: () => { this.entwurf = structuredClone(netz.wunsch); } };
+      default: return undefined;
+    }
   }
 
   private aktion(taste: number): Aktion | undefined {
@@ -218,6 +305,8 @@ export class StreamDeckModul implements Eingabemodul {
         default: return undefined;
       }
     }
+    if (this.menue === "code") return { tippen: () => this.codeZiffer(taste + 1) };
+    if (this.menue === "netz") return this.netzAktion(taste);
     if (taste === TASTE_ZURUECK) return { tippen: () => this.oeffne("haupt") };
     if (this.menue === "impulse") {
       const art = IMPULS_ARTEN_TASTEN[taste];
@@ -280,6 +369,15 @@ export class StreamDeckModul implements Eingabemodul {
     const jetzt = Date.now();
     const schnell = jetzt - (this.letzteDrehung[index] ?? 0) < SCHNELL_MS;
     this.letzteDrehung[index] = jetzt;
+    if (this.menue === "code") return;
+    if (this.menue === "netz") {
+      // je Regler eine Zahl der festen IP
+      const a = this.entwurf?.lan.adresse;
+      if (!a) return;
+      a[index] = Math.min(255, Math.max(0, a[index]! + schritte * (schnell ? 10 : 1)));
+      this.zeichneBald();
+      return;
+    }
     if (this.menue === "impulse") {
       const name = this.impulsRegler(index);
       if (name) this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
@@ -300,6 +398,14 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private reglerDruck(index: number): void {
+    if (this.menue === "code") return;
+    if (this.menue === "netz") {
+      // Drücken: diese Zahl wieder wie gespeichert
+      const a = this.entwurf?.lan.adresse, w = this.netz?.wunsch.lan.adresse;
+      if (a && w) a[index] = w[index]!;
+      this.zeichneBald();
+      return;
+    }
     if (this.menue === "impulse") {
       const name = this.impulsRegler(index);
       if (name) this.steuerung.vorgabeImpuls(name);
@@ -314,6 +420,7 @@ export class StreamDeckModul implements Eingabemodul {
 
   // x: 0 = links … 1 = rechts
   private tippeStreifen(x: number): void {
+    if (this.menue === "code") return;
     if (this.menue === "impulse") {
       this.steuerung.tippeImpuls(x);
       return;
@@ -323,6 +430,7 @@ export class StreamDeckModul implements Eingabemodul {
 
   // von: Anfang (0 … 1), dx: Weg als Anteil der Streifenbreite
   private wische(von: number, dx: number): void {
+    if (this.menue === "code" || this.menue === "netz") return;
     if (this.menue === "impulse") {
       // kurzes Wischen gilt als Tippen, sonst läuft der Flash vom Rand in Wischrichtung durch
       if (Math.abs(dx) < 0.05) this.tippeStreifen(von);
@@ -387,6 +495,13 @@ export class StreamDeckModul implements Eingabemodul {
     const menueTaste = (ton: Farbton): Partial<TastenInhalt> => ({ grund: ton.dunkel, text: ton.hell, rahmen: ton.hell, rahmenBreite: 3 });
     const { parameter, uebernahme, presets, letztesPreset } = this.steuerung;
     const haelt = this.halten?.taste === taste && !this.halten.ausgeloest ? "hold …" : undefined;
+    if (this.menue === "code") {
+      return { titel: String(taste + 1), grund: TON.netz.dunkel, text: TON.netz.hell };
+    }
+    if (this.menue === "netz") return this.netzTaste(taste);
+    if (this.menue === "haupt" && this.kombi && (taste === HAUPT.output || taste === HAUPT.ordnung)) {
+      return { titel: "Network", unter: "hold …", grund: TON.netz.dunkel, text: TON.netz.hell, rahmen: TON.netz.hell };
+    }
     if (this.menue === "haupt") {
       switch (taste) {
         case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus], ...menueTaste(TON.pattern) };
@@ -458,8 +573,42 @@ export class StreamDeckModul implements Eingabemodul {
     return eintrag(p.name, letztesPreset === i, { unter: gespeichert ? "stored" : haelt ?? String(i + 1) });
   }
 
+  private netzTaste(taste: number): TastenInhalt {
+    const netz = this.netz, e = this.entwurf;
+    if (!netz || !e) return { titel: "" };
+    const ton = TON.netz;
+    const st = netz.status;
+    const geaendert = !gleicherWunsch(e, netz.wunsch);
+    const schalter = (titel: string, an: boolean, unter: string): TastenInhalt =>
+      an ? { titel, unter, grund: ton.hell, text: ton.auf } : { titel, unter, grund: ton.dunkel };
+    switch (taste) {
+      case NETZ_TASTEN.wlan: return schalter("WLAN", e.ap, e.ap ? "on" : "off");
+      case NETZ_TASTEN.lan: return schalter("LAN", e.lan.modus === "dhcp", e.lan.modus === "dhcp" ? "DHCP" : "fixed IP");
+      case NETZ_TASTEN.praefix: return { titel: "Mask", unter: `/${e.lan.praefix}`, grund: ton.dunkel };
+      case NETZ_TASTEN.uebernehmen:
+        if (netz.wendetAn) return { titel: "Apply", unter: "applying …", grund: FARBE.blenden };
+        return geaendert
+          ? { titel: "Apply", unter: "changes", grund: ton.hell, text: ton.auf }
+          : { titel: "Apply", unter: netz.meldung || "no changes", leise: true, grund: ton.dunkel };
+      case NETZ_TASTEN.zurueck: return { titel: "‹ Back", rahmen: ton.hell };
+      case NETZ_TASTEN.verwerfen: return geaendert ? { titel: "Reset", unter: "draft", grund: ton.dunkel } : { titel: "Reset", leise: true };
+      case NETZ_TASTEN.lanStand: {
+        const unter = st.lanAdressen[0] ?? (st.kabel === false ? "no cable" : "no address");
+        return { titel: st.dhcpAktiv ? "LAN · DHCP" : "LAN", unter, grund: FARBE.feld };
+      }
+      case NETZ_TASTEN.wlanStand: return { titel: "WLAN now", unter: st.apAn ? "on" : "off", grund: FARBE.feld };
+      default: return { titel: "" };
+    }
+  }
+
   // Kopf des Touchstreifens: Name der Reglerseite und ihre Farbe
   private streifenKopf(): { name: string; ton: Farbton } {
+    if (this.menue === "code") return { name: "Network · enter code", ton: TON.netz };
+    if (this.menue === "netz") {
+      const e = this.entwurf;
+      const modus = e?.lan.modus === "dhcp" ? "DHCP, else fixed IP" : "fixed IP";
+      return { name: `Network · LAN ${modus} · ${e ? zeigeAdresse(e) : ""}`, ton: TON.netz };
+    }
     if (this.menue === "impulse") {
       const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite];
       return { name: `${seite?.name ?? ""} · Strip: ${IMPULS_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
@@ -469,6 +618,14 @@ export class StreamDeckModul implements Eingabemodul {
   }
 
   private felder(): Feld[] {
+    if (this.menue === "code") {
+      return [0, 1, 2, 3].map((i): Feld => ({ titel: "Code", wert: i < this.code.length ? "●" : "○", anteil: null }));
+    }
+    if (this.menue === "netz") {
+      const a = this.entwurf?.lan.adresse ?? [0, 0, 0, 0];
+      const w = this.netz?.wunsch.lan.adresse;
+      return a.map((z, i): Feld => ({ titel: `IP ${i + 1}${w && w[i] !== z ? " *" : ""}`, wert: String(z), anteil: z / 255 }));
+    }
     if (this.menue === "impulse") {
       const e = this.steuerung.impuls;
       // immer vier Felder, damit jedes über seinem Drehregler steht

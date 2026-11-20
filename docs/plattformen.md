@@ -14,6 +14,8 @@ Der Server fragt nie, auf welchem System er läuft. Unterschiede kommen nur von 
 | `PARRAFRAKTOR_DATEN` | `./daten` (`npm start`), `server/daten` (`npm run dev`) | `/daten/parrafraktor` |
 | `PARRAFRAKTOR_VITE_PORT` | 5173 (setzt `npm run dev`) | – |
 | `STREAMDECK=aus` | bei Bedarf | – |
+| `PARRAFRAKTOR_NETZ_CODE` | – | Code fürs Netz-Menü (`--netz-code`), ohne: kein Menü |
+| `PARRAFRAKTOR_NETZ_SCHNITTSTELLE` | – | LAN-Buchse, `eth0` |
 
 ## Was wo gilt
 
@@ -27,6 +29,7 @@ Der Server fragt nie, auf welchem System er läuft. Unterschiede kommen nur von 
 | Absturz, Hänger | – | – | systemd `Restart=always`, Hardware-Watchdog | `pi/einrichten.sh` |
 | Logs | Konsole | Konsole | journald nur im RAM | `pi/einrichten.sh` |
 | Netz | wie eingestellt | wie eingestellt | feste IP im Lichtnetz, eigenes WLAN (5 GHz) | `pi/einrichten.sh` |
+| Netz-Menü am Stream Deck | – | – | WLAN an/aus, LAN DHCP (Rückfall feste IP) oder fest, IP; Wunsch in `/daten`, angewendet per sudo von `/usr/local/sbin/parrafraktor-netz` (root gehörend), beim Hochfahren erneut | `server/src/netz.ts`, `pi/netz.sh`, `pi/einrichten.sh` |
 | HTTP/HTTPS | mkcert, Port wählbar | mkcert, Port wählbar | HTTP auf 80 für alle Browser, HTTPS auf 8443 nur für die iPad-App (nicht 443: Browser probieren dort zuerst HTTPS und bleiben am mkcert-Zertifikat hängen) | `pi/einrichten.sh` |
 | Ohne MA starten | Einstellung „Autostart output“ | ebenso | ebenso, Dienst startet beim Hochfahren | Client (Einstellungen) |
 | Updates | `git pull`, `npm ci` | ebenso | `pi/wartung.sh aus` → `update` → `an` | `pi/wartung.sh` |

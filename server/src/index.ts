@@ -8,6 +8,8 @@
 //   TLS_CERT, TLS_KEY    Zertifikat und Schlüssel (PEM) für HTTPS – nötig für den Offline-Cache auf dem iPad
 //   HTTP_PORT            mit HTTPS zusätzlich unverschlüsselt auf diesem Port (Rückfall bei Zertifikatsärger)
 //   STREAMDECK=aus       Stream Deck nicht ansprechen
+//   PARRAFRAKTOR_NETZ_CODE  Pi: vierstelliger Code (Tasten 1–8) fürs Netz-Menü am Stream Deck, ohne: kein Menü
+//   PARRAFRAKTOR_NETZ_BEFEHL, PARRAFRAKTOR_NETZ_SCHNITTSTELLE  Hilfsprogramm (per sudo) und LAN-Buchse
 import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +23,7 @@ import type { Eingabemodul } from "./eingabe/eingabe.js";
 import { StreamDeckModul } from "./eingabe/streamdeck/index.js";
 import { fehlerText, log } from "./log.js";
 import { Mitlesen } from "./mitlesen.js";
+import { netzAusUmgebung } from "./netz.js";
 import { Speicher } from "./speicher.js";
 import { Steuerung, parameterAus } from "./steuerung.js";
 import { Takt } from "./takt.js";
@@ -72,7 +75,10 @@ const takt = new Takt(steuerung, { ausgaben: () => ausgaben, mitlesen: () => mit
 // ---------- Bedienungen am Rechner ----------
 
 const eingaben: Eingabemodul[] = [];
-if (process.env.STREAMDECK !== "aus") eingaben.push(new StreamDeckModul(steuerung));
+// Netz-Menü am Stream Deck nur, wenn pi/einrichten.sh es eingeschaltet hat (PARRAFRAKTOR_NETZ_CODE)
+const netz = netzAusUmgebung(speicher);
+if (netz) log("netz", "Netz-Menü am Stream Deck an");
+if (process.env.STREAMDECK !== "aus") eingaben.push(new StreamDeckModul(steuerung, netz));
 // Weitere Module (MIDI, OSC) hier eintragen, siehe eingabe/midi.ts und eingabe/osc.ts
 
 // ---------- Stand für die Clients ----------

@@ -51,7 +51,8 @@ case "${1:-status}" in
     # Wer per SSH über dieses WLAN verbunden ist, verlöre dabei die Sitzung samt Update – deshalb
     # läuft es dann losgelöst als eigener Dienst weiter.
     AP_AN=0
-    nmcli -t -f NAME connection show --active | grep -qx parrafraktor-ap && AP_AN=1
+    # grep ohne -q: mit pipefail meldete -q sonst „aus“, wenn grep vor nmcli fertig ist (SIGPIPE)
+    nmcli -t -f NAME connection show --active | grep -x parrafraktor-ap >/dev/null && AP_AN=1
     if [ "$AP_AN" = 1 ] && [ -z "${WARTUNG_LOSGELOEST:-}" ]; then
       systemctl reset-failed parrafraktor-update >/dev/null 2>&1 || true
       systemd-run --unit=parrafraktor-update --collect \
@@ -84,7 +85,7 @@ HINWEIS
     overlay_eingetragen && ! overlay_aktiv && echo "(beim nächsten Start wieder aktiv)"
     ! overlay_eingetragen && overlay_aktiv && echo "(beim nächsten Start aus)"
     findmnt /daten >/dev/null && echo "Daten: /daten eingebunden" || echo "Daten: /daten NICHT eingebunden"
-    nmcli -t -f NAME connection show --active 2>/dev/null | grep -qx parrafraktor-ap && echo "Eigenes WLAN: an"
+    nmcli -t -f NAME connection show --active 2>/dev/null | grep -x parrafraktor-ap >/dev/null && echo "Eigenes WLAN: an"
     true ;;
   *) awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit 1 ;;
 esac

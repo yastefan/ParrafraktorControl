@@ -25,6 +25,16 @@
 // Touchstreifen im Impulse-Menü: Tippen = gewählte Art von dort aus, Wischen = sie läuft in
 // Wischrichtung durch. Wie schnell, sagt die Ausbreitung.
 //
+// Netz-Menü (nur auf dem Pi, wenn pi/einrichten.sh es mit --netz-code einschaltet):
+// Im Hauptmenü Output drücken und halten, innerhalb von 0,6 s Order dazu, beide 2 s halten – Output
+// schaltet dabei nicht um, Order nicht weiter. Dann vier Tasten als Code (oben links 1 … unten rechts 8).
+//   ┌──────────┬──────────┬──────────┬──────────┐
+//   │  WLAN    │  LAN     │  Mask    │  Apply   │   WLAN an/aus, LAN DHCP (Rückfall feste IP)/fest
+//   ├──────────┼──────────┼──────────┼──────────┤
+//   │‹ Zurück  │  Reset   │ LAN-Stand│WLAN-Stand│   Reset: Entwurf verwerfen
+//   └──────────┴──────────┴──────────┴──────────┘
+// Drehregler: je einer für die vier Zahlen der festen IP. Erst „Apply“ wendet an.
+//
 // Drehregler: Die Seiten richten sich nach der Grundbewegung – nur Regler, die sie benutzt,
 // leere Seiten fallen weg (bei Ruhe bleibt nur Offset). Schalter: Drehen schaltet.
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite
@@ -33,7 +43,7 @@ import type { ImpulsArt, Modus } from "@parrafraktor/engine";
 import { benutzt, type ImpulsRegler, type SchalterParameter, type StufenParameter, type ZahlParameter } from "@parrafraktor/protokoll";
 import type { Ton } from "./bilder.js";
 
-export type Menue = "haupt" | "pattern" | "presets" | "impulse";
+export type Menue = "haupt" | "pattern" | "presets" | "impulse" | "code" | "netz";
 
 export type Regler =
   | { art: "zahl"; name: ZahlParameter }
@@ -98,7 +108,20 @@ export const TASTE_ZURUECK = 4;
 export const TASTE_SEITE = 7;
 export const PLAETZE = [0, 1, 2, 3, 5, 6] as const;
 
-export const HALTEN_MS = { output: 600, presetSpeichern: 800 } as const;
+export const HALTEN_MS = { output: 600, presetSpeichern: 800, netz: 2000 } as const;
+
+// Netz-Menü
+export const CODE_WARTEN_MS = 10_000;   // ohne Eingabe zurück ins Hauptmenü
+export const NETZ_TASTEN = {
+  wlan: 0,
+  lan: 1,
+  praefix: 2,
+  uebernehmen: 3,
+  zurueck: 4,
+  verwerfen: 5,
+  lanStand: 6,
+  wlanStand: 7,
+} as const;
 
 // Platz (0 … 5) einer Taste im Untermenü, sonst undefined
 export const platzVon = (taste: number): number | undefined => {
