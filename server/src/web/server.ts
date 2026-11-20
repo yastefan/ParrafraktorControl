@@ -33,7 +33,19 @@ export interface WebOptionen {
   port: number;
   clientVerzeichnis: string;
   tls?: { cert: string; key: string };
+  // Nur bei npm run dev: Port von Vite. Dann leitet der Server Seitenaufrufe dorthin weiter, statt einen
+  // womöglich alten Build aus client/dist auszuliefern; der WebSocket bleibt hier.
+  vitePort?: number;
 }
+
+// Ersetzt im Dev-Betrieb einen früher registrierten Service Worker des gebauten Clients: Der hielte
+// sonst die alte App im Cache und die Weiterleitung käme nie an.
+const SW_ABMELDEN = `self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (e) => e.waitUntil((async () => {
+  await self.registration.unregister();
+  for (const c of await self.clients.matchAll({ type: "window" })) c.navigate(c.url);
+})()));
+`;
 
 export class WebServer {
   private server: Server;
@@ -49,7 +61,8 @@ export class WebServer {
     private readonly steuerung: Steuerung,
     private readonly stand: () => Stand,
   ) {
-    const anfrage = (req: IncomingMessage, res: ServerResponse) => this.datei(req, res);
+    const anfrage = (req: IncomingMessage, res: ServerResponse) =>
+      o.vitePort ? this.weiterleiten(req, res, o.vitePort) : this.datei(req, res);
     this.server = o.tls
       ? https({ cert: readFileSync(o.tls.cert), key: readFileSync(o.tls.key) }, anfrage)
       : http(anfrage);
@@ -152,6 +165,17 @@ export class WebServer {
   }
 
   // ---------- Dateien ----------
+
+  private weiterleiten(req: IncomingMessage, res: ServerResponse, vitePort: number): void {
+    const pfad = new URL(req.url ?? "/", "http://x").pathname;
+    if (pfad === "/sw.js") {
+      res.writeHead(200, { "content-type": MIME[".js"]!, "cache-control": "no-store" }).end(SW_ABMELDEN);
+      return;
+    }
+    // Gleicher Rechnername wie in der Anfrage, damit es auch vom iPad im LAN klappt (Vite: host true)
+    const host = new URL(`http://${req.headers.host ?? "localhost"}`).hostname;
+    res.writeHead(307, { location: `http://${host}:${vitePort}${req.url ?? "/"}`, "cache-control": "no-store" }).end();
+  }
 
   private datei(req: IncomingMessage, res: ServerResponse): void {
     if (req.method !== "GET" && req.method !== "HEAD") {
