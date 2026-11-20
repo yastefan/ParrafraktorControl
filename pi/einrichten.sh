@@ -198,10 +198,12 @@ usermod -aG plugdev,dialout "$BENUTZER"
 
 # ---------- 4. Dienst ----------
 schritt "systemd-Dienst"
-TLS_ZEILEN="Environment=PORT=8080"
+# Standardports, damit am iPad die Adresse ohne Portnummer reicht. Mit Zertifikat HTTPS auf 443 und
+# zusätzlich HTTP auf 80 als Rückfall (fremder Rechner, Firefox ohne mkcert-Zertifizierungsstelle).
+TLS_ZEILEN="Environment=PORT=80"
 if [ -f "$REPO/zertifikate/server.pem" ] && [ -f "$REPO/zertifikate/server-key.pem" ]; then
-  TLS_ZEILEN="Environment=PORT=8443 TLS_CERT=zertifikate/server.pem TLS_KEY=zertifikate/server-key.pem"
-  echo "Zertifikate gefunden: HTTPS auf Port 8443"
+  TLS_ZEILEN="Environment=PORT=443 HTTP_PORT=80 TLS_CERT=zertifikate/server.pem TLS_KEY=zertifikate/server-key.pem"
+  echo "Zertifikate gefunden: HTTPS auf Port 443, HTTP auf Port 80"
 fi
 cat > /etc/systemd/system/parrafraktor.service <<EOF
 [Unit]
@@ -217,6 +219,9 @@ User=$BENUTZER
 WorkingDirectory=$REPO
 Environment=NODE_ENV=production PARRAFRAKTOR_DATEN=$DATEN
 $TLS_ZEILEN
+# Ports unter 1024 ohne root: nur dieses eine Recht
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 ExecStart=/usr/bin/node server/dist/index.js
 Restart=always
 RestartSec=2
@@ -323,7 +328,7 @@ schritt "Fertig"
 cat <<EOF
 Jetzt neu starten:   sudo reboot
 Danach prüfen:       sudo $REPO/pi/pruefen.sh
-Weboberfläche:       http://<IP>:8080 (bzw. https://<IP>:8443 mit Zertifikat)${AP_SSID:+
-iPad:                WLAN „$AP_SSID“, dann http://${AP_ADRESSE%/*}:8080}
+Weboberfläche:       http://<IP> (mit Zertifikat auch https://<IP>)${AP_SSID:+
+iPad:                WLAN „$AP_SSID“, dann https://${AP_ADRESSE%/*} bzw. http://${AP_ADRESSE%/*}}
 Daten:               $DATEN
 EOF

@@ -6,6 +6,7 @@
 //   PORT                 HTTP(S)-Port, Vorgabe 8080
 //   PARRAFRAKTOR_DATEN   Datenverzeichnis für Einstellungen, Vorgabe ./daten
 //   TLS_CERT, TLS_KEY    Zertifikat und Schlüssel (PEM) für HTTPS – nötig für den Offline-Cache auf dem iPad
+//   HTTP_PORT            mit HTTPS zusätzlich unverschlüsselt auf diesem Port (Rückfall bei Zertifikatsärger)
 //   STREAMDECK=aus       Stream Deck nicht ansprechen
 import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
@@ -143,7 +144,8 @@ steuerung.on("einstellungen", (e) => {
 
 // npm run dev setzt PARRAFRAKTOR_VITE_PORT: dann leitet dieser Port Seitenaufrufe an Vite weiter
 const vitePort = Number(process.env.PARRAFRAKTOR_VITE_PORT) || undefined;
-web = new WebServer({ port, clientVerzeichnis, tls, vitePort }, steuerung, stand);
+const httpPort = Number(process.env.HTTP_PORT) || undefined;
+web = new WebServer({ port, clientVerzeichnis, tls, httpPort, vitePort }, steuerung, stand);
 if (vitePort) log("web", `Dev-Betrieb: Seiten auf diesem Port leiten an Vite weiter (Port ${vitePort})`);
 starteAusgaben(steuerung.einstellungen);
 // Autostart (Betrieb ohne MA) vor dem ersten Takt, damit sofort gesendet wird

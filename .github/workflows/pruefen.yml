@@ -1,0 +1,53 @@
+# Prüft jeden PR und jeden Push auf main auf allen Plattformen (siehe docs/plattformen.md).
+# Linux ARM steht für den Raspberry Pi: dort fiel das Stream-Deck-Paket schon einmal still weg,
+# weil eine native Abhängigkeit eine neuere Node-Version verlangte.
+name: Prüfen
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  pruefen:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux ARM (wie Pi), Node-Mindestversion
+            os: ubuntu-24.04-arm
+            node: "22.18.0"
+          - name: Linux ARM (wie Pi), Node 24
+            os: ubuntu-24.04-arm
+            node: "24"
+          - name: macOS, Node 24
+            os: macos-latest
+            node: "24"
+          - name: Windows, Node 24
+            os: windows-latest
+            node: "24"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      # Optionale Pakete lässt npm bei Fehlern still weg – hier wird es laut
+      - name: Native Pakete fürs Stream Deck laden
+        working-directory: server
+        shell: bash
+        run: |
+          node -e '
+            require("node-hid");
+            require("@napi-rs/canvas");
+            import("@elgato-stream-deck/node").then(
+              () => console.log("Stream-Deck-Pakete geladen"),
+              (e) => { console.error(e); process.exit(1); },
+            );
+          '
