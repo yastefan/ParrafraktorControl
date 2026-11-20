@@ -33,6 +33,9 @@ export interface WebOptionen {
   port: number;
   clientVerzeichnis: string;
   tls?: { cert: string; key: string };
+  // Zusätzlich unverschlüsselt auf diesem Port (nur zusammen mit tls sinnvoll): Rückfall, wenn das
+  // Zertifikat Ärger macht (fremder Rechner, Firefox). Ohne HTTPS fehlt auf dem iPad nur der Offline-Cache.
+  httpPort?: number;
   // Nur bei npm run dev: Port von Vite. Dann leitet der Server Seitenaufrufe dorthin weiter, statt einen
   // womöglich alten Build aus client/dist auszuliefern; der WebSocket bleibt hier.
   vitePort?: number;
@@ -49,6 +52,7 @@ self.addEventListener("activate", (e) => e.waitUntil((async () => {
 
 export class WebServer {
   private server: Server;
+  private httpServer: Server | null = null;
   private wss: WebSocketServer;
   private sendeTimer: NodeJS.Timeout | undefined;
   private intervall: NodeJS.Timeout | undefined;
@@ -66,19 +70,36 @@ export class WebServer {
     this.server = o.tls
       ? https({ cert: readFileSync(o.tls.cert), key: readFileSync(o.tls.key) }, anfrage)
       : http(anfrage);
-    this.wss = new WebSocketServer({ server: this.server, path: WS_PFAD, maxPayload: 64 * 1024 });
+    if (o.tls && o.httpPort && o.httpPort !== o.port) this.httpServer = http(anfrage);
+    // Ein WebSocket-Server für beide Ports: alle Clients bekommen denselben Stand
+    this.wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
     this.wss.on("connection", (ws) => this.verbunden(ws));
+    for (const server of this.servers()) {
+      server.on("upgrade", (req, socket, kopf) => {
+        if (new URL(req.url ?? "/", "http://x").pathname !== WS_PFAD) {
+          socket.destroy();
+          return;
+        }
+        this.wss.handleUpgrade(req, socket, kopf, (ws) => this.wss.emit("connection", ws, req));
+      });
+    }
   }
 
   get anzahlClients(): number {
     return this.wss.clients.size;
   }
 
+  private servers(): Server[] {
+    return this.httpServer ? [this.server, this.httpServer] : [this.server];
+  }
+
   async starte(): Promise<void> {
-    await new Promise<void>((fertig, fehler) => {
-      this.server.once("error", fehler);
-      this.server.listen(this.o.port, () => fertig());
+    const lausche = (server: Server, port: number) => new Promise<void>((fertig, fehler) => {
+      server.once("error", fehler);
+      server.listen(port, () => fertig());
     });
+    await lausche(this.server, this.o.port);
+    if (this.httpServer) await lausche(this.httpServer, this.o.httpPort!);
     this.steuerung.on("aenderung", this.beiAenderung);
     // Auch ohne Änderung regelmäßig senden: Takt für die Vorschau und Lebenszeichen für den Client
     this.intervall = setInterval(() => this.sendeAlle(), STAND_INTERVALL_MS);
@@ -91,6 +112,7 @@ export class WebServer {
     }, HERZSCHLAG_MS);
     const art = this.o.tls ? "https" : "http";
     log("web", `${art}://0.0.0.0:${this.o.port}${this.o.tls ? "" : " (ohne HTTPS kein Offline-Cache auf dem iPad)"}`);
+    if (this.httpServer) log("web", `http://0.0.0.0:${this.o.httpPort} (zusätzlich, ohne Zertifikat)`);
   }
 
   async schliesse(): Promise<void> {
@@ -100,7 +122,7 @@ export class WebServer {
     clearInterval(this.herzschlag);
     for (const ws of this.wss.clients) ws.terminate();
     await new Promise<void>((fertig) => this.wss.close(() => fertig()));
-    await new Promise<void>((fertig) => this.server.close(() => fertig()));
+    await Promise.all(this.servers().map((server) => new Promise<void>((fertig) => server.close(() => fertig()))));
   }
 
   // ---------- WebSocket ----------
