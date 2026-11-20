@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { PARAMETER_VORGABE } from "@parrafraktor/engine";
+import { PARAMETER_DEFAULTS } from "@parrafraktor/engine";
 import { EINSTELLUNGEN_VORGABE, leseClientNachricht, pruefePresets } from "@parrafraktor/protokoll";
 import { Steuerung } from "../src/steuerung.js";
 
 const neu = (ueberblendungS = 2) =>
-  new Steuerung({ ...PARAMETER_VORGABE }, { ...structuredClone(EINSTELLUNGEN_VORGABE), ueberblendungS }, pruefePresets([]));
+  new Steuerung({ ...PARAMETER_DEFAULTS }, { ...structuredClone(EINSTELLUNGEN_VORGABE), ueberblendungS }, pruefePresets([]));
 
 describe("Auto", () => {
   const mitPresets = (...nr: number[]) => {
@@ -172,7 +172,7 @@ describe("Impulse", () => {
   const mitUhr = () => {
     let t = 0;
     const s = new Steuerung(
-      { ...PARAMETER_VORGABE }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]), undefined, () => t,
+      { ...PARAMETER_DEFAULTS }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]), undefined, () => t,
     );
     return { s, vor: (dt: number) => { t += dt; } };
   };
@@ -224,7 +224,7 @@ describe("Stream Deck: Reglerseiten", () => {
 describe("Autostart", () => {
   const mit = (autostart: { output: boolean; auto: boolean }) => {
     const e = { ...structuredClone(EINSTELLUNGEN_VORGABE), autostart };
-    const s = new Steuerung({ ...PARAMETER_VORGABE }, e, pruefePresets([]));
+    const s = new Steuerung({ ...PARAMETER_DEFAULTS }, e, pruefePresets([]));
     return s;
   };
 

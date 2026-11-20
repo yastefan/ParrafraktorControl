@@ -1,6 +1,6 @@
 // Look-Presets: gespeicherte Pattern-Einstellungen, wie Cues. Abrufen blendet weich über
 // (Dauer wie die Überblendung des Outputs). Pause gehört nicht zum Look.
-import { MODUS_NAME, PARAMETER_VORGABE, type Parameter } from "@parrafraktor/engine";
+import { MODE_NAME, PARAMETER_DEFAULTS, type Parameter } from "@parrafraktor/engine";
 import { migriereParameter, pruefeParameter } from "./parameter.js";
 
 export const PRESET_ANZAHL = 12;
@@ -18,7 +18,7 @@ export type Presets = (Preset | null)[];
 
 export const lookAus = ({ laeuft: _, ...look }: Parameter): Look => look;
 
-export const vorgabeName = (look: Look): string => MODUS_NAME[look.modus];
+export const vorgabeName = (look: Look): string => MODE_NAME[look.modus];
 
 const pruefeName = (x: unknown, alt: string): string =>
   typeof x === "string" && x.trim() ? x.trim().slice(0, PRESET_NAME_MAX) : alt;
@@ -26,7 +26,7 @@ const pruefeName = (x: unknown, alt: string): string =>
 export function pruefePreset(roh: unknown): Preset | null {
   if (typeof roh !== "object" || roh === null) return null;
   const r = roh as Record<string, unknown>;
-  const { laeuft: _, ...look } = { ...PARAMETER_VORGABE, ...pruefeParameter(migriereParameter(r.look)) };
+  const { laeuft: _, ...look } = { ...PARAMETER_DEFAULTS, ...pruefeParameter(migriereParameter(r.look)) };
   return { name: pruefeName(r.name, vorgabeName(look)), look };
 }
 

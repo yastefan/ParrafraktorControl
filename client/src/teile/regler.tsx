@@ -1,7 +1,7 @@
 // Regler der Grundbewegung: Bewegung (Fader) und Verteilung (Umschalter). Bereiche kommen aus dem
 // Protokoll, damit Client, Stream Deck und später MIDI dieselben Grenzen haben. Regler, die die
 // gewählte Grundbewegung nicht benutzt, sind ausgeblendet.
-import { ELEMENTE, type Parameter } from "@parrafraktor/engine";
+import { ELEMENTS, type Parameter } from "@parrafraktor/engine";
 import {
   BEREICHE, SCHALTER, STUFEN, ZAHL_PARAMETER, begrenze, benutzt, offsetVerschieden, verschiebeOffset, zeigeWert,
   type SchalterParameter, type StufenParameter, type ZahlParameter,
@@ -77,7 +77,7 @@ function Offset({ p, aufgeklappt, klappe }: { p: Parameter; aufgeklappt: boolean
       onClick={() => {
         // Erstes Aufklappen: alle Elemente starten beim gemeinsamen Offset
         if (!aufgeklappt && !p.offsetGetrennt) {
-          l.setze({ offsetGetrennt: true, offsetElemente: Array.from({ length: ELEMENTE }, () => p.offset) });
+          l.setze({ offsetGetrennt: true, offsetElemente: Array.from({ length: ELEMENTS }, () => p.offset) });
         }
         klappe(!aufgeklappt);
       }}

@@ -43,7 +43,7 @@
 // leere Seiten fallen weg (bei Ruhe bleibt nur Offset). Schalter: Drehen schaltet.
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite
 // (außer im Impulse-Menü).
-import type { ImpulsArt, Modus } from "@parrafraktor/engine";
+import type { ImpulseKind, Mode } from "@parrafraktor/engine";
 import { benutzt, type ImpulsRegler, type SchalterParameter, type StufenParameter, type ZahlParameter } from "@parrafraktor/protokoll";
 import type { Ton } from "./bilder.js";
 
@@ -74,7 +74,7 @@ const GRUPPEN: ReglerSeite[] = [
 ];
 
 // Reglerseiten für eine Grundbewegung: höchstens vier Regler je Seite, leere fallen weg
-export function reglerSeiten(modus: Modus): ReglerSeite[] {
+export function reglerSeiten(modus: Mode): ReglerSeite[] {
   const seiten: ReglerSeite[] = [];
   for (const g of GRUPPEN) {
     const regler = g.regler.filter((r) => benutzt(modus, r.name));
@@ -98,7 +98,7 @@ export const HAUPT = {
 } as const;
 
 // Impulse
-export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulsArt>> = { 0: "auf", 1: "zu", 2: "loch", 3: "iris" };
+export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulseKind>> = { 0: "auf", 1: "zu", 2: "loch", 3: "iris" };
 export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
 export const TASTE_SYMMETRISCH = 7;

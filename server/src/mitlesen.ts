@@ -5,7 +5,7 @@
 // Grenzen: Art-Net per Unicast von der MA an den Node kommt hier nicht an, nur Broadcast.
 import { createSocket, type Socket } from "node:dgram";
 import { networkInterfaces } from "node:os";
-import { leseStellungen, patchUniversen, type Stellung } from "@parrafraktor/engine";
+import { readPositions, patchUniverses, type Position } from "@parrafraktor/engine";
 import type { Einstellungen, ModulStatus } from "@parrafraktor/protokoll";
 import { ARTNET_PORT } from "./ausgabe/artnet.js";
 import { EIGENE_CID, SACN_PORT, multicastAdresse } from "./ausgabe/sacn.js";
@@ -30,17 +30,17 @@ export class Mitlesen {
   private eigeneStand = Date.now();
 
   constructor(private readonly e: Einstellungen) {
-    const universen = patchUniversen(e.patch);
+    const universen = patchUniverses(e.patch);
     if (e.sacn.an) this.lauscheSacn(universen);
     if (e.artnet.an) this.lauscheArtnet();
   }
 
   // Stellungen der MA, wenn alle Universen des Patches frisch empfangen wurden, sonst null
-  stellungen(rotateMaxUpm = this.e.rotateMaxUpm): Stellung[] | null {
+  stellungen(rotateMaxUpm = this.e.rotateMaxUpm): Position[] | null {
     const jetzt = Date.now();
     const frisch = new Map<number, Uint8Array>();
     for (const [u, { daten, zeit }] of this.empfangen) if (jetzt - zeit < FRISCH_MS) frisch.set(u, daten);
-    return leseStellungen(frisch, this.e.patch, rotateMaxUpm);
+    return readPositions(frisch, this.e.patch, rotateMaxUpm);
   }
 
   status(): ModulStatus {

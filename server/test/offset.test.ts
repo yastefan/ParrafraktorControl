@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PARAMETER_VORGABE } from "@parrafraktor/engine";
+import { PARAMETER_DEFAULTS } from "@parrafraktor/engine";
 import { EINSTELLUNGEN_VORGABE, offsetVerschieden, pruefePresets, verschiebeOffset } from "@parrafraktor/protokoll";
 import { HALTEN_MS } from "../src/eingabe/streamdeck/belegung.js";
 import { StreamDeckModul } from "../src/eingabe/streamdeck/index.js";
@@ -7,7 +7,7 @@ import { Steuerung } from "../src/steuerung.js";
 
 vi.mock("../src/log.js", () => ({ log: () => {}, fehlerText: (e: unknown) => String(e) }));
 
-const neu = () => new Steuerung({ ...PARAMETER_VORGABE }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]));
+const neu = () => new Steuerung({ ...PARAMETER_DEFAULTS }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]));
 
 describe("Offset je Element", () => {
   it("der gemeinsame Offset verschiebt alle, die Abstände bleiben", () => {
@@ -20,14 +20,14 @@ describe("Offset je Element", () => {
   });
 
   it("am Rand bleibt er stehen, statt die Abstände zu stauchen", () => {
-    const p = { ...PARAMETER_VORGABE, offset: 0, offsetGetrennt: true, offsetElemente: [0, 100, 170] };
+    const p = { ...PARAMETER_DEFAULTS, offset: 0, offsetGetrennt: true, offsetElemente: [0, 100, 170] };
     expect(verschiebeOffset(p, 50)).toEqual({ offset: 10, offsetElemente: [10, 110, 180] });
   });
 
   it("ohne „je Element“ nur der Offset", () => {
     const s = neu();
     s.setze({ offset: 40 });
-    expect(s.parameter.offsetElemente).toEqual(PARAMETER_VORGABE.offsetElemente);
+    expect(s.parameter.offsetElemente).toEqual(PARAMETER_DEFAULTS.offsetElemente);
   });
 
   it("Element einzeln verstellen schaltet „je Element“ ein, Vorgabe macht alle wieder gleich", () => {
@@ -92,6 +92,6 @@ describe("Offset je Element am Stream Deck", () => {
     deck.reglerRunter(0);
     expect(s.parameter.offset).toBe(30);
     deck.reglerHoch(0);
-    expect(s.parameter.offset).toBe(PARAMETER_VORGABE.offset);
+    expect(s.parameter.offset).toBe(PARAMETER_DEFAULTS.offset);
   });
 });
