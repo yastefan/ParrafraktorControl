@@ -7,7 +7,7 @@
 # via sudo; at boot parrafraktor-netz.service calls the same, because nmcli changes live in RAM
 # while the write protection is on and would be lost otherwise.
 # The name, the argument "anwenden" ("apply") and the keys in netz.json are shared with the server
-# (server/src/netz.ts) and stay German until the server code is renamed.
+# (server/src/network.ts) and stay German until the server code is renamed.
 #
 # netz.json is written by the service (a user without root) – so every value is checked strictly
 # here and only passed to nmcli as a single argument, never through a shell.
@@ -25,7 +25,7 @@ INTERFACE="@INTERFACE@"
 [ "${1:-}" = anwenden ] || { echo "usage: $0 anwenden" >&2; exit 2; }
 [ "$(id -u)" -eq 0 ] || { echo "root only" >&2; exit 1; }
 
-# Read and check netz.json; if it is broken, the backup (see server/src/speicher.ts)
+# Read and check netz.json; if it is broken, the backup (see server/src/store.ts)
 values=""
 for f in "$FILE" "$FILE.bak"; do
   [ -f "$f" ] || continue

@@ -1,97 +1,98 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PARAMETER_DEFAULTS } from "@parrafraktor/engine";
 import { SETTINGS_DEFAULTS, offsetsDiffer, checkPresets, shiftOffset } from "@parrafraktor/protocol";
-import { HALTEN_MS } from "../src/eingabe/streamdeck/belegung.js";
-import { StreamDeckModul } from "../src/eingabe/streamdeck/index.js";
-import { Steuerung } from "../src/steuerung.js";
+import { HOLD_MS } from "../src/input/streamdeck/layout.js";
+import { StreamDeckModule } from "../src/input/streamdeck/index.js";
+import { Controller } from "../src/controller.js";
 
-vi.mock("../src/log.js", () => ({ log: () => {}, fehlerText: (e: unknown) => String(e) }));
+vi.mock("../src/log.js", () => ({ log: () => {}, errorText: (e: unknown) => String(e) }));
 
-const neu = () => new Steuerung({ ...PARAMETER_DEFAULTS }, structuredClone(SETTINGS_DEFAULTS), checkPresets([]));
+const fresh = () => new Controller({ ...PARAMETER_DEFAULTS }, structuredClone(SETTINGS_DEFAULTS), checkPresets([]));
 
-describe("Offset je Element", () => {
-  it("der gemeinsame Offset verschiebt alle, die Abstände bleiben", () => {
-    const s = neu();
-    s.setze({ offset: 10, offsetGetrennt: true, offsetElemente: [0, 10, 30] });
-    s.setze({ offset: 25 });
+describe("offset per element", () => {
+  it("the common offset shifts all, the distances stay", () => {
+    const s = fresh();
+    s.set({ offset: 10, offsetGetrennt: true, offsetElemente: [0, 10, 30] });
+    s.set({ offset: 25 });
     expect(s.parameter.offsetElemente).toEqual([15, 25, 45]);
-    s.verstelle("offset", -5);
+    s.adjust("offset", -5);
     expect(s.parameter).toMatchObject({ offset: 20, offsetElemente: [10, 20, 40] });
   });
 
-  it("am Rand bleibt er stehen, statt die Abstände zu stauchen", () => {
+  it("at the edge it stops instead of squeezing the distances", () => {
     const p = { ...PARAMETER_DEFAULTS, offset: 0, offsetGetrennt: true, offsetElemente: [0, 100, 170] };
     expect(shiftOffset(p, 50)).toEqual({ offset: 10, offsetElemente: [10, 110, 180] });
   });
 
-  it("ohne „je Element“ nur der Offset", () => {
-    const s = neu();
-    s.setze({ offset: 40 });
+  it("without \"per element\" only the offset", () => {
+    const s = fresh();
+    s.set({ offset: 40 });
     expect(s.parameter.offsetElemente).toEqual(PARAMETER_DEFAULTS.offsetElemente);
   });
 
-  it("Element einzeln verstellen schaltet „je Element“ ein, Vorgabe macht alle wieder gleich", () => {
-    const s = neu();
-    s.setze({ offset: 20 });
-    s.verstelleOffsetElement(1, 15);
+  it("adjusting one element turns on \"per element\", reset makes all alike again", () => {
+    const s = fresh();
+    s.set({ offset: 20 });
+    s.adjustElementOffset(1, 15);
     expect(s.parameter).toMatchObject({ offsetGetrennt: true, offsetElemente: [20, 35, 20] });
     expect(offsetsDiffer(s.parameter)).toBe(true);
-    s.vorgabe("offset");
+    s.reset("offset");
     expect(s.parameter.offsetGetrennt).toBe(false);
     expect(new Set(s.parameter.offsetElemente).size).toBe(1);
     expect(offsetsDiffer(s.parameter)).toBe(false);
   });
 
-  it("Presets tragen die Werte je Element mit, ohne doppelt zu verschieben", () => {
-    const s = neu();
-    s.setze({ offset: 5, offsetGetrennt: true, offsetElemente: [1, 2, 3] });
-    s.speicherePreset(0);
-    s.setze({ offset: 50 });
-    s.rufePresetAuf(0);
+  it("presets carry the per-element values without shifting twice", () => {
+    const s = fresh();
+    s.set({ offset: 5, offsetGetrennt: true, offsetElemente: [1, 2, 3] });
+    s.storePreset(0);
+    s.set({ offset: 50 });
+    s.recallPreset(0);
     expect(s.parameter).toMatchObject({ offset: 5, offsetElemente: [1, 2, 3] });
   });
 });
 
-interface DeckIntern {
-  reglerRunter(i: number): void;
-  reglerHoch(i: number): void;
-  drehe(i: number, schritte: number): void;
-  felder(): { titel: string; wert: string }[];
-  schliesse(): Promise<void>;
+// Private members of the Stream Deck module the tests drive directly
+interface DeckInternals {
+  encoderDown(i: number): void;
+  encoderUp(i: number): void;
+  turn(i: number, steps: number): void;
+  fields(): { title: string; value: string }[];
+  close(): Promise<void>;
 }
 
-describe("Offset je Element am Stream Deck", () => {
-  let s: Steuerung, deck: DeckIntern;
+describe("offset per element on the Stream Deck", () => {
+  let s: Controller, deck: DeckInternals;
   beforeEach(() => {
     vi.useFakeTimers();
-    s = neu();   // Sinus: erste Reglerseite beginnt mit Offset
-    deck = new StreamDeckModul(s) as unknown as DeckIntern;
+    s = fresh();   // sine: the first encoder page starts with Offset
+    deck = new StreamDeckModule(s) as unknown as DeckInternals;
   });
   afterEach(async () => {
-    await deck.schliesse();
+    await deck.close();
     vi.useRealTimers();
   });
 
-  const lang = (i: number) => { deck.reglerRunter(i); vi.advanceTimersByTime(HALTEN_MS.reglerLang); deck.reglerHoch(i); };
+  const long = (i: number) => { deck.encoderDown(i); vi.advanceTimersByTime(HOLD_MS.encoderLong); deck.encoderUp(i); };
 
-  it("langer Druck auf Offset: drei Elemente und alle auf den Reglern", () => {
-    expect(deck.felder()[0]!.titel).toBe("Offset");
-    lang(0);
-    expect(deck.felder().map((f) => f.titel)).toEqual(["Off. 1", "Off. 2", "Off. 3", "Off. all"]);
+  it("long press on Offset: three elements and all on the encoders", () => {
+    expect(deck.fields()[0]!.title).toBe("Offset");
+    long(0);
+    expect(deck.fields().map((f) => f.title)).toEqual(["Off. 1", "Off. 2", "Off. 3", "Off. all"]);
     expect(s.parameter.offsetGetrennt).toBe(true);
-    deck.drehe(2, 10);
-    deck.drehe(3, 4);
+    deck.turn(2, 10);
+    deck.turn(3, 4);
     const o = s.parameter.offset;
     expect(s.parameter.offsetElemente).toEqual([o, o, o + 10]);
-    lang(1);
-    expect(deck.felder()[0]!.titel).toBe("Offset 1–3");   // zurück, Elemente bleiben verschieden
+    long(1);
+    expect(deck.fields()[0]!.title).toBe("Offset 1–3");   // back, the elements stay different
   });
 
-  it("kurzer Druck auf Offset wirkt beim Loslassen: Vorgabe für alle", () => {
-    s.setze({ offset: 30 });
-    deck.reglerRunter(0);
+  it("a short press on Offset acts on release: reset for all", () => {
+    s.set({ offset: 30 });
+    deck.encoderDown(0);
     expect(s.parameter.offset).toBe(30);
-    deck.reglerHoch(0);
+    deck.encoderUp(0);
     expect(s.parameter.offset).toBe(PARAMETER_DEFAULTS.offset);
   });
 });

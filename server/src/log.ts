@@ -1,9 +1,9 @@
-// Einfaches Log mit Uhrzeit und Modulname
-export function log(modul: string, ...text: unknown[]): void {
-  const zeit = new Date().toLocaleTimeString("de-DE", { hour12: false });
-  console.log(`${zeit} [${modul}]`, ...text);
+// Simple log with time and module name
+export function log(module: string, ...text: unknown[]): void {
+  const time = new Date().toLocaleTimeString("en-GB", { hour12: false });
+  console.log(`${time} [${module}]`, ...text);
 }
 
-export function fehlerText(e: unknown): string {
+export function errorText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }

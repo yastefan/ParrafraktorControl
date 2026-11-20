@@ -349,7 +349,7 @@ fi
 
 # ---------- 8. Network menu on the Stream Deck ----------
 step "Network menu"
-# Name, argument "anwenden" and the file netz.json are shared with the server (server/src/netz.ts)
+# Name, argument "anwenden" and the file netz.json are shared with the server (server/src/network.ts)
 NET_HELPER=/usr/local/sbin/parrafraktor-netz
 if [ -n "$NET_CODE" ]; then
   # Helper owned by root outside the repository: inside the repository the user could change it
