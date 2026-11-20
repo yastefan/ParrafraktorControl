@@ -68,9 +68,9 @@ grandMA3-Fixture „Gobbesso Parrafraktor“, Mode Standard, **37 Kanäle je Ele
 
 ## Offen
 
-- Pi-Einrichtung am echten Gerät nicht getestet (Prüfliste im README): Partitionieren im laufenden Betrieb (sfdisk/partx), Overlay nach Kernel-Update (raspi-config#306), `dtparam=watchdog=on`, WLAN-Access-Point mit dem iPad (Stabilität, Reichweite im Gehäuse).
+- Pi: GitHub-Issues mit Label `pi` (Stromausfall-Prüfliste #34, Overlay nach Kernel-Update #35, WLAN im Gehäuse #36, RS485 #37).
 - Nebel: Abstand der Elemente, spiegelnde Seite und Rechenzeit auf dem iPad.
 - Echte Drehzahl von TiltRotate und Verhalten der Spiegel-Firmware bei Tilt während/nach TiltRotate.
 - Art-Net vs. sACN im echten Aufbau: Was sendet die MA, kann der Node Priority/Merge?
-- RS485 am Pi (UART, Break), MIDI- und OSC-Modul.
+- MIDI- und OSC-Modul.
 - `npm audit`: kritische Meldung in `tinypool` (nur Dev-Abhängigkeit von Vitest).
