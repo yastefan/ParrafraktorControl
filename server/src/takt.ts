@@ -12,7 +12,7 @@
 //
 // Impulse (Flash, Loch, Iris) liegen über dem Look, aber unter der Überblendung von bzw. zur MA.
 import { Engine, blend, writeUniverses, smooth, applyImpulses, type Position } from "@parrafraktor/engine";
-import type { UebernahmeZustand } from "@parrafraktor/protokoll";
+import type { TakeoverState } from "@parrafraktor/protocol";
 import type { Ausgabe } from "./ausgabe/index.js";
 import type { Mitlesen } from "./mitlesen.js";
 import type { Steuerung } from "./steuerung.js";
@@ -26,13 +26,13 @@ export interface Quellen {
 
 // Nächster Zustand der Übernahme (rein, damit testbar)
 export function uebernahmeSchritt(
-  zustand: UebernahmeZustand,
+  zustand: TakeoverState,
   anteil: number,
   soll: boolean,
   dt: number,
   ueberblendungS: number,
   maBekannt: boolean,
-): { zustand: UebernahmeZustand; anteil: number } {
+): { zustand: TakeoverState; anteil: number } {
   const blenden = ueberblendungS > 0 && maBekannt;
   const schritt = blenden ? dt / ueberblendungS : 1;
   if (soll) {

@@ -44,15 +44,15 @@
 // Drücken setzt den Vorgabewert. Wischen auf dem Touchstreifen wechselt die Reglerseite
 // (außer im Impulse-Menü).
 import type { ImpulseKind, Mode } from "@parrafraktor/engine";
-import { benutzt, type ImpulsRegler, type SchalterParameter, type StufenParameter, type ZahlParameter } from "@parrafraktor/protokoll";
+import { isUsed, type ImpulseControl, type SwitchParameter, type SteppedParameter, type NumericParameter } from "@parrafraktor/protocol";
 import type { Ton } from "./bilder.js";
 
 export type Menue = "haupt" | "pattern" | "presets" | "impulse" | "code" | "netz";
 
 export type Regler =
-  | { art: "zahl"; name: ZahlParameter }
-  | { art: "stufe"; name: StufenParameter }
-  | { art: "schalter"; name: SchalterParameter };
+  | { art: "zahl"; name: NumericParameter }
+  | { art: "stufe"; name: SteppedParameter }
+  | { art: "schalter"; name: SwitchParameter };
 
 export interface ReglerSeite {
   name: string;
@@ -60,9 +60,9 @@ export interface ReglerSeite {
   regler: Regler[];
 }
 
-const zahl = (name: ZahlParameter): Regler => ({ art: "zahl", name });
-const stufe = (name: StufenParameter): Regler => ({ art: "stufe", name });
-const schalter = (name: SchalterParameter): Regler => ({ art: "schalter", name });
+const zahl = (name: NumericParameter): Regler => ({ art: "zahl", name });
+const stufe = (name: SteppedParameter): Regler => ({ art: "stufe", name });
+const schalter = (name: SwitchParameter): Regler => ({ art: "schalter", name });
 
 // Alle Regler nach Gruppe; je Grundbewegung bleiben die benutzten übrig. Bei der Bewegung kommt
 // als vierter, was zur Form gehört (Sinus: Phase, Pendelwelle: Wiederkehr, Wind: Wellenlänge,
@@ -77,7 +77,7 @@ const GRUPPEN: ReglerSeite[] = [
 export function reglerSeiten(modus: Mode): ReglerSeite[] {
   const seiten: ReglerSeite[] = [];
   for (const g of GRUPPEN) {
-    const regler = g.regler.filter((r) => benutzt(modus, r.name));
+    const regler = g.regler.filter((r) => isUsed(modus, r.name));
     for (let n = 0; n < regler.length; n += 4) {
       seiten.push({ ...g, name: n ? `${g.name} 2` : g.name, regler: regler.slice(n, n + 4) });
     }
@@ -102,7 +102,7 @@ export const IMPULS_ARTEN_TASTEN: Partial<Record<number, ImpulseKind>> = { 0: "a
 export const TASTE_ELEMENT_FOLGE = 5;
 export const TASTE_IMPULS_REGLER = 6;
 export const TASTE_SYMMETRISCH = 7;
-export const IMPULS_REGLER_SEITEN: { name: string; regler: ImpulsRegler[] }[] = [
+export const IMPULS_REGLER_SEITEN: { name: string; regler: ImpulseControl[] }[] = [
   { name: "Envelope", regler: ["attackS", "sustainS", "releaseS", "staerke"] },
   { name: "Travel", regler: ["ausbreitungS", "breite", "elementVersatzS"] },
 ];

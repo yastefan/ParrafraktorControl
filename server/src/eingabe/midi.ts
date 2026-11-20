@@ -4,7 +4,7 @@
 // Datei im Datenverzeichnis: CC → verstelle(name, …) bzw. absolute Werte über BEREICHE,
 // Noten → waehlePattern / schalteLauf / setzeUebernahme. Rückmeldung (LEDs, Motorfader) über
 // das Ereignis "aenderung" der Steuerung.
-import type { ModulStatus } from "@parrafraktor/protokoll";
+import type { ModuleStatus } from "@parrafraktor/protocol";
 import type { Steuerung } from "../steuerung.js";
 import type { Eingabemodul } from "./eingabe.js";
 
@@ -17,7 +17,7 @@ export class MidiModul implements Eingabemodul {
 
   async schliesse(): Promise<void> {}
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     return { name: this.name, art: "eingabe", zustand: "aus", text: "not implemented yet" };
   }
 }

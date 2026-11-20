@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { PARAMETER_DEFAULTS } from "@parrafraktor/engine";
-import { EINSTELLUNGEN_VORGABE, leseClientNachricht, pruefePresets } from "@parrafraktor/protokoll";
+import { SETTINGS_DEFAULTS, parseClientMessage, checkPresets } from "@parrafraktor/protocol";
 import { Steuerung } from "../src/steuerung.js";
 
 const neu = (ueberblendungS = 2) =>
-  new Steuerung({ ...PARAMETER_DEFAULTS }, { ...structuredClone(EINSTELLUNGEN_VORGABE), ueberblendungS }, pruefePresets([]));
+  new Steuerung({ ...PARAMETER_DEFAULTS }, { ...structuredClone(SETTINGS_DEFAULTS), ueberblendungS }, checkPresets([]));
 
 describe("Auto", () => {
   const mitPresets = (...nr: number[]) => {
@@ -82,8 +82,8 @@ describe("Auto", () => {
     expect(s.autoAn).toBe(false);
     s.stelleAuto({ halteS: 9999, blendeS: -3 });
     expect(s.auto).toMatchObject({ halteS: 300, blendeS: 0 });
-    expect(leseClientNachricht('{"typ":"auto","an":true}')).toEqual({ typ: "auto", an: true });
-    expect(leseClientNachricht('{"typ":"auto","an":1}')).toBeNull();
+    expect(parseClientMessage('{"typ":"auto","an":true}')).toEqual({ typ: "auto", an: true });
+    expect(parseClientMessage('{"typ":"auto","an":1}')).toBeNull();
   });
 });
 
@@ -162,9 +162,9 @@ describe("Presets", () => {
   });
 
   it("prüft Preset-Nachrichten", () => {
-    expect(leseClientNachricht('{"typ":"preset","aktion":"abrufen","nr":2}')).toEqual({ typ: "preset", aktion: "abrufen", nr: 2 });
-    expect(leseClientNachricht('{"typ":"preset","aktion":"abrufen","nr":12}')).toBeNull();
-    expect(leseClientNachricht('{"typ":"preset","aktion":"umbenennen","nr":0,"name":"  "}')).toBeNull();
+    expect(parseClientMessage('{"typ":"preset","aktion":"abrufen","nr":2}')).toEqual({ typ: "preset", aktion: "abrufen", nr: 2 });
+    expect(parseClientMessage('{"typ":"preset","aktion":"abrufen","nr":12}')).toBeNull();
+    expect(parseClientMessage('{"typ":"preset","aktion":"umbenennen","nr":0,"name":"  "}')).toBeNull();
   });
 });
 
@@ -172,7 +172,7 @@ describe("Impulse", () => {
   const mitUhr = () => {
     let t = 0;
     const s = new Steuerung(
-      { ...PARAMETER_DEFAULTS }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]), undefined, () => t,
+      { ...PARAMETER_DEFAULTS }, structuredClone(SETTINGS_DEFAULTS), checkPresets([]), undefined, () => t,
     );
     return { s, vor: (dt: number) => { t += dt; } };
   };
@@ -203,8 +203,8 @@ describe("Impulse", () => {
     expect(s.impuls.huelle.attackS).toBe(0.4);
     s.setzeImpuls({ art: "seitlich" });
     expect(s.impuls.art).toBe("auf");
-    expect(leseClientNachricht('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1, wischen: false });
-    expect(leseClientNachricht('{"typ":"impulsTippen"}')).toBeNull();
+    expect(parseClientMessage('{"typ":"impulsTippen","ursprung":3}')).toEqual({ typ: "impulsTippen", ursprung: 1, wischen: false });
+    expect(parseClientMessage('{"typ":"impulsTippen"}')).toBeNull();
   });
 });
 
@@ -223,8 +223,8 @@ describe("Stream Deck: Reglerseiten", () => {
 
 describe("Autostart", () => {
   const mit = (autostart: { output: boolean; auto: boolean }) => {
-    const e = { ...structuredClone(EINSTELLUNGEN_VORGABE), autostart };
-    const s = new Steuerung({ ...PARAMETER_DEFAULTS }, e, pruefePresets([]));
+    const e = { ...structuredClone(SETTINGS_DEFAULTS), autostart };
+    const s = new Steuerung({ ...PARAMETER_DEFAULTS }, e, checkPresets([]));
     return s;
   };
 

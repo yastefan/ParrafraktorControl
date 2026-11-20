@@ -13,7 +13,7 @@
   "dependencies": {
     "@elgato-stream-deck/core": "^7.8.0",
     "@parrafraktor/engine": "0.1.0",
-    "@parrafraktor/protokoll": "0.1.0",
+    "@parrafraktor/protocol": "0.1.0",
     "ws": "^8.18.3"
   },
   "optionalDependencies": {

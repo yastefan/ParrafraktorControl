@@ -19,7 +19,7 @@ import {
   ELEMENTS, Engine, MIRRORS_PER_ELEMENT, holeAt, smooth, applyImpulses,
   type ImpulseSettings, type ImpulseAngles, type RunningImpulse, type Parameter, type Position,
 } from "@parrafraktor/engine";
-import type { Aufbau, Takt } from "@parrafraktor/protokoll";
+import type { Layout, Tick } from "@parrafraktor/protocol";
 import { VORSCHAU_STIL, schrift } from "./vorschau-stil.js";
 import { NebelBild, NEBEL_LAMPE_VORGABE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
 
@@ -30,7 +30,7 @@ export { VORSCHAU_STIL, setzeVorschauStil, type VorschauStil } from "./vorschau-
 export interface VorschauDaten {
   parameter: Parameter;
   live: boolean;
-  aufbau: Aufbau;
+  aufbau: Layout;
   rotateMaxUpm: number;
   modus: VorderModus;
   ansicht: Ansicht;
@@ -291,7 +291,7 @@ export class Vorschau {
   }
 
   // Takt vom Server übernehmen
-  gleiche(takt: Takt): void {
+  gleiche(takt: Tick): void {
     const e = this.engine;
     e.referenceCycles = nachziehen(e.referenceCycles, takt.umlaufVon);
     takt.umlauf.forEach((u, g) => { if (g < e.cycles.length) e.cycles[g] = nachziehen(e.cycles[g]!, u); });

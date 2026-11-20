@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@parrafraktor/engine": "0.1.0",
-    "@parrafraktor/protokoll": "0.1.0",
+    "@parrafraktor/protocol": "0.1.0",
     "preact": "^10.27.2"
   },
   "devDependencies": {

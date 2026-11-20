@@ -5,13 +5,13 @@
 // Mark-after-Break (≥ 8 µs), dann Startcode 0 und 512 Kanäle. Den Break erzeugt man am Pi
 // am einfachsten, indem man kurz mit niedriger Baudrate eine 0 sendet.
 // Nur ein Universe pro Ausgang: gesendet wird das Universe des ersten Elements.
-import type { ModulStatus, Rs485Einstellungen } from "@parrafraktor/protokoll";
+import type { ModuleStatus, Rs485Settings } from "@parrafraktor/protocol";
 import type { Ausgabe } from "./ausgabe.js";
 
 export class Rs485Ausgabe implements Ausgabe {
   readonly name = "DMX RS485";
 
-  constructor(private readonly e: Rs485Einstellungen) {}
+  constructor(private readonly e: Rs485Settings) {}
 
   sende(): void {}
 
@@ -19,7 +19,7 @@ export class Rs485Ausgabe implements Ausgabe {
 
   async schliesse(): Promise<void> {}
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     return { name: this.name, art: "ausgabe", zustand: "fehler", text: `${this.e.geraet}: not implemented yet` };
   }
 }

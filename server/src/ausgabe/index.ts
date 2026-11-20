@@ -1,4 +1,4 @@
-import type { Einstellungen } from "@parrafraktor/protokoll";
+import type { Settings } from "@parrafraktor/protocol";
 import type { Ausgabe } from "./ausgabe.js";
 import { ArtnetAusgabe } from "./artnet.js";
 import { Rs485Ausgabe } from "./rs485.js";
@@ -7,7 +7,7 @@ import { SacnAusgabe } from "./sacn.js";
 export type { Ausgabe } from "./ausgabe.js";
 
 // Alle eingeschalteten Ausgaben anlegen. Mehrere gleichzeitig sind möglich.
-export function erstelleAusgaben(e: Einstellungen): Ausgabe[] {
+export function erstelleAusgaben(e: Settings): Ausgabe[] {
   const ausgaben: Ausgabe[] = [];
   if (e.artnet.an) ausgaben.push(new ArtnetAusgabe(e.artnet));
   if (e.sacn.an) ausgaben.push(new SacnAusgabe(e.sacn));

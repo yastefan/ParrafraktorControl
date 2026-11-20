@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PARAMETER_DEFAULTS } from "@parrafraktor/engine";
-import { EINSTELLUNGEN_VORGABE, pruefePresets } from "@parrafraktor/protokoll";
+import { SETTINGS_DEFAULTS, checkPresets } from "@parrafraktor/protocol";
 import { HALTEN_MS, HAUPT, NETZ_TASTEN, CODE_WARTEN_MS } from "../src/eingabe/streamdeck/belegung.js";
 import { StreamDeckModul } from "../src/eingabe/streamdeck/index.js";
 import { NETZ_VORGABE, istNetzCode, netzAusUmgebung, pruefeNetz, type Netz, type NetzStatus, type NetzWunsch } from "../src/netz.js";
@@ -61,7 +61,7 @@ describe("Netz-Menü am Stream Deck", () => {
   let s: Steuerung, netz: NetzAttrappe, deck: DeckIntern;
   beforeEach(() => {
     vi.useFakeTimers();
-    s = new Steuerung({ ...PARAMETER_DEFAULTS }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]));
+    s = new Steuerung({ ...PARAMETER_DEFAULTS }, structuredClone(SETTINGS_DEFAULTS), checkPresets([]));
     netz = new NetzAttrappe();
     deck = new StreamDeckModul(s, netz) as unknown as DeckIntern;
   });

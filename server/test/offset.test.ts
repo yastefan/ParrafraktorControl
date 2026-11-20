@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PARAMETER_DEFAULTS } from "@parrafraktor/engine";
-import { EINSTELLUNGEN_VORGABE, offsetVerschieden, pruefePresets, verschiebeOffset } from "@parrafraktor/protokoll";
+import { SETTINGS_DEFAULTS, offsetsDiffer, checkPresets, shiftOffset } from "@parrafraktor/protocol";
 import { HALTEN_MS } from "../src/eingabe/streamdeck/belegung.js";
 import { StreamDeckModul } from "../src/eingabe/streamdeck/index.js";
 import { Steuerung } from "../src/steuerung.js";
 
 vi.mock("../src/log.js", () => ({ log: () => {}, fehlerText: (e: unknown) => String(e) }));
 
-const neu = () => new Steuerung({ ...PARAMETER_DEFAULTS }, structuredClone(EINSTELLUNGEN_VORGABE), pruefePresets([]));
+const neu = () => new Steuerung({ ...PARAMETER_DEFAULTS }, structuredClone(SETTINGS_DEFAULTS), checkPresets([]));
 
 describe("Offset je Element", () => {
   it("der gemeinsame Offset verschiebt alle, die Abstände bleiben", () => {
@@ -21,7 +21,7 @@ describe("Offset je Element", () => {
 
   it("am Rand bleibt er stehen, statt die Abstände zu stauchen", () => {
     const p = { ...PARAMETER_DEFAULTS, offset: 0, offsetGetrennt: true, offsetElemente: [0, 100, 170] };
-    expect(verschiebeOffset(p, 50)).toEqual({ offset: 10, offsetElemente: [10, 110, 180] });
+    expect(shiftOffset(p, 50)).toEqual({ offset: 10, offsetElemente: [10, 110, 180] });
   });
 
   it("ohne „je Element“ nur der Offset", () => {
@@ -35,11 +35,11 @@ describe("Offset je Element", () => {
     s.setze({ offset: 20 });
     s.verstelleOffsetElement(1, 15);
     expect(s.parameter).toMatchObject({ offsetGetrennt: true, offsetElemente: [20, 35, 20] });
-    expect(offsetVerschieden(s.parameter)).toBe(true);
+    expect(offsetsDiffer(s.parameter)).toBe(true);
     s.vorgabe("offset");
     expect(s.parameter.offsetGetrennt).toBe(false);
     expect(new Set(s.parameter.offsetElemente).size).toBe(1);
-    expect(offsetVerschieden(s.parameter)).toBe(false);
+    expect(offsetsDiffer(s.parameter)).toBe(false);
   });
 
   it("Presets tragen die Werte je Element mit, ohne doppelt zu verschieben", () => {

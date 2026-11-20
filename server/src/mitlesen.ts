@@ -6,7 +6,7 @@
 import { createSocket, type Socket } from "node:dgram";
 import { networkInterfaces } from "node:os";
 import { readPositions, patchUniverses, type Position } from "@parrafraktor/engine";
-import type { Einstellungen, ModulStatus } from "@parrafraktor/protokoll";
+import type { Settings, ModuleStatus } from "@parrafraktor/protocol";
 import { ARTNET_PORT } from "./ausgabe/artnet.js";
 import { EIGENE_CID, SACN_PORT, multicastAdresse } from "./ausgabe/sacn.js";
 import { fehlerText, log } from "./log.js";
@@ -29,7 +29,7 @@ export class Mitlesen {
   private eigene = eigeneAdressen();
   private eigeneStand = Date.now();
 
-  constructor(private readonly e: Einstellungen) {
+  constructor(private readonly e: Settings) {
     const universen = patchUniverses(e.patch);
     if (e.sacn.an) this.lauscheSacn(universen);
     if (e.artnet.an) this.lauscheArtnet();
@@ -43,7 +43,7 @@ export class Mitlesen {
     return readPositions(frisch, this.e.patch, rotateMaxUpm);
   }
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     const name = "Read MA";
     if (this.fehler) return { name, art: "mitlesen", zustand: "fehler", text: this.fehler };
     if (!this.sockets.length) return { name, art: "mitlesen", zustand: "aus", text: "no output active" };

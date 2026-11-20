@@ -1,8 +1,8 @@
 {
-  "name": "@parrafraktor/protokoll",
+  "name": "@parrafraktor/protocol",
   "version": "0.1.0",
   "private": true,
-  "description": "Gemeinsame Typen von Server und Client: Parameter-Bereiche, Einstellungen, WebSocket-Nachrichten",
+  "description": "Types shared by server and client: parameter ranges, settings, WebSocket messages",
   "type": "module",
   "exports": {
     ".": {

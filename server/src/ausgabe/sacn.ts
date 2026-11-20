@@ -4,7 +4,7 @@
 import { createHash } from "node:crypto";
 import { createSocket, type Socket } from "node:dgram";
 import { hostname } from "node:os";
-import type { ModulStatus, SacnEinstellungen } from "@parrafraktor/protokoll";
+import type { ModuleStatus, SacnSettings } from "@parrafraktor/protocol";
 import { fehlerText } from "../log.js";
 import type { Ausgabe } from "./ausgabe.js";
 
@@ -53,7 +53,7 @@ export class SacnAusgabe implements Ausgabe {
   private fehler = "";
   private sendet = false;
 
-  constructor(private readonly e: SacnEinstellungen) {
+  constructor(private readonly e: SacnSettings) {
     this.socket = createSocket({ type: "udp4", reuseAddr: true });
     this.socket.on("error", (err) => { this.fehler = fehlerText(err); });
     this.socket.bind({ address: e.quelle || undefined, port: 0 }, () => {
@@ -86,7 +86,7 @@ export class SacnAusgabe implements Ausgabe {
     await new Promise<void>((fertig) => this.socket.close(() => fertig()));
   }
 
-  status(): ModulStatus {
+  status(): ModuleStatus {
     if (this.fehler) return { name: this.name, art: "ausgabe", zustand: "fehler", text: this.fehler };
     const ziel = this.e.multicast ? "Multicast" : `Unicast to ${this.e.ziel || "?"}`;
     if (!this.e.multicast && !this.e.ziel) {
