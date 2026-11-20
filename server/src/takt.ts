@@ -11,7 +11,7 @@
 // Überblendzeit in den neuen Look überblendet, damit die Motoren nicht springen.
 //
 // Impulse (Flash, Loch, Iris) liegen über dem Look, aber unter der Überblendung von bzw. zur MA.
-import { Engine, mische, schreibeUniversen, weich, wendeImpulseAn, type Stellung } from "@parrafraktor/engine";
+import { Engine, blend, writeUniverses, smooth, applyImpulses, type Position } from "@parrafraktor/engine";
 import type { UebernahmeZustand } from "@parrafraktor/protokoll";
 import type { Ausgabe } from "./ausgabe/index.js";
 import type { Mitlesen } from "./mitlesen.js";
@@ -52,12 +52,12 @@ export class Takt {
   private timer: NodeJS.Timeout | undefined;
   private letzte = performance.now();
   // zuletzt gerechnete Stellungen der App und, während einer Überblendung zum Preset, der Ausgangspunkt
-  private app: Stellung[] = [];
-  private blendeVon: Stellung[] | null = null;
+  private app: Position[] = [];
+  private blendeVon: Position[] | null = null;
 
   constructor(private readonly steuerung: Steuerung, private readonly quellen: Quellen) {
     steuerung.on("blende", () => {
-      this.blendeVon = this.app.length ? this.app : this.engine.alle(steuerung.parameter);
+      this.blendeVon = this.app.length ? this.app : this.engine.all(steuerung.parameter);
     });
   }
 
@@ -76,13 +76,13 @@ export class Takt {
   }
 
   // Aktuelle Stellungen der App (ohne Überblendung), z. B. für Anzeigen
-  stellungen(): Stellung[] {
-    return this.engine.alle(this.steuerung.parameter);
+  stellungen(): Position[] {
+    return this.engine.all(this.steuerung.parameter);
   }
 
   // Stellungen des Looks, während einer Überblendung zum Preset gemischt
-  private appStellungen(dt: number): Stellung[] {
-    const ziel = this.engine.alle(this.steuerung.parameter);
+  private appStellungen(dt: number): Position[] {
+    const ziel = this.engine.all(this.steuerung.parameter);
     const blende = this.steuerung.blende;
     if (!blende || !this.blendeVon) {
       this.blendeVon = null;
@@ -91,23 +91,23 @@ export class Takt {
     }
     const dauer = this.steuerung.blendeDauerS;
     const anteil = dauer > 0 ? Math.min(1, blende.anteil + dt / dauer) : 1;
-    this.app = anteil >= 1 ? ziel : mische(this.blendeVon, ziel, weich(anteil));
+    this.app = anteil >= 1 ? ziel : blend(this.blendeVon, ziel, smooth(anteil));
     this.steuerung.meldeBlende(anteil >= 1 ? null : anteil);
     if (anteil >= 1) this.blendeVon = null;
     return this.app;
   }
 
-  private mitImpulsen(app: Stellung[]): Stellung[] {
+  private mitImpulsen(app: Position[]): Position[] {
     const impulse = this.steuerung.impulse();
     if (!impulse.length) return app;
-    return wendeImpulseAn(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash, this.steuerung.einstellungen.aufbau.drehung);
+    return applyImpulses(app, impulse, this.steuerung.impuls, this.steuerung.einstellungen.flash, this.steuerung.einstellungen.aufbau.drehung);
   }
 
   private schritt(dt: number): void {
     const { parameter, einstellungen, uebernahme } = this.steuerung;
-    this.engine.drehung = einstellungen.aufbau.drehung;
-    this.engine.rotateMaxUpm = einstellungen.rotateMaxUpm;
-    this.engine.weiter(parameter, dt);
+    this.engine.elementRotation = einstellungen.aufbau.drehung;
+    this.engine.rotateMaxRpm = einstellungen.rotateMaxUpm;
+    this.engine.advance(parameter, dt);
     this.steuerung.raeumeImpulse();
     this.steuerung.autoWeiter(dt);
 
@@ -125,8 +125,8 @@ export class Takt {
       return;
     }
     const app = this.mitImpulsen(this.appStellungen(dt));
-    const stellungen = ma && anteil < 1 ? mische(ma, app, weich(anteil)) : app;
-    const universen = schreibeUniversen(stellungen, einstellungen.patch, einstellungen.rotateMaxUpm);
+    const stellungen = ma && anteil < 1 ? blend(ma, app, smooth(anteil)) : app;
+    const universen = writeUniverses(stellungen, einstellungen.patch, einstellungen.rotateMaxUpm);
     for (const a of ausgaben) a.sende(universen);
   }
 }

@@ -3,8 +3,8 @@
 // durch (Tempo: Ausbreitung). Die Hüllkurve (Attack, Sustain, Release, Stärke) läuft danach von
 // selbst ab.
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_ARTEN, IMPULS_NAME, huellenWert, istOeffnungArt, weich,
-  type ImpulsEinstellung,
+  ELEMENT_ORDERS, ELEMENT_ORDER_NAME, IMPULSE_KINDS, IMPULSE_NAME, envelopeValue, isApertureKind, smooth,
+  type ImpulseSettings,
 } from "@parrafraktor/engine";
 import { IMPULS_BEREICHE, begrenzeImpuls, impulsWert, mitImpulsWert, zeigeImpuls, type ImpulsRegler } from "@parrafraktor/protokoll";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -15,16 +15,16 @@ export function Impulse() {
   const l = useLaden();
   const server = l.stand!.impuls;
   // Beim Ziehen gilt der lokale Entwurf, bis der Server ihn bestätigt hat
-  const [entwurf, setEntwurf] = useState<ImpulsEinstellung | null>(null);
+  const [entwurf, setEntwurf] = useState<ImpulseSettings | null>(null);
   const e = entwurf ?? server;
   const sendeTimer = useRef<number>();
-  const setze = (neu: ImpulsEinstellung) => {
+  const setze = (neu: ImpulseSettings) => {
     setEntwurf(neu);
     window.clearTimeout(sendeTimer.current);
     sendeTimer.current = window.setTimeout(() => l.sende({ typ: "impulsEinstellung", einstellung: neu }), 16);
   };
   const fertig = () => window.setTimeout(() => setEntwurf(null), 800);
-  const sofort = (neu: ImpulsEinstellung) => { setze(neu); fertig(); };
+  const sofort = (neu: ImpulseSettings) => { setze(neu); fertig(); };
   const [mehr, setMehr] = useState(false);
 
   return (
@@ -50,7 +50,7 @@ export function Impulse() {
       >
         <div class="impulse">
           <div class="arten">
-            {IMPULS_ARTEN.map((a) => {
+            {IMPULSE_KINDS.map((a) => {
               const laeuft = l.stand?.impulse.some((i) => i.art === a) ?? false;
               return (
                 <button
@@ -58,15 +58,15 @@ export function Impulse() {
                   class={`art ${e.art === a ? "aktiv" : laeuft ? "laeuft" : ""}`}
                   onClick={() => sofort({ ...e, art: a })}
                 >
-                  {IMPULS_NAME[a]}
+                  {IMPULSE_NAME[a]}
                 </button>
               );
             })}
           </div>
-          <Streifen name={IMPULS_NAME[e.art]} />
+          <Streifen name={IMPULSE_NAME[e.art]} />
           <div class="huelle-feld"><Huelle e={e} setze={setze} fertig={fertig} /></div>
           <div class="impuls-regler">
-            <Schieber name={istOeffnungArt(e.art) ? "groesse" : "breite"} e={e} setze={setze} fertig={fertig} />
+            <Schieber name={isApertureKind(e.art) ? "groesse" : "breite"} e={e} setze={setze} fertig={fertig} />
             <Schieber name="staerke" e={e} setze={setze} fertig={fertig} />
             <Schieber name="ausbreitungS" e={e} setze={setze} fertig={fertig} />
           </div>
@@ -80,13 +80,13 @@ export function Impulse() {
           </div>
           <span class="stufen-name">Elements</span>
           <div class="stufen-raster folge">
-            {ELEMENT_FOLGEN.map((f) => (
+            {ELEMENT_ORDERS.map((f) => (
               <button
                 type="button" key={f} class={`stufe ${e.elementFolge === f ? "aktiv" : ""}`} disabled={!l.bedienbar}
                 aria-pressed={e.elementFolge === f}
                 onClick={() => sofort({ ...e, elementFolge: f })}
               >
-                {ELEMENT_FOLGE_NAME[f]}
+                {ELEMENT_ORDER_NAME[f]}
               </button>
             ))}
           </div>
@@ -172,37 +172,37 @@ const MAX = { attackS: IMPULS_BEREICHE.attackS.max, sustainS: IMPULS_BEREICHE.su
 const wurzel = (t: number, max: number) => Math.sqrt(Math.min(Math.max(t, 0), max) / max);
 const y = (anteil: number) => RAND + (H - 2 * RAND) * (1 - anteil);
 const xAttack = (t: number) => RAND + BA * wurzel(t, MAX.attackS);
-const xSustain = (e: ImpulsEinstellung, t: number) => xAttack(e.huelle.attackS) + BS * wurzel(t, MAX.sustainS);
-const xRelease = (e: ImpulsEinstellung, t: number) => xSustain(e, e.huelle.sustainS) + BR * wurzel(t, MAX.releaseS);
+const xSustain = (e: ImpulseSettings, t: number) => xAttack(e.huelle.attackS) + BS * wurzel(t, MAX.sustainS);
+const xRelease = (e: ImpulseSettings, t: number) => xSustain(e, e.huelle.sustainS) + BR * wurzel(t, MAX.releaseS);
 
 // Lage auf der Zeitachse für t Sekunden seit dem Start
-function xZeit(e: ImpulsEinstellung, t: number): number {
+function xZeit(e: ImpulseSettings, t: number): number {
   const { attackS: a, sustainS: s } = e.huelle;
   if (t < a) return xAttack(t);
   if (t < a + s) return xSustain(e, t - a);
   return xRelease(e, t - a - s);
 }
 
-function kurve(e: ImpulsEinstellung): string {
+function kurve(e: ImpulseSettings): string {
   const { attackS: a, sustainS: s, releaseS: r, staerke } = e.huelle;
   const st = staerke / 100;
   const punkte: string[] = [`${RAND},${y(0)}`];
   for (let n = 1; n <= 24; n++) {
     const t = (a * n) / 24;
-    punkte.push(`${xAttack(t)},${y(st * (a > 0 ? weich(t / a) : 1))}`);
+    punkte.push(`${xAttack(t)},${y(st * (a > 0 ? smooth(t / a) : 1))}`);
   }
   punkte.push(`${xSustain(e, s)},${y(st)}`);
   for (let n = 1; n <= 24; n++) {
     const t = (r * n) / 24;
-    punkte.push(`${xRelease(e, t)},${y(st * (r > 0 ? 1 - weich(t / r) : 0))}`);
+    punkte.push(`${xRelease(e, t)},${y(st * (r > 0 ? 1 - smooth(t / r) : 0))}`);
   }
   punkte.push(`${B - RAND},${y(0)}`);
   return "M" + punkte.join(" L");
 }
 
 interface HuelleProps {
-  e: ImpulsEinstellung;
-  setze: (e: ImpulsEinstellung) => void;
+  e: ImpulseSettings;
+  setze: (e: ImpulseSettings) => void;
   fertig: () => void;
 }
 
@@ -226,7 +226,7 @@ function Huelle({ e, setze, fertig }: HuelleProps) {
       const t = i ? i.alterS + (performance.now() - laden.standZeit) / 1000 : 0;
       if (m && i && t > 0 && t < h.attackS + h.sustainS + h.releaseS) {
         m.setAttribute("cx", String(xZeit(ee, t)));
-        m.setAttribute("cy", String(y(huellenWert(h, t) * (h.staerke / 100))));
+        m.setAttribute("cy", String(y(envelopeValue(h, t) * (h.staerke / 100))));
         m.style.opacity = "1";
       } else if (m) {
         m.style.opacity = "0";

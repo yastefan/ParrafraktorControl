@@ -1,8 +1,8 @@
 // Wertebereiche der Pattern-Parameter. Eine Quelle für alle Bedienungen:
 // Regler im Client, Drehregler am Stream Deck, später MIDI und OSC.
 import {
-  BAHNEN, BAHN_NAME, ELEMENTE, ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, ORDNUNGEN, ORDNUNG_NAME, PARAMETER_VORGABE,
-  istBahn, istElementFolge, istModus, istOrdnung, type Modus, type Parameter,
+  HOLE_PATHS, HOLE_PATH_NAME, ELEMENTS, ELEMENT_ORDERS, ELEMENT_ORDER_NAME, ORDERINGS, ORDERING_NAME, PARAMETER_DEFAULTS,
+  isHolePath, isElementOrder, isMode, isOrdering, type Mode, type Parameter,
 } from "@parrafraktor/engine";
 
 export type ZahlParameter =
@@ -47,9 +47,9 @@ export const BEREICHE: Record<ZahlParameter, Bereich> = {
 export type StufenParameter = "bahn" | "ordnung" | "elementFolge";
 
 export const STUFEN = {
-  bahn: { name: "Path", werte: BAHNEN, text: BAHN_NAME },
-  ordnung: { name: "Order", werte: ORDNUNGEN, text: ORDNUNG_NAME },
-  elementFolge: { name: "Elements", werte: ELEMENT_FOLGEN, text: ELEMENT_FOLGE_NAME },
+  bahn: { name: "Path", werte: HOLE_PATHS, text: HOLE_PATH_NAME },
+  ordnung: { name: "Order", werte: ORDERINGS, text: ORDERING_NAME },
+  elementFolge: { name: "Elements", werte: ELEMENT_ORDERS, text: ELEMENT_ORDER_NAME },
 } as const;
 
 // Schalter (an/aus)
@@ -59,7 +59,7 @@ export const SCHALTER: Record<SchalterParameter, string> = { gegenlauf: "Counter
 // Welche Regler eine Grundbewegung nicht benutzt: werden im Client ausgeblendet
 type Regler = ZahlParameter | StufenParameter | SchalterParameter;
 const KOPPLUNG: Regler[] = ["kopplung", "rauschen", "reichweite"];
-const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
+const UNBENUTZT: Partial<Record<Mode, Regler[]>> = {
   sinus: ["schwuenge", "wellenlaenge", ...KOPPLUNG],
   pendelwelle: ["speedBis", "phase", "elementPhase", "breite", "wellenlaenge", "pingpong", "speedJeElement", ...KOPPLUNG],
   wind: ["speedBis", "phase", "elementPhase", "breite", "schwuenge", "pingpong", "speedJeElement", ...KOPPLUNG],
@@ -70,7 +70,7 @@ const UNBENUTZT: Partial<Record<Modus, Regler[]>> = {
 };
 // Die Öffnung hat ihre eigenen Regler, und von den anderen nur Speed
 const NUR_OEFFNUNG: readonly Regler[] = ["bahn", "groesse", "weite", "kante", "wabern", "puls", "nachlauf"];
-export const benutzt = (modus: Modus, name: Regler): boolean => {
+export const benutzt = (modus: Mode, name: Regler): boolean => {
   if (modus === "oeffnung") return NUR_OEFFNUNG.includes(name) || name === "speedVon";
   return !NUR_OEFFNUNG.includes(name) && !UNBENUTZT[modus]?.includes(name);
 };
@@ -99,25 +99,25 @@ export function pruefeParameter(roh: unknown): Partial<Parameter> {
   if (typeof roh !== "object" || roh === null) return {};
   const r = roh as Record<string, unknown>;
   const teil: Partial<Parameter> = {};
-  if (istModus(r.modus)) teil.modus = r.modus;
+  if (isMode(r.modus)) teil.modus = r.modus;
   for (const name of ZAHL_PARAMETER) {
     const w = r[name];
     if (typeof w === "number" && Number.isFinite(w)) teil[name] = begrenze(name, w);
   }
-  if (istBahn(r.bahn)) teil.bahn = r.bahn;
-  if (istOrdnung(r.ordnung)) teil.ordnung = r.ordnung;
-  if (istElementFolge(r.elementFolge)) teil.elementFolge = r.elementFolge;
+  if (isHolePath(r.bahn)) teil.bahn = r.bahn;
+  if (isOrdering(r.ordnung)) teil.ordnung = r.ordnung;
+  if (isElementOrder(r.elementFolge)) teil.elementFolge = r.elementFolge;
   for (const name of ["gegenlauf", "pingpong", "speedJeElement", "offsetGetrennt", "laeuft"] as const) {
     if (typeof r[name] === "boolean") teil[name] = r[name];
   }
-  if (Array.isArray(r.offsetElemente) && r.offsetElemente.length === ELEMENTE
+  if (Array.isArray(r.offsetElemente) && r.offsetElemente.length === ELEMENTS
     && r.offsetElemente.every((w) => typeof w === "number" && Number.isFinite(w))) {
     teil.offsetElemente = (r.offsetElemente as number[]).map((w) => begrenze("offset", w));
   }
   return teil;
 }
 
-export const vorgabeWert = (name: ZahlParameter): number => PARAMETER_VORGABE[name];
+export const vorgabeWert = (name: ZahlParameter): number => PARAMETER_DEFAULTS[name];
 
 // ---------- Offset je Element ----------
 // Hat jedes Element seinen Offset (offsetGetrennt), verschiebt der gemeinsame Offset alle Elemente um

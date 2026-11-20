@@ -1,13 +1,13 @@
-import { MODI_WAEHLBAR, MODUS_NAME, type Modus } from "@parrafraktor/engine";
+import { MODES_SELECTABLE, MODE_NAME, type Mode } from "@parrafraktor/engine";
 import { useLaden } from "../laden.js";
 import { Modul } from "./modul.js";
 
-export function Patterns({ modus }: { modus: Modus }) {
+export function Patterns({ modus }: { modus: Mode }) {
   const l = useLaden();
   return (
     <Modul titel="01 Pattern" klasse="m-pattern">
       <div class="patterns">
-        {MODI_WAEHLBAR.map((m, n) => (
+        {MODES_SELECTABLE.map((m, n) => (
           <button
             type="button"
             key={m}
@@ -16,7 +16,7 @@ export function Patterns({ modus }: { modus: Modus }) {
             onClick={() => l.sende({ typ: "pattern", modus: m })}
           >
             <span class="nr">{String(n + 1).padStart(2, "0")}</span>
-            {MODUS_NAME[m]}
+            {MODE_NAME[m]}
           </button>
         ))}
       </div>

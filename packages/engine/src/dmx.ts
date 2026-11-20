@@ -1,94 +1,95 @@
-// Abbildung der Spiegelstellungen auf DMX, wie im grandMA3-Fixture "Gobbesso Parrafraktor", Mode Standard:
-// 37 Kanäle je Element. Je Spiegel i (0 … 11) ab der Startadresse:
-//   3i+1 / 3i+2  Tilt 16 Bit (coarse/fine), −180 … +180°
-//   3i+3         TiltRotate 8 Bit, 0x7F = steht, 0 bzw. 255 = volle Drehung in beide Richtungen
-//   37           Dimmer, nur für den 3D-Preview der MA
-import { ELEMENTE, SPIEGEL_N } from "./aufbau.js";
-import type { Stellung } from "./pattern.js";
+// Mirror positions to DMX, as in the grandMA3 fixture "Gobbesso Parrafraktor", mode Standard:
+// 37 channels per element. Per mirror i (0 … 11) from the start address:
+//   3i+1 / 3i+2  Tilt 16 bit (coarse/fine), −180 … +180°
+//   3i+3         TiltRotate 8 bit, 0x7F = stopped, 0 or 255 = full speed in either direction
+//   37           Dimmer, only for the MA's 3D preview
+import { ELEMENTS, MIRRORS_PER_ELEMENT } from "./layout.js";
+import type { Position } from "./pattern.js";
 
-export const KANAELE_PRO_SPIEGEL = 3;
-export const KANAELE_PRO_ELEMENT = SPIEGEL_N * KANAELE_PRO_SPIEGEL + 1;
-export const TILT_VON = -180;
-export const TILT_BIS = 180;
+export const CHANNELS_PER_MIRROR = 3;
+export const CHANNELS_PER_ELEMENT = MIRRORS_PER_ELEMENT * CHANNELS_PER_MIRROR + 1;
+export const TILT_MIN = -180;
+export const TILT_MAX = 180;
 export const ROTATE_STOP = 0x7f;
 
+// Saved in the settings: field names stay German
 export interface PatchElement {
   universe: number;   // 1 … 63999
-  adresse: number;    // Startadresse 1 … 512 − 36
+  adresse: number;    // start address 1 … 512 − 36
 }
 
-export const PATCH_VORGABE: readonly PatchElement[] = [
+export const PATCH_DEFAULTS: readonly PatchElement[] = [
   { universe: 1, adresse: 1 },
   { universe: 1, adresse: 38 },
   { universe: 1, adresse: 75 },
 ];
 
-export const ADRESSE_MAX = 512 - KANAELE_PRO_ELEMENT + 1;
+export const ADDRESS_MAX = 512 - CHANNELS_PER_ELEMENT + 1;
 
-const begrenze = (x: number, min: number, max: number) => Math.min(max, Math.max(min, x));
+const clamp = (x: number, min: number, max: number) => Math.min(max, Math.max(min, x));
 
-// Tilt in Grad → 16-Bit-Wert. Außerhalb von ±180° bleibt der Spiegel am Anschlag stehen,
-// statt einmal ganz herumzufahren.
-export const tiltWert = (grad: number): number =>
-  Math.round(begrenze((grad - TILT_VON) / (TILT_BIS - TILT_VON), 0, 1) * 65535);
+// Tilt in degrees → 16-bit value. Beyond ±180° the mirror stays at the end stop instead of
+// going all the way round.
+export const tiltValue = (degrees: number): number =>
+  Math.round(clamp((degrees - TILT_MIN) / (TILT_MAX - TILT_MIN), 0, 1) * 65535);
 
-export const tiltGrad = (wert: number): number => TILT_VON + (wert / 65535) * (TILT_BIS - TILT_VON);
+export const tiltDegrees = (value: number): number => TILT_MIN + (value / 65535) * (TILT_MAX - TILT_MIN);
 
-// Drehzahl → TiltRotate. maxUpm = Umdrehungen pro Minute bei DMX 0 bzw. 255.
-export const rotateWert = (upm: number, maxUpm: number): number =>
-  begrenze(Math.round(ROTATE_STOP + (upm / maxUpm) * 128), 0, 255);
+// Speed → TiltRotate. maxRpm = revolutions per minute at DMX 0 or 255.
+export const rotateValue = (rpm: number, maxRpm: number): number =>
+  clamp(Math.round(ROTATE_STOP + (rpm / maxRpm) * 128), 0, 255);
 
-export const rotateUpm = (wert: number, maxUpm: number): number => ((wert - ROTATE_STOP) / 128) * maxUpm;
+export const rotateRpm = (value: number, maxRpm: number): number => ((value - ROTATE_STOP) / 128) * maxRpm;
 
-// Alle Universen, die der Patch belegt
-export const patchUniversen = (patch: readonly PatchElement[]): number[] =>
+// All universes the patch uses
+export const patchUniverses = (patch: readonly PatchElement[]): number[] =>
   [...new Set(patch.map((e) => e.universe))].sort((a, b) => a - b);
 
-// Stellungen in DMX-Puffer schreiben (je Universe 512 Kanäle).
-// Kanäle außerhalb des Patches bleiben 0.
-export function schreibeUniversen(
-  stellungen: readonly Stellung[],
+// Write positions into DMX buffers (512 channels per universe).
+// Channels outside the patch stay 0.
+export function writeUniverses(
+  positions: readonly Position[],
   patch: readonly PatchElement[],
-  maxUpm: number,
+  maxRpm: number,
 ): Map<number, Uint8Array> {
-  const universen = new Map<number, Uint8Array>();
-  for (const u of patchUniversen(patch)) universen.set(u, new Uint8Array(512));
-  for (let k = 0; k < ELEMENTE; k++) {
+  const universes = new Map<number, Uint8Array>();
+  for (const u of patchUniverses(patch)) universes.set(u, new Uint8Array(512));
+  for (let k = 0; k < ELEMENTS; k++) {
     const e = patch[k]!;
-    const dmx = universen.get(e.universe)!;
-    const basis = e.adresse - 1;
-    for (let i = 0; i < SPIEGEL_N; i++) {
-      const s = stellungen[k * SPIEGEL_N + i]!;
-      const tilt = tiltWert(s.tilt);
-      const c = basis + i * KANAELE_PRO_SPIEGEL;
+    const dmx = universes.get(e.universe)!;
+    const base = e.adresse - 1;
+    for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+      const s = positions[k * MIRRORS_PER_ELEMENT + i]!;
+      const tilt = tiltValue(s.tilt);
+      const c = base + i * CHANNELS_PER_MIRROR;
       dmx[c] = tilt >> 8;
       dmx[c + 1] = tilt & 0xff;
-      dmx[c + 2] = rotateWert(s.upm, maxUpm);
+      dmx[c + 2] = rotateValue(s.upm, maxRpm);
     }
-    dmx[basis + KANAELE_PRO_ELEMENT - 1] = 255;   // Dimmer voll, nur für den 3D-Preview
+    dmx[base + CHANNELS_PER_ELEMENT - 1] = 255;   // dimmer full, only for the 3D preview
   }
-  return universen;
+  return universes;
 }
 
-// Umkehrung: Stellungen aus empfangenen DMX-Daten (z. B. von der MA) lesen.
-// null, wenn ein Universe des Patches fehlt.
-export function leseStellungen(
-  universen: ReadonlyMap<number, Uint8Array>,
+// The other way: read positions from received DMX (e.g. from the MA).
+// null if a universe of the patch is missing.
+export function readPositions(
+  universes: ReadonlyMap<number, Uint8Array>,
   patch: readonly PatchElement[],
-  maxUpm: number,
-): Stellung[] | null {
-  const stellungen: Stellung[] = [];
-  for (let k = 0; k < ELEMENTE; k++) {
+  maxRpm: number,
+): Position[] | null {
+  const positions: Position[] = [];
+  for (let k = 0; k < ELEMENTS; k++) {
     const e = patch[k]!;
-    const dmx = universen.get(e.universe);
+    const dmx = universes.get(e.universe);
     if (!dmx) return null;
-    for (let i = 0; i < SPIEGEL_N; i++) {
-      const c = e.adresse - 1 + i * KANAELE_PRO_SPIEGEL;
-      stellungen.push({
-        tilt: tiltGrad(((dmx[c] ?? 0) << 8) | (dmx[c + 1] ?? 0)),
-        upm: rotateUpm(dmx[c + 2] ?? ROTATE_STOP, maxUpm),
+    for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+      const c = e.adresse - 1 + i * CHANNELS_PER_MIRROR;
+      positions.push({
+        tilt: tiltDegrees(((dmx[c] ?? 0) << 8) | (dmx[c + 1] ?? 0)),
+        upm: rotateRpm(dmx[c + 2] ?? ROTATE_STOP, maxRpm),
       });
     }
   }
-  return stellungen;
+  return positions;
 }

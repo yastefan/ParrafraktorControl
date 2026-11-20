@@ -4,7 +4,7 @@
 // Der Client braucht dadurch nach einem Verbindungsabbruch nichts nachzuholen: Die erste
 // Nachricht nach dem Wiederverbinden ist wieder der vollständige Stand.
 import {
-  istModus, type ImpulsEinstellung, type LaufenderImpuls, type Modus, type Parameter,
+  isMode, type ImpulseSettings, type RunningImpulse, type Mode, type Parameter,
 } from "@parrafraktor/engine";
 import type { Einstellungen } from "./einstellungen.js";
 import { istZahlParameter, pruefeParameter, type ZahlParameter } from "./parameter.js";
@@ -67,8 +67,8 @@ export interface Stand {
   // Auto: Einstellung, ob es läuft, und wie lange der aktuelle Look noch dran ist
   auto: AutoEinstellung & { an: boolean; restS: number };
   // Einstellung der Impulse, dazu die gerade laufenden (Zeiten beim Senden)
-  impuls: ImpulsEinstellung;
-  impulse: LaufenderImpuls[];
+  impuls: ImpulseSettings;
+  impulse: RunningImpulse[];
   warnungen: string[];
 }
 
@@ -81,7 +81,7 @@ export type ServerNachricht = Stand | Pong;
 
 export type ClientNachricht =
   | { typ: "setze"; parameter: Partial<Parameter> }
-  | { typ: "pattern"; modus: Modus }
+  | { typ: "pattern"; modus: Mode }
   | { typ: "vorgabe"; name: ZahlParameter }
   | { typ: "uebernahme"; an: boolean }
   | { typ: "einstellungen"; einstellungen: unknown }   // prüft der Server mit pruefeEinstellungen
@@ -108,7 +108,7 @@ export function leseClientNachricht(text: string): ClientNachricht | null {
   const r = roh as Record<string, unknown>;
   switch (r.typ) {
     case "setze": return { typ: "setze", parameter: pruefeParameter(r.parameter) };
-    case "pattern": return istModus(r.modus) ? { typ: "pattern", modus: r.modus } : null;
+    case "pattern": return isMode(r.modus) ? { typ: "pattern", modus: r.modus } : null;
     case "vorgabe": return istZahlParameter(r.name) ? { typ: "vorgabe", name: r.name } : null;
     case "uebernahme": return typeof r.an === "boolean" ? { typ: "uebernahme", an: r.an } : null;
     case "einstellungen": return { typ: "einstellungen", einstellungen: r.einstellungen };

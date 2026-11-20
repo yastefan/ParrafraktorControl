@@ -3,7 +3,7 @@
 // "Speichern" geschickt, weil der Server dafür die Ausgaben neu startet.
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { ELEMENTE } from "@parrafraktor/engine";
+import { ELEMENTS } from "@parrafraktor/engine";
 import { GRENZEN, istIpv4, type Anordnung, type Einstellungen as E, type Stand } from "@parrafraktor/protokoll";
 import { laden } from "../laden.js";
 
@@ -71,9 +71,9 @@ export function Einstellungen({ stand, schliessen }: Props) {
             <>
               <div class="feldzeile">
                 <span class="name">Rotation</span>
-                {Array.from({ length: ELEMENTE }, (_, k) => (
+                {Array.from({ length: ELEMENTS }, (_, k) => (
                   <Zahl
-                    key={k} name={k === 0 ? "1 front" : k === ELEMENTE - 1 ? `${k + 1} back` : String(k + 1)}
+                    key={k} name={k === 0 ? "1 front" : k === ELEMENTS - 1 ? `${k + 1} back` : String(k + 1)}
                     grenzen={GRENZEN.drehung} wert={entwurf.aufbau.drehung[k] ?? 0} schmal
                     setze={(v) => sofort({ aufbau: { ...entwurf.aufbau, drehung: entwurf.aufbau.drehung.map((d, i) => (i === k ? v : d)) } })}
                   />
@@ -116,7 +116,7 @@ export function Einstellungen({ stand, schliessen }: Props) {
         </Gruppe>
 
         <Gruppe titel="Patch (fixture Gobbesso Parrafraktor, 37 channels)">
-          {Array.from({ length: ELEMENTE }, (_, k) => (
+          {Array.from({ length: ELEMENTS }, (_, k) => (
             <div class="feldzeile" key={k}>
               <span class="name">Element {k + 1}</span>
               <Zahl

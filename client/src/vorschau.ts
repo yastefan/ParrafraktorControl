@@ -16,8 +16,8 @@
 // Spiegeln reflektiert und treffen auf die Wände. Umschaltbar auf den Nebel (nebel.ts): Strahlen
 // mit allen Reflexionen, von vorn leicht versetzt, die Elemente hintereinander wie im Aufbau.
 import {
-  ELEMENTE, Engine, SPIEGEL_N, lochBei, weich, wendeImpulseAn,
-  type ImpulsEinstellung, type ImpulsWinkel, type LaufenderImpuls, type Parameter, type Stellung,
+  ELEMENTS, Engine, MIRRORS_PER_ELEMENT, holeAt, smooth, applyImpulses,
+  type ImpulseSettings, type ImpulseAngles, type RunningImpulse, type Parameter, type Position,
 } from "@parrafraktor/engine";
 import type { Aufbau, Takt } from "@parrafraktor/protokoll";
 import { VORSCHAU_STIL, schrift } from "./vorschau-stil.js";
@@ -39,17 +39,17 @@ export interface VorschauDaten {
   nebelSeite: SpiegelSeite;
   blende: { id: number; anteil: number } | null;   // Überblendung zu einem Preset (vom Server)
   blendeDauer: number;                              // Sekunden
-  impuls: ImpulsEinstellung;
-  impulse: LaufenderImpuls[];                       // Zeiten beim Empfang des Stands
+  impuls: ImpulseSettings;
+  impulse: RunningImpulse[];                       // Zeiten beim Empfang des Stands
   impulseSeitS: number;                             // so lange ist der Stand schon da
-  flash: ImpulsWinkel;
+  flash: ImpulseAngles;
 }
 
 const ABWEICHUNG_MAX = 0.05;   // Durchläufe; größere Abweichungen werden sofort übernommen
 
 // Maße wie in der Simulation (Meter)
 const ELEMENT_B = 1.8;
-const RASTER = ELEMENT_B / SPIEGEL_N;   // 0,15 m Achsabstand
+const RASTER = ELEMENT_B / MIRRORS_PER_ELEMENT;   // 0,15 m Achsabstand
 const SPIEGEL_B = RASTER - 0.012;       // Spiegel etwas schmaler als das Raster
 const ABSTAND = 0.25;                   // Lücke zwischen den Elementen (Draufsicht)
 const SICHT_VORN = 2.75;                // sichtbare Breite eines einzelnen Elements: Raute 1,8 × √2 plus Rand
@@ -85,12 +85,12 @@ const MAX_REFLEXIONEN = 3;
 
 // Die 36 Spiegel im Raum: Elemente nebeneinander, Vorderseite zum Scheinwerfer
 export function raumSpiegel(winkel: number[]): RaumSpiegel[] {
-  const gesamt = ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND;
+  const gesamt = ELEMENTS * ELEMENT_B + (ELEMENTS - 1) * ABSTAND;
   const liste: RaumSpiegel[] = [];
-  for (let k = 0; k < ELEMENTE; k++) {
+  for (let k = 0; k < ELEMENTS; k++) {
     const x0 = (RAUM.b - gesamt) / 2 + k * (ELEMENT_B + ABSTAND);
-    for (let i = 0; i < SPIEGEL_N; i++) {
-      const a = grad(winkel[k * SPIEGEL_N + i]!);
+    for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+      const a = grad(winkel[k * MIRRORS_PER_ELEMENT + i]!);
       const p = { x: x0 + (i + 0.5) * RASTER, y: ELEMENT_Y };
       const u = { x: Math.cos(a), y: Math.sin(a) };
       liste.push({
@@ -200,7 +200,7 @@ function kastenUnschaerfe(
 
 export class Vorschau {
   private engine = new Engine();
-  private drehung = new Float64Array(ELEMENTE * SPIEGEL_N);   // Winkel bei Rotation (TiltRotate)
+  private drehung = new Float64Array(ELEMENTS * MIRRORS_PER_ELEMENT);   // Winkel bei Rotation (TiltRotate)
   private letzte = performance.now();
   private bild = 0;
   private lichtCanvas = document.createElement("canvas");
@@ -242,10 +242,10 @@ export class Vorschau {
       this.letzte = jetzt;
       const d = this.daten();
       if (d) {
-        this.engine.drehung = d.aufbau.drehung;
-        this.engine.rotateMaxUpm = d.rotateMaxUpm;
-        this.engine.weiter(d.parameter, dt);
-        const look = this.blenden(d, this.winkel(d, this.engine.alle(d.parameter), dt), dt);
+        this.engine.elementRotation = d.aufbau.drehung;
+        this.engine.rotateMaxRpm = d.rotateMaxUpm;
+        this.engine.advance(d.parameter, dt);
+        const look = this.blenden(d, this.winkel(d, this.engine.all(d.parameter), dt), dt);
         this.letzteWinkel = look;
         const winkel = this.mitImpulsen(d, look);
         this.zeichne(d, winkel);
@@ -293,11 +293,11 @@ export class Vorschau {
   // Takt vom Server übernehmen
   gleiche(takt: Takt): void {
     const e = this.engine;
-    e.umlaufVon = nachziehen(e.umlaufVon, takt.umlaufVon);
-    takt.umlauf.forEach((u, g) => { if (g < e.umlauf.length) e.umlauf[g] = nachziehen(e.umlauf[g]!, u); });
+    e.referenceCycles = nachziehen(e.referenceCycles, takt.umlaufVon);
+    takt.umlauf.forEach((u, g) => { if (g < e.cycles.length) e.cycles[g] = nachziehen(e.cycles[g]!, u); });
     // Glühwürmchen: ohne Tempo und Stöße des Servers liefe die Vorschau nach jeder Lawine anders weiter
     if (takt.tempo?.length === e.tempo.length) e.tempo.set(takt.tempo);
-    if (takt.schub?.length === e.schub.length) e.schub.set(takt.schub);
+    if (takt.schub?.length === e.kick.length) e.kick.set(takt.schub);
   }
 
   // Wie der Server: von der Stellung beim Abrufen weich zum neuen Look. Den Anteil rechnet die
@@ -312,7 +312,7 @@ export class Vorschau {
     } else if (d.blendeDauer > 0) {
       this.blende.anteil = Math.min(1, Math.max(d.blende.anteil, this.blende.anteil + dt / d.blendeDauer));
     }
-    const b = this.blende, f = weich(b.anteil);
+    const b = this.blende, f = smooth(b.anteil);
     return ziel.map((w, g) => (b.von[g] ?? w) + (w - (b.von[g] ?? w)) * f);
   }
 
@@ -320,11 +320,11 @@ export class Vorschau {
   private mitImpulsen(d: VorschauDaten, winkel: number[]): number[] {
     if (!d.impulse.length) return winkel;
     const impulse = d.impulse.map((i) => ({ ...i, alterS: i.alterS + d.impulseSeitS }));
-    return wendeImpulseAn(winkel.map((tilt) => ({ tilt, upm: 0 })), impulse, d.impuls, d.flash, d.aufbau.drehung).map((s) => s.tilt);
+    return applyImpulses(winkel.map((tilt) => ({ tilt, upm: 0 })), impulse, d.impuls, d.flash, d.aufbau.drehung).map((s) => s.tilt);
   }
 
   // Sichtbarer Winkel je Spiegel in Grad: Tilt plus die Drehung über TiltRotate
-  private winkel(d: VorschauDaten, stellungen: Stellung[], dt: number): number[] {
+  private winkel(d: VorschauDaten, stellungen: Position[], dt: number): number[] {
     return stellungen.map((s, g) => {
       // Bei Rotation darf ein Spiegel stehen und behält seinen Winkel (Breite, Pause)
       this.drehung[g] = d.parameter.modus === "rotation" ? (this.drehung[g]! + s.upm * 6 * dt) % 360 : 0;
@@ -380,10 +380,10 @@ export class Vorschau {
     const r = this.bereich;
 
     const links = 40, rechts = 8, oben = 10, unten = 50, luecke = 10;
-    const pb = (breite - links - rechts - (ELEMENTE - 1) * luecke) / ELEMENTE;
+    const pb = (breite - links - rechts - (ELEMENTS - 1) * luecke) / ELEMENTS;
     const ph = hoehe - oben - unten;
     const py = (a: number) => oben + ph / 2 - ((a - m) / r) * (ph / 2);
-    const px = (k: number, i: number) => links + k * (pb + luecke) + ((i + 0.5) / SPIEGEL_N) * pb;
+    const px = (k: number, i: number) => links + k * (pb + luecke) + ((i + 0.5) / MIRRORS_PER_ELEMENT) * pb;
     // Farbe der Punkte, auf Wunsch je Element eine eigene
     const farbeVon = (k: number) => (d.live ? PHASER.live : (FARBE.punktElemente[k] ?? PHASER.punkt));
 
@@ -405,20 +405,20 @@ export class Vorschau {
       ctx.fillStyle = PHASER.text;
       ctx.fillText(`${a > 0 ? "+" : ""}${a}°`, links - 6, y);
     }
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       const x0 = links + k * (pb + luecke);
       ctx.strokeStyle = PHASER.rahmen;
       ctx.strokeRect(x0 + 0.5, oben + 0.5, pb - 1, ph - 1);
       // darunter das Element von oben wie in "Simple": jeder Spiegel als Strich unter seinem Punkt
-      const sy = oben + ph + 13, laenge = (pb / SPIEGEL_N) * 0.9;
+      const sy = oben + ph + 13, laenge = (pb / MIRRORS_PER_ELEMENT) * 0.9;
       ctx.strokeStyle = PHASER.rahmen;
       ctx.lineWidth = 1;
       ctx.strokeRect(x0 + 0.5, sy - 9, pb - 1, 18);
       ctx.strokeStyle = d.live ? `rgb(${PHASER.live})` : FARBE.spiegel;
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
-      for (let i = 0; i < SPIEGEL_N; i++) {
-        const a = grad(winkel[k * SPIEGEL_N + i]!);
+      for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+        const a = grad(winkel[k * MIRRORS_PER_ELEMENT + i]!);
         const dx = (Math.cos(a) * laenge) / 2, dy = (Math.sin(a) * laenge) / 2;
         ctx.beginPath();
         ctx.moveTo(px(k, i) - dx, sy - dy);
@@ -435,7 +435,7 @@ export class Vorschau {
     // Spiegel die Nulllinie unter seinem Punkt kreuzt: Ein gedrehter Spiegel kreuzt sie um 1/cos weiter
     // außen. Liegen die Spiegel fast waagrecht, geht das nicht mehr, dann volle Breite.
     if (d.phaserElemente) {
-      for (let k = 0; k < ELEMENTE; k++) {
+      for (let k = 0; k < ELEMENTS; k++) {
         const x0 = links + k * (pb + luecke);
         ctx.save();
         ctx.beginPath();
@@ -453,7 +453,7 @@ export class Vorschau {
     this.spur.forEach((bild, j) => {
       const alter = (j + 1) / n;
       bild.forEach((a, g) => {
-        const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
+        const k = Math.floor(g / MIRRORS_PER_ELEMENT), i = g % MIRRORS_PER_ELEMENT;
         ctx.fillStyle = `rgba(${farbeVon(k)},${0.25 * alter * alter})`;
         ctx.beginPath();
         ctx.arc(px(k, i), py(a), 1.5 + 1.5 * alter, 0, 2 * Math.PI);
@@ -464,12 +464,12 @@ export class Vorschau {
     // Verlauf je Element, bei einem Umbruch (Rotation über ±180°) unterbrochen
     ctx.lineWidth = 1.5;
     ctx.lineJoin = "round";
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       ctx.strokeStyle = `rgba(${farbeVon(k)},0.55)`;
       ctx.beginPath();
-      for (let i = 0; i < SPIEGEL_N; i++) {
-        const a = w[k * SPIEGEL_N + i]!;
-        const vorher = i > 0 ? w[k * SPIEGEL_N + i - 1]! : a;
+      for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+        const a = w[k * MIRRORS_PER_ELEMENT + i]!;
+        const vorher = i > 0 ? w[k * MIRRORS_PER_ELEMENT + i - 1]! : a;
         if (i === 0 || Math.abs(a - vorher) > 180) ctx.moveTo(px(k, i), py(a));
         else ctx.lineTo(px(k, i), py(a));
       }
@@ -478,7 +478,7 @@ export class Vorschau {
 
     // Die Spiegel selbst: Punkt mit Schein
     for (let g = 0; g < w.length; g++) {
-      const k = Math.floor(g / SPIEGEL_N), i = g % SPIEGEL_N;
+      const k = Math.floor(g / MIRRORS_PER_ELEMENT), i = g % MIRRORS_PER_ELEMENT;
       const x = px(k, i), y = py(w[g]!), farbe = farbeVon(k);
       if (FARBE.schein) {
         ctx.fillStyle = `rgba(${farbe},0.25)`;
@@ -574,17 +574,17 @@ export class Vorschau {
   // ---------- Draufsicht ----------
 
   private draufsicht(ctx: CanvasRenderingContext2D, breite: number, hoehe: number, live: boolean, winkel: number[]): void {
-    const gesamt = ELEMENTE * ELEMENT_B + (ELEMENTE - 1) * ABSTAND;
+    const gesamt = ELEMENTS * ELEMENT_B + (ELEMENTS - 1) * ABSTAND;
     const m = Math.min((breite - 24) / gesamt, (hoehe - 24) / 0.3);
     const x0 = (breite - gesamt * m) / 2;
     const y = hoehe / 2;
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       const ex = x0 + k * (ELEMENT_B + ABSTAND) * m;
       ctx.strokeStyle = FARBE.rahmen;
       ctx.lineWidth = 1;
       ctx.strokeRect(ex, y - 0.1 * m, ELEMENT_B * m, 0.2 * m);   // Rahmen des Elements von oben
-      for (let i = 0; i < SPIEGEL_N; i++) {
-        const a = grad(winkel[k * SPIEGEL_N + i]!);
+      for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+        const a = grad(winkel[k * MIRRORS_PER_ELEMENT + i]!);
         const px = ex + (i + 0.5) * RASTER * m;
         const dx = (Math.cos(a) * SPIEGEL_B * m) / 2, dy = (Math.sin(a) * SPIEGEL_B * m) / 2;
         ctx.strokeStyle = live ? FARBE.live : FARBE.spiegel;
@@ -604,7 +604,7 @@ export class Vorschau {
     ctx: CanvasRenderingContext2D, breite: number, hoehe: number, dpr: number, d: VorschauDaten, winkel: number[],
   ): void {
     // Rechts eine Spalte mit den Elementen einzeln, links das Gesamtbild
-    const spalte = Math.min(hoehe / ELEMENTE, breite * 0.22);
+    const spalte = Math.min(hoehe / ELEMENTS, breite * 0.22);
     const hauptB = breite - spalte - 8;
     const s = Math.min(hauptB, hoehe) / SICHT_GESAMT;
     const mx = hauptB / 2, my = hoehe / 2;
@@ -621,7 +621,7 @@ export class Vorschau {
     if (FARBE.bahn && d.parameter.modus === "oeffnung") this.bahnVorn(ctx, mx, my, s, d.parameter);
     ctx.restore();
 
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       const y0 = k * spalte;
       const x0 = breite - spalte;
       ctx.fillStyle = FARBE.grund;
@@ -636,7 +636,7 @@ export class Vorschau {
       ctx.font = schrift(11);
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      const lage = k === 0 ? " front" : k === ELEMENTE - 1 ? " back" : "";
+      const lage = k === 0 ? " front" : k === ELEMENTS - 1 ? " back" : "";
       ctx.fillText(`${k + 1}${lage} · ${d.aufbau.drehung[k] ?? 0}°`, x0 + 7, y0 + 6);
     }
   }
@@ -646,7 +646,7 @@ export class Vorschau {
   // (Lage wie für das erste Element; mit Nachlauf laufen die anderen hinterher).
   private bahnVorn(ctx: CanvasRenderingContext2D, mx: number, my: number, s: number, p: Parameter): void {
     const w = (p.weite / 100) * s, r0 = (p.groesse / 100) * s;
-    const loch = lochBei(p, this.engine.umlaufVon);
+    const loch = holeAt(p, this.engine.referenceCycles);
     const jetzt = performance.now();
     if (jetzt - this.lochSpurZeit > 500) this.lochSpur = [];   // war eine Weile nicht zu sehen: neu beginnen
     if (jetzt - this.lochSpurZeit > 30) {
@@ -692,7 +692,7 @@ export class Vorschau {
   // Spiegel von vorn: Gegenlicht dahinter, die Elemente von hinten nach vorn darüber
   private spiegelVorn(ctx: CanvasRenderingContext2D, mx: number, my: number, s: number, d: VorschauDaten, winkel: number[]): void {
     this.gegenlicht(ctx, mx, my, s, d.live, 0.55);
-    for (let k = ELEMENTE - 1; k >= 0; k--) this.element(ctx, mx, my, s, k, d, winkel, 1 - k * 0.18);
+    for (let k = ELEMENTS - 1; k >= 0; k--) this.element(ctx, mx, my, s, k, d, winkel, 1 - k * 0.18);
   }
 
   // Ein Element von vorn: Spiegel als Streifen, von der Seite gesehen schmaler.
@@ -704,8 +704,8 @@ export class Vorschau {
     ctx.translate(mx, my);
     ctx.rotate(grad(d.aufbau.drehung[k] ?? 0));
     const halb = (ELEMENT_B / 2) * s;
-    for (let i = 0; i < SPIEGEL_N; i++) {
-      const a = grad(winkel[k * SPIEGEL_N + i]!);
+    for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+      const a = grad(winkel[k * MIRRORS_PER_ELEMENT + i]!);
       const vorderseite = Math.cos(a) >= 0;
       const b = Math.max(1, Math.abs(Math.cos(a)) * SPIEGEL_B * s);
       const x = ((i + 0.5) * RASTER - ELEMENT_B / 2) * s;
@@ -745,7 +745,7 @@ export class Vorschau {
     const halb = (ELEMENT_B / 2) * s;
     lc.fillStyle = farbe;
     lc.beginPath();
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       const r = grad(d.aufbau.drehung[k] ?? 0);
       const cos = Math.cos(r), sin = Math.sin(r);
       [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([x, y], n) => {
@@ -760,12 +760,12 @@ export class Vorschau {
     // Spiegel aller Lagen ausstanzen
     lc.globalCompositeOperation = "destination-out";
     lc.fillStyle = "#000";
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       lc.save();
       lc.translate(mx, my);
       lc.rotate(grad(d.aufbau.drehung[k] ?? 0));
-      for (let i = 0; i < SPIEGEL_N; i++) {
-        const b = Math.abs(Math.cos(grad(winkel[k * SPIEGEL_N + i]!))) * SPIEGEL_B * s;
+      for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+        const b = Math.abs(Math.cos(grad(winkel[k * MIRRORS_PER_ELEMENT + i]!))) * SPIEGEL_B * s;
         if (b < 0.5) continue;
         const x = ((i + 0.5) * RASTER - ELEMENT_B / 2) * s;
         lc.fillRect(x - b / 2, -halb, b, 2 * halb);

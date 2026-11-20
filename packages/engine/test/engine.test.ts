@@ -1,520 +1,532 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  Engine, MODI, PARAMETER_VORGABE, PATCH_VORGABE, ROTATE_STOP, leseStellungen, schreibeUniversen,
-  auswahl, tiltGrad, tiltWert, type Parameter,
+  Engine, MODES, PARAMETER_DEFAULTS, PATCH_DEFAULTS, ROTATE_STOP, readPositions, writeUniverses,
+  selection, tiltDegrees, tiltValue, type Parameter,
 } from "@parrafraktor/engine";
 
-interface Fall {
+// One case of test/referenz.json (keys as written by scripts/referenz-erzeugen.mjs)
+interface Case {
   parameter: Parameter;
   umlaufVon: number;
   umlauf: number[];
   tilt: number[];
 }
 
-// Referenzwerte aus der Website-Simulation, erzeugt mit scripts/referenz-erzeugen.mjs
-const faelle: Fall[] = JSON.parse(readFileSync(new URL("./referenz.json", import.meta.url), "utf8"));
+// Reference values from the website simulation, generated with scripts/referenz-erzeugen.mjs
+const cases: Case[] = JSON.parse(readFileSync(new URL("./referenz.json", import.meta.url), "utf8"));
 
-describe("Pattern-Engine", () => {
-  it("rechnet dieselben Winkel wie die Simulation", () => {
-    expect(faelle.length).toBeGreaterThan(0);
-    for (const f of faelle) {
+describe("pattern engine", () => {
+  it("computes the same angles as the simulation", () => {
+    expect(cases.length).toBeGreaterThan(0);
+    for (const c of cases) {
       const engine = new Engine();
-      engine.umlaufVon = f.umlaufVon;
-      engine.umlauf.set(f.umlauf);
-      // die Simulation kennt die Breite nicht: immer 100 %
-      const tilt = engine.alle({ ...f.parameter, breite: 100 }).map((s) => s.tilt);
-      tilt.forEach((w, g) => expect(w, `${f.parameter.modus} ${f.parameter.ordnung} Spiegel ${g}`).toBeCloseTo(f.tilt[g]!, 5));
+      engine.referenceCycles = c.umlaufVon;
+      engine.cycles.set(c.umlauf);
+      // the simulation does not know the width: always 100 %
+      const tilt = engine.all({ ...c.parameter, breite: 100 }).map((s) => s.tilt);
+      tilt.forEach((w, g) => expect(w, `${c.parameter.modus} ${c.parameter.ordnung} mirror ${g}`).toBeCloseTo(c.tilt[g]!, 5));
     }
   });
 
-  it("dreht bei Rotation über TiltRotate und lässt Tilt auf Offset", () => {
-    const p: Parameter = { ...PARAMETER_VORGABE, modus: "rotation", offset: 20, speedVon: 2, speedBis: 6 };
+  it("rotation turns via TiltRotate and leaves tilt on offset", () => {
+    const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "rotation", offset: 20, speedVon: 2, speedBis: 6 };
     const q = { ...p, phase: 0 };
     const e = new Engine();
-    for (let n = 0; n < 40; n++) e.weiter(q, 0.025);
-    const s = e.alle(q);
+    for (let n = 0; n < 40; n++) e.advance(q, 0.025);
+    const s = e.all(q);
     expect(s[0]!.tilt).toBe(20);
     expect(s[0]!.upm).toBeCloseTo(2, 6);
     expect(s[35]!.upm).toBeCloseTo(6, 6);
-    expect(e.spiegel({ ...q, laeuft: false }, 0).upm).toBe(0);
+    expect(e.mirror({ ...q, laeuft: false }, 0).upm).toBe(0);
   });
 
-  describe("Rotation", () => {
-    const basis: Parameter = { ...PARAMETER_VORGABE, modus: "rotation", phase: 0, speedVon: 2 };
-    // Lässt die Engine laufen und zählt wie die Vorschau die Winkel aus den Drehzahlen mit
-    const lauf = (p: Parameter, sekunden: number, je?: (e: Engine, winkel: number[]) => void) => {
+  it("the old German names still work (talk)", async () => {
+    const old = await import("@parrafraktor/engine");
+    const e = new Engine();
+    e.weiter(PARAMETER_DEFAULTS, 1);
+    expect(e.alle(PARAMETER_DEFAULTS)).toEqual(e.all(PARAMETER_DEFAULTS));
+    expect(old.SPIEGEL_N).toBe(12);
+    expect(old.PARAMETER_VORGABE).toBe(PARAMETER_DEFAULTS);
+    const s = selection(PARAMETER_DEFAULTS, 5), a = old.auswahl(PARAMETER_DEFAULTS, 5);
+    expect([a.platz, a.anzahl, a.anteil, a.versatz, a.lage, a.seite]).toEqual([s.slot, s.count, s.fraction, s.phaseOffset, s.place, s.side]);
+  });
+
+  describe("rotation", () => {
+    const base: Parameter = { ...PARAMETER_DEFAULTS, modus: "rotation", phase: 0, speedVon: 2 };
+    // Runs the engine and counts the angles from the speeds, like the preview
+    const run = (p: Parameter, seconds: number, each?: (e: Engine, angles: number[]) => void) => {
       const e = new Engine();
-      const winkel = new Array<number>(36).fill(0);
-      for (let n = 0; n < sekunden * 40; n++) {
-        e.weiter(p, 0.025);
-        e.alle(p).forEach((s, g) => { winkel[g]! += s.upm * 6 * 0.025; });
-        je?.(e, winkel);
+      const angles = new Array<number>(36).fill(0);
+      for (let n = 0; n < seconds * 40; n++) {
+        e.advance(p, 0.025);
+        e.all(p).forEach((s, g) => { angles[g]! += s.upm * 6 * 0.025; });
+        each?.(e, angles);
       }
-      return { e, winkel };
+      return { e, angles };
     };
-    const abstand = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+    const distance = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
-    it("Phase: die Spiegel stehen versetzt und drehen gleich schnell", () => {
-      const { e, winkel } = lauf({ ...basis, phase: 360, elementFolge: "zusammen" }, 10);
-      expect(abstand(winkel[0]!, winkel[3]!)).toBeCloseTo(90, 0);   // 3 von 12 Plätzen
-      expect(e.spiegel({ ...basis, phase: 360, elementFolge: "zusammen" }, 7).upm).toBeCloseTo(2, 3);
+    it("phase: the mirrors stand offset and turn equally fast", () => {
+      const { e, angles } = run({ ...base, phase: 360, elementFolge: "zusammen" }, 10);
+      expect(distance(angles[0]!, angles[3]!)).toBeCloseTo(90, 0);   // 3 of 12 slots
+      expect(e.mirror({ ...base, phase: 360, elementFolge: "zusammen" }, 7).upm).toBeCloseTo(2, 3);
     });
 
-    it("Breite: dreht in Schüben, im Schnitt so schnell wie Speed", () => {
-      const p = { ...basis, speedVon: 1, breite: 40 };
-      let steht = 0, gesamt = 0;
-      const { winkel } = lauf(p, 60, (e) => { gesamt++; if (Math.abs(e.spiegel(p, 0).upm) < 1e-6) steht++; });
-      expect(steht / gesamt).toBeCloseTo(0.6, 1);
-      expect(winkel[0]).toBeCloseTo(360, 0);   // 1 U/min × 1 Minute
+    it("width: turns in bursts, on average as fast as speed", () => {
+      const p = { ...base, speedVon: 1, breite: 40 };
+      let still = 0, total = 0;
+      const { angles } = run(p, 60, (e) => { total++; if (Math.abs(e.mirror(p, 0).upm) < 1e-6) still++; });
+      expect(still / total).toBeCloseTo(0.6, 1);
+      expect(angles[0]).toBeCloseTo(360, 0);   // 1 rpm × 1 minute
     });
 
-    it("Breite bleibt so groß, wie TiltRotate max. es zulässt, und dreht nie zurück", () => {
-      const p = { ...basis, speedVon: 8, breite: 5 };
-      lauf(p, 30, (e) => {
-        const upm = e.spiegel(p, 0).upm;
-        expect(upm).toBeLessThanOrEqual(10);
-        expect(upm).toBeGreaterThanOrEqual(0);
+    it("width stays as large as TiltRotate max. allows and never turns back", () => {
+      const p = { ...base, speedVon: 8, breite: 5 };
+      run(p, 30, (e) => {
+        const rpm = e.mirror(p, 0).upm;
+        expect(rpm).toBeLessThanOrEqual(10);
+        expect(rpm).toBeGreaterThanOrEqual(0);
       });
     });
 
-    it("Gegenlauf: linke Hälfte dreht andersherum, auch der Offset", () => {
-      const p = { ...basis, gegenlauf: true, offset: 20 };
-      const { e } = lauf(p, 2);
-      expect(e.spiegel(p, 0)).toMatchObject({ tilt: -20 });
-      expect(e.spiegel(p, 0).upm).toBeCloseTo(-2, 3);
-      expect(e.spiegel(p, 11)).toMatchObject({ tilt: 20 });
-      expect(e.spiegel(p, 11).upm).toBeCloseTo(2, 3);
+    it("counter-motion: the left half turns the other way, the offset too", () => {
+      const p = { ...base, gegenlauf: true, offset: 20 };
+      const { e } = run(p, 2);
+      expect(e.mirror(p, 0)).toMatchObject({ tilt: -20 });
+      expect(e.mirror(p, 0).upm).toBeCloseTo(-2, 3);
+      expect(e.mirror(p, 11)).toMatchObject({ tilt: 20 });
+      expect(e.mirror(p, 11).upm).toBeCloseTo(2, 3);
     });
 
-    it("Fächer: entlang der Ordnung immer schneller", () => {
-      const p = { ...basis, faecher: 100, elementFolge: "zusammen" as const };
-      const { e } = lauf(p, 2);
-      expect(e.spiegel(p, 0).upm).toBeLessThan(e.spiegel(p, 11).upm);
+    it("fan: faster and faster along the ordering", () => {
+      const p = { ...base, faecher: 100, elementFolge: "zusammen" as const };
+      const { e } = run(p, 2);
+      expect(e.mirror(p, 0).upm).toBeLessThan(e.mirror(p, 11).upm);
     });
 
-    it("Group: gleicher Platz in der Gruppe, gleicher Winkel", () => {
-      const { winkel } = lauf({ ...basis, phase: 360, group: 3, elementFolge: "zusammen" }, 10);
-      expect(abstand(winkel[0]!, winkel[3]!)).toBeCloseTo(0, 3);
-      expect(abstand(winkel[0]!, winkel[1]!)).toBeGreaterThan(30);
+    it("group: same slot in the group, same angle", () => {
+      const { angles } = run({ ...base, phase: 360, group: 3, elementFolge: "zusammen" }, 10);
+      expect(distance(angles[0]!, angles[3]!)).toBeCloseTo(0, 3);
+      expect(distance(angles[0]!, angles[1]!)).toBeGreaterThan(30);
     });
   });
 
-  it("läuft nach Speed bis wieder gleich, sodass bei Phase 0 alle Spiegel gleich stehen", () => {
+  it("after speed to it runs aligned again, so at phase 0 all mirrors stand alike", () => {
     const engine = new Engine();
-    const p: Parameter = { ...PARAMETER_VORGABE, phase: 0, speedVon: 5, speedBis: 20 };
-    for (let i = 0; i < 40 * 60; i++) engine.weiter(p, 0.025);   // eine Minute gespreizt
-    const gespreizt = engine.alle(p).map((s) => s.tilt);
-    expect(Math.max(...gespreizt) - Math.min(...gespreizt)).toBeGreaterThan(10);
-    const aus = { ...p, speedBis: 0 };
-    let vorher = engine.alle(aus);
+    const p: Parameter = { ...PARAMETER_DEFAULTS, phase: 0, speedVon: 5, speedBis: 20 };
+    for (let i = 0; i < 40 * 60; i++) engine.advance(p, 0.025);   // one minute spread
+    const spread = engine.all(p).map((s) => s.tilt);
+    expect(Math.max(...spread) - Math.min(...spread)).toBeGreaterThan(10);
+    const off = { ...p, speedBis: 0 };
+    let before = engine.all(off);
     for (let i = 0; i < 40 * 3; i++) {
-      engine.weiter(aus, 0.025);
-      const jetzt = engine.alle(aus);
-      // weich: kein Spiegel springt pro Takt mehr als die Bewegung selbst hergibt
-      jetzt.forEach((s, g) => expect(Math.abs(s.tilt - vorher[g]!.tilt)).toBeLessThan(15));
-      vorher = jetzt;
+      engine.advance(off, 0.025);
+      const now = engine.all(off);
+      // smooth: no mirror jumps more per tick than the movement itself gives
+      now.forEach((s, g) => expect(Math.abs(s.tilt - before[g]!.tilt)).toBeLessThan(15));
+      before = now;
     }
-    const gleich = engine.alle(aus).map((s) => s.tilt);
-    expect(Math.max(...gleich) - Math.min(...gleich)).toBeLessThan(0.01);
+    const aligned = engine.all(off).map((s) => s.tilt);
+    expect(Math.max(...aligned) - Math.min(...aligned)).toBeLessThan(0.01);
   });
 
-  it("läuft nicht weiter, wenn pausiert", () => {
+  it("does not run on when paused", () => {
     const engine = new Engine();
-    engine.weiter({ ...PARAMETER_VORGABE, laeuft: false }, 10);
-    expect(engine.umlaufVon).toBe(0);
-    engine.weiter(PARAMETER_VORGABE, 20);
-    expect(engine.umlaufVon).toBeCloseTo(1);   // 3 BPM × 20 s
+    engine.advance({ ...PARAMETER_DEFAULTS, laeuft: false }, 10);
+    expect(engine.referenceCycles).toBe(0);
+    engine.advance(PARAMETER_DEFAULTS, 20);
+    expect(engine.referenceCycles).toBeCloseTo(1);   // 3 BPM × 20 s
   });
 });
 
 describe("DMX", () => {
-  it("bildet Tilt auf 16 Bit ab und begrenzt auf ±180°", () => {
-    expect(tiltWert(-180)).toBe(0);
-    expect(tiltWert(180)).toBe(65535);
-    expect(tiltWert(400)).toBe(65535);
-    expect(tiltGrad(tiltWert(33.3))).toBeCloseTo(33.3, 2);
+  it("maps tilt to 16 bit and clamps at ±180°", () => {
+    expect(tiltValue(-180)).toBe(0);
+    expect(tiltValue(180)).toBe(65535);
+    expect(tiltValue(400)).toBe(65535);
+    expect(tiltDegrees(tiltValue(33.3))).toBeCloseTo(33.3, 2);
   });
 
-  it("schreibt den Patch und liest ihn zurück", () => {
-    const stellungen = Array.from({ length: 36 }, (_, g) => ({ tilt: g * 5 - 90, upm: 0 }));
-    const universen = schreibeUniversen(stellungen, PATCH_VORGABE, 10);
-    const dmx = universen.get(1)!;
-    // Element 2, Spiegel 0 ab Adresse 38: Tilt coarse/fine, TiltRotate steht
-    const w = tiltWert(stellungen[12]!.tilt);
+  it("writes the patch and reads it back", () => {
+    const positions = Array.from({ length: 36 }, (_, g) => ({ tilt: g * 5 - 90, upm: 0 }));
+    const universes = writeUniverses(positions, PATCH_DEFAULTS, 10);
+    const dmx = universes.get(1)!;
+    // element 2, mirror 0 from address 38: tilt coarse/fine, TiltRotate stopped
+    const w = tiltValue(positions[12]!.tilt);
     expect([dmx[37], dmx[38], dmx[39]]).toEqual([w >> 8, w & 0xff, ROTATE_STOP]);
-    // Dimmer jedes Elements auf Kanal 37
+    // dimmer of every element on channel 37
     expect([dmx[36], dmx[73], dmx[110]]).toEqual([255, 255, 255]);
-    const zurueck = leseStellungen(universen, PATCH_VORGABE, 10)!;
-    zurueck.forEach((s, g) => expect(s.tilt).toBeCloseTo(stellungen[g]!.tilt, 2));
+    const back = readPositions(universes, PATCH_DEFAULTS, 10)!;
+    back.forEach((s, g) => expect(s.tilt).toBeCloseTo(positions[g]!.tilt, 2));
   });
 });
 
-describe("Regler", () => {
-  const winkel = (p: Partial<Parameter>, umlauf = 0.3) => {
+describe("controls", () => {
+  const angles = (p: Partial<Parameter>, cycles = 0.3) => {
     const e = new Engine();
-    const par = { ...PARAMETER_VORGABE, ...p };
-    e.setzeUmlauf(par, umlauf, umlauf);
-    return e.alle(par).map((s) => s.tilt);
+    const par = { ...PARAMETER_DEFAULTS, ...p };
+    e.setCycles(par, cycles, cycles);
+    return e.all(par).map((s) => s.tilt);
   };
 
-  it("Elemente Mitte → außen mit Gegenlauf: die ganze Installation spiegelbildlich", () => {
+  it("elements center → out with counter-motion: the whole installation mirror-symmetric", () => {
     for (const ordnung of ["mitteAussen", "links", "zufall"] as const) {
-      const w = winkel({ ordnung, elementFolge: "mitteAussen", gegenlauf: true, offset: 25, phase: 270 });
-      // erstes und drittes Element sind Spiegelbilder
+      const w = angles({ ordnung, elementFolge: "mitteAussen", gegenlauf: true, offset: 25, phase: 270 });
+      // first and third element are mirror images
       for (let i = 0; i < 12; i++) expect(w[i]).toBeCloseTo(-w[24 + 11 - i]!, 9);
     }
-    // Mitte → außen innen: dann ist auch das mittlere symmetrisch, also alles
-    const w = winkel({ ordnung: "mitteAussen", elementFolge: "mitteAussen", gegenlauf: true, offset: 25 });
+    // center → out inside too: then the middle one is symmetric as well, so everything
+    const w = angles({ ordnung: "mitteAussen", elementFolge: "mitteAussen", gegenlauf: true, offset: 25 });
     for (let g = 0; g < 36; g++) expect(w[g]).toBeCloseTo(-w[35 - g]!, 9);
   });
 
-  it("Gegenlauf spiegelt auch den Offset (auch je Element)", () => {
+  it("counter-motion also mirrors the offset (also per element)", () => {
     for (const p of [
       { ordnung: "mitteAussen", gegenlauf: true, offset: 30 },
       { ordnung: "links", gegenlauf: true, offset: -50, phase: 90 },
       { ordnung: "mitteAussen", gegenlauf: true, offsetGetrennt: true, offsetElemente: [10, 40, -20] },
     ] as Partial<Parameter>[]) {
-      const w = winkel(p);
+      const w = angles(p);
       for (let k = 0; k < 3; k++) {
         for (let i = 0; i < 6; i++) {
           if (p.ordnung === "mitteAussen") expect(w[k * 12 + i]).toBeCloseTo(-w[k * 12 + 11 - i]!, 9);
         }
       }
     }
-    // ohne Ausschlag: links −Offset, rechts +Offset
-    expect(winkel({ gegenlauf: true, offset: 30, amplitude: 0 }).slice(0, 12)).toEqual([...Array(6).fill(-30), ...Array(6).fill(30)]);
+    // without deflection: left −offset, right +offset
+    expect(angles({ gegenlauf: true, offset: 30, amplitude: 0 }).slice(0, 12)).toEqual([...Array(6).fill(-30), ...Array(6).fill(30)]);
   });
 
-  it("Mitte → außen mit Gegenlauf: beide Hälften jedes Elements gespiegelt", () => {
-    const w = winkel({ ordnung: "mitteAussen", gegenlauf: true, phase: 180 });
+  it("center → out with counter-motion: both halves of every element mirrored", () => {
+    const w = angles({ ordnung: "mitteAussen", gegenlauf: true, phase: 180 });
     for (let k = 0; k < 3; k++) {
       for (let i = 0; i < 6; i++) expect(w[k * 12 + i]).toBeCloseTo(-w[k * 12 + 11 - i]!, 9);
     }
   });
 
-  it("vorn → hinten zählt über alle 36 weiter, hinten → vorn umgekehrt", () => {
-    const vor = winkel({ phase: 360 });
-    const zurueck = winkel({ phase: 360, ordnung: "rechts", elementFolge: "hintenVorne" });
-    // bei Phase 360 über 36 Spiegel: Spiegel g zurück = Spiegel 35 - g vor
-    for (let g = 0; g < 36; g++) expect(zurueck[g]).toBeCloseTo(vor[35 - g]!, 9);
+  it("front → back counts on across all 36, back → front the other way", () => {
+    const forth = angles({ phase: 360 });
+    const back = angles({ phase: 360, ordnung: "rechts", elementFolge: "hintenVorne" });
+    // at phase 360 across 36 mirrors: mirror g back = mirror 35 - g forth
+    for (let g = 0; g < 36; g++) expect(back[g]).toBeCloseTo(forth[35 - g]!, 9);
   });
 
-  it("zusammen: alle Elemente gleich", () => {
-    const w = winkel({ ordnung: "zufall", elementFolge: "zusammen", phase: 360 });
+  it("together: all elements alike", () => {
+    const w = angles({ ordnung: "zufall", elementFolge: "zusammen", phase: 360 });
     for (let i = 0; i < 12; i++) expect(w[i]).toBeCloseTo(w[24 + i]!, 9);
   });
 
-  it("Fächer 100 % von der Mitte: außen volle, innen kaum Amplitude", () => {
-    const w = winkel({ ordnung: "mitteAussen", phase: 0, faecher: 100 }, 0.25);   // Sinus auf dem Maximum
+  it("fan 100 % from the center: full amplitude outside, hardly any inside", () => {
+    const w = angles({ ordnung: "mitteAussen", phase: 0, faecher: 100 }, 0.25);   // sine at its maximum
     expect(Math.abs(w[0]!)).toBeCloseTo(40 * (5.5 / 6), 6);
     expect(Math.abs(w[5]!)).toBeCloseTo(40 * (0.5 / 6), 6);
   });
 
-  it("Offset je Element", () => {
-    const w = winkel({ amplitude: 0, offsetGetrennt: true, offsetElemente: [-30, 0, 45] });
+  it("offset per element", () => {
+    const w = angles({ amplitude: 0, offsetGetrennt: true, offsetElemente: [-30, 0, 45] });
     expect([w[0], w[12], w[35]]).toEqual([-30, 0, 45]);
   });
 
-  it("Pendelwelle läuft auseinander und nach der Wiederkehr wieder zusammen", () => {
-    // 2 Schwünge des ersten Spiegels bei 6 BPM: nach 20 s wieder gleich
-    const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", schwuenge: 2, speedVon: 6 };
+  it("pendulum wave drifts apart and comes together after the return time", () => {
+    // 2 swings of the first mirror at 6 BPM: aligned again after 20 s
+    const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "pendelwelle", schwuenge: 2, speedVon: 6 };
     const e = new Engine();
-    for (let i = 0; i < 200; i++) e.weiter(p, 0.025);   // 5 s: Viertel
-    const mitte = e.alle(p).map((s) => s.tilt);
-    expect(Math.max(...mitte) - Math.min(...mitte)).toBeGreaterThan(40);
-    for (let i = 0; i < 600; i++) e.weiter(p, 0.025);   // 20 s: ganze Wiederkehr
-    const ende = e.alle(p).map((s) => s.tilt);
-    expect(Math.max(...ende) - Math.min(...ende)).toBeLessThan(0.01);
+    for (let i = 0; i < 200; i++) e.advance(p, 0.025);   // 5 s: a quarter
+    const middle = e.all(p).map((s) => s.tilt);
+    expect(Math.max(...middle) - Math.min(...middle)).toBeGreaterThan(40);
+    for (let i = 0; i < 600; i++) e.advance(p, 0.025);   // 20 s: the whole return
+    const end = e.all(p).map((s) => s.tilt);
+    expect(Math.max(...end) - Math.min(...end)).toBeLessThan(0.01);
   });
 
-  it("Pendelwelle: doppelter Speed zeigt dasselbe Bild in der halben Zeit", () => {
-    const bild = (speedVon: number, schritte: number) => {
-      const p: Parameter = { ...PARAMETER_VORGABE, modus: "pendelwelle", speedVon };
+  it("pendulum wave: double speed shows the same image in half the time", () => {
+    const image = (speedVon: number, steps: number) => {
+      const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "pendelwelle", speedVon };
       const e = new Engine();
-      for (let i = 0; i < schritte; i++) e.weiter(p, 0.025);
-      return e.alle(p).map((s) => s.tilt);
+      for (let i = 0; i < steps; i++) e.advance(p, 0.025);
+      return e.all(p).map((s) => s.tilt);
     };
-    const langsam = bild(5, 400), schnell = bild(10, 200);
-    langsam.forEach((w, g) => expect(schnell[g]).toBeCloseTo(w, 6));
+    const slow = image(5, 400), fast = image(10, 200);
+    slow.forEach((w, g) => expect(fast[g]).toBeCloseTo(w, 6));
   });
 
-  it("Breite: schmale Welle, die übrigen Spiegel stehen auf Offset", () => {
-    // 10 %: bei Phase 360° über 36 Spiegel bewegen sich höchstens etwa 4 zugleich
+  it("width: narrow wave, the other mirrors stand on offset", () => {
+    // 10 %: at phase 360° across 36 mirrors at most about 4 move at once
     for (const u of [0.1, 0.37, 0.8]) {
-      const w = winkel({ breite: 10, offset: 20 }, u);
+      const w = angles({ breite: 10, offset: 20 }, u);
       expect(w.filter((x) => Math.abs(x - 20) > 1e-9).length).toBeLessThanOrEqual(4);
     }
-    // 100 % ist der gewohnte Sinus
-    expect(winkel({ breite: 100 })).toEqual(winkel({}));
+    // 100 % is the usual sine
+    expect(angles({ breite: 100 })).toEqual(angles({}));
   });
 
-  describe("Öffnung", () => {
-    // Licht an einem Punkt: alle drei Elemente offen. Mirror k, Lage aus der Projektion (wie die Vorschau)
-    const offen = (w: number[], x: number, y: number, drehung = [0, 45, 90]) =>
-      Math.min(...drehung.map((d, k) => {
+  describe("aperture", () => {
+    // Light at a point: all three elements open. Mirror of element k from the projection (like the preview)
+    const open = (w: number[], x: number, y: number, rotation = [0, 45, 90]) =>
+      Math.min(...rotation.map((d, k) => {
         const a = (d * Math.PI) / 180;
         const u = x * Math.cos(a) + y * Math.sin(a);
         const i = Math.min(11, Math.max(0, Math.floor((u + 0.9) / 0.15)));
         return w[k * 12 + i]!;
       }));
-    const basis: Partial<Parameter> = { modus: "oeffnung", wabern: 0, nachlauf: 0, kante: 0, groesse: 15, weite: 40 };
+    const base: Partial<Parameter> = { modus: "oeffnung", wabern: 0, nachlauf: 0, kante: 0, groesse: 15, weite: 40 };
 
-    it("Kreis: das Loch liegt auf der Bahn, gegenüber ist es zu", () => {
+    it("circle: the hole lies on the path, opposite it is closed", () => {
       for (const u of [0, 0.125, 0.3, 0.77]) {
-        const w = winkel({ ...basis, bahn: "kreis" }, u);
+        const w = angles({ ...base, bahn: "kreis" }, u);
         const t = 2 * Math.PI * u, x = 0.4 * Math.cos(t), y = 0.4 * Math.sin(t);
-        expect(offen(w, x, y)).toBeGreaterThan(60);
-        expect(offen(w, -x, -y)).toBeLessThan(1);
+        expect(open(w, x, y)).toBeGreaterThan(60);
+        expect(open(w, -x, -y)).toBeLessThan(1);
       }
     });
 
-    it("Iris: geht auf und bleibt um die Mitte", () => {
-      const zu = winkel({ ...basis, bahn: "iris", groesse: 5 }, 0);
-      const auf = winkel({ ...basis, bahn: "iris", groesse: 5 }, 0.5);
-      const zahl = (w: number[]) => w.filter((x) => x > 45).length;
-      expect(zahl(auf)).toBeGreaterThan(zahl(zu));
-      expect(offen(auf, 0, 0)).toBeGreaterThan(60);
+    it("iris: opens and stays around the center", () => {
+      const closed = angles({ ...base, bahn: "iris", groesse: 5 }, 0);
+      const opened = angles({ ...base, bahn: "iris", groesse: 5 }, 0.5);
+      const count = (w: number[]) => w.filter((x) => x > 45).length;
+      expect(count(opened)).toBeGreaterThan(count(closed));
+      expect(open(opened, 0, 0)).toBeGreaterThan(60);
     });
 
-    it("folgt der Drehung der Elemente", () => {
+    it("follows the rotation of the elements", () => {
       const e = new Engine();
-      e.drehung = [0, 90, 45];
-      const p = { ...PARAMETER_VORGABE, ...basis, bahn: "kreis" as const };
-      e.setzeUmlauf(p, 0.1, 0.1);
+      e.elementRotation = [0, 90, 45];
+      const p = { ...PARAMETER_DEFAULTS, ...base, bahn: "kreis" as const };
+      e.setCycles(p, 0.1, 0.1);
       const t = 2 * Math.PI * 0.1;
-      expect(offen(e.alle(p).map((s) => s.tilt), 0.4 * Math.cos(t), 0.4 * Math.sin(t), [0, 90, 45])).toBeGreaterThan(60);
+      expect(open(e.all(p).map((s) => s.tilt), 0.4 * Math.cos(t), 0.4 * Math.sin(t), [0, 90, 45])).toBeGreaterThan(60);
     });
 
-    it("bleibt zwischen zu und hochkant und ruckt nicht", () => {
+    it("stays between closed and edge-on and does not jerk", () => {
       const e = new Engine();
-      const p: Parameter = { ...PARAMETER_VORGABE, modus: "oeffnung", speedVon: 10, wabern: 100, nachlauf: 100, kante: 30 };
-      let vorher = e.alle(p).map((s) => s.tilt), maxSchritt = 0;
+      const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "oeffnung", speedVon: 10, wabern: 100, nachlauf: 100, kante: 30 };
+      let before = e.all(p).map((s) => s.tilt), maxStep = 0;
       for (let n = 0; n < 40 * 60; n++) {
-        e.weiter(p, 0.025);
-        const jetzt = e.alle(p).map((s) => s.tilt);
-        jetzt.forEach((w, g) => {
+        e.advance(p, 0.025);
+        const now = e.all(p).map((s) => s.tilt);
+        now.forEach((w, g) => {
           expect(w).toBeGreaterThanOrEqual(0);
           expect(w).toBeLessThanOrEqual(90);
-          maxSchritt = Math.max(maxSchritt, Math.abs(w - vorher[g]!));
+          maxStep = Math.max(maxStep, Math.abs(w - before[g]!));
         });
-        vorher = jetzt;
+        before = now;
       }
-      expect(maxSchritt).toBeLessThan(15);   // je Takt (25 ms) bei höchstem Speed
+      expect(maxStep).toBeLessThan(15);   // per tick (25 ms) at the highest speed
     });
   });
 
-  it("Öffnung mit Puls: Größe schwankt zweimal je Umlauf und ist nach einem Umlauf wieder gleich", () => {
-    const p: Parameter = { ...PARAMETER_VORGABE, modus: "oeffnung", bahn: "kreis", wabern: 0, nachlauf: 0, kante: 0, groesse: 30, weite: 35, puls: 50, speedVon: 6 };
-    const offen = (e: Engine) => e.alle(p).filter((s) => s.tilt > 45).length;
+  it("aperture with pulse: size swings twice per cycle and is the same again after one cycle", () => {
+    const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "oeffnung", bahn: "kreis", wabern: 0, nachlauf: 0, kante: 0, groesse: 30, weite: 35, puls: 50, speedVon: 6 };
+    const openCount = (e: Engine) => e.all(p).filter((s) => s.tilt > 45).length;
     const e = new Engine();
-    const anfang = e.alle(p).map((s) => s.tilt);
-    const zahlen: number[] = [];
-    for (let i = 0; i < 1000; i++) { e.weiter(p, 0.01); zahlen.push(offen(e)); }   // 10 s = ein Umlauf bei 6 BPM
-    e.alle(p).forEach((s, g) => expect(s.tilt).toBeCloseTo(anfang[g]!, 3));
-    // mal größer, mal kleiner: deutlich verschieden viele offene Spiegel
-    expect(Math.max(...zahlen) - Math.min(...zahlen)).toBeGreaterThan(4);
-    // ohne Puls bleibt die Zahl ungefähr gleich
-    const q = { ...p, puls: 0 }, f = new Engine(), ohne: number[] = [];
-    for (let i = 0; i < 1000; i++) { f.weiter(q, 0.01); ohne.push(f.alle(q).filter((s) => s.tilt > 45).length); }
-    expect(Math.max(...ohne) - Math.min(...ohne)).toBeLessThan(Math.max(...zahlen) - Math.min(...zahlen));
+    const start = e.all(p).map((s) => s.tilt);
+    const counts: number[] = [];
+    for (let i = 0; i < 1000; i++) { e.advance(p, 0.01); counts.push(openCount(e)); }   // 10 s = one cycle at 6 BPM
+    e.all(p).forEach((s, g) => expect(s.tilt).toBeCloseTo(start[g]!, 3));
+    // sometimes larger, sometimes smaller: clearly different numbers of open mirrors
+    expect(Math.max(...counts) - Math.min(...counts)).toBeGreaterThan(4);
+    // without pulse the number stays about the same
+    const q = { ...p, puls: 0 }, f = new Engine(), without: number[] = [];
+    for (let i = 0; i < 1000; i++) { f.advance(q, 0.01); without.push(f.all(q).filter((s) => s.tilt > 45).length); }
+    expect(Math.max(...without) - Math.min(...without)).toBeLessThan(Math.max(...counts) - Math.min(...counts));
   });
 
-  it("Element-Phase: Phase nur im Element, Elemente nach Rang versetzt; aus = Phase über alle", () => {
-    const grad = (p: Parameter, g: number) => Math.round(auswahl(p, g).versatz * 360 * 1000) / 1000;
-    const p: Parameter = { ...PARAMETER_VORGABE, modus: "sinus", phase: 120, ordnung: "links", elementFolge: "vorneHinten", group: 0, elementPhase: 15 };
-    // im Element: 120° über 12 Spiegel, in jedem Element gleich
-    expect(grad(p, 11) - grad(p, 0)).toBeCloseTo(110, 6);
-    // von Element zu Element 15°
-    expect(grad(p, 12) - grad(p, 0)).toBeCloseTo(15, 6);
-    expect(grad(p, 24) - grad(p, 0)).toBeCloseTo(30, 6);
-    // Mitte → außen: beide äußeren Elemente gleich weit hinter dem mittleren
+  it("element phase: phase only within the element, elements offset by rank; off = phase across all", () => {
+    const degrees = (p: Parameter, g: number) => Math.round(selection(p, g).phaseOffset * 360 * 1000) / 1000;
+    const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "sinus", phase: 120, ordnung: "links", elementFolge: "vorneHinten", group: 0, elementPhase: 15 };
+    // within the element: 120° across 12 mirrors, the same in every element
+    expect(degrees(p, 11) - degrees(p, 0)).toBeCloseTo(110, 6);
+    // 15° from element to element
+    expect(degrees(p, 12) - degrees(p, 0)).toBeCloseTo(15, 6);
+    expect(degrees(p, 24) - degrees(p, 0)).toBeCloseTo(30, 6);
+    // center → out: both outer elements equally far behind the middle one
     const m: Parameter = { ...p, elementFolge: "mitteAussen", ordnung: "mitteAussen", gegenlauf: true };
-    expect(grad(m, 0) - grad(m, 12 + 11)).toBeCloseTo(15, 6);   // erstes Element ist gespiegelt
-    expect(grad(m, 24) - grad(m, 12)).toBeCloseTo(15, 6);
-    // zusammen: kein Rang, kein Versatz
+    expect(degrees(m, 0) - degrees(m, 12 + 11)).toBeCloseTo(15, 6);   // the first element is mirrored
+    expect(degrees(m, 24) - degrees(m, 12)).toBeCloseTo(15, 6);
+    // together: no rank, no offset
     const z: Parameter = { ...p, elementFolge: "zusammen" };
-    expect(grad(z, 12)).toBe(grad(z, 0));
-    // aus: wie bisher, Phase läuft über alle 36
+    expect(degrees(z, 12)).toBe(degrees(z, 0));
+    // off: as before, phase runs across all 36
     const a: Parameter = { ...p, elementPhase: 0 };
-    expect(grad(a, 12) - grad(a, 0)).toBeCloseTo(40, 6);
+    expect(degrees(a, 12) - degrees(a, 0)).toBeCloseTo(40, 6);
   });
 
-  it("Speed je Element: Elemente in sich gleich schnell, gestaffelt, nach (Ränge − 1) / (bis − von) min wieder deckungsgleich", () => {
+  it("speed per element: elements equally fast within, staggered, congruent again after (ranks − 1) / (to − from) min", () => {
     const p: Parameter = {
-      ...PARAMETER_VORGABE, modus: "sinus", amplitude: 90, phase: 90, speedVon: 3, speedBis: 4,
+      ...PARAMETER_DEFAULTS, modus: "sinus", amplitude: 90, phase: 90, speedVon: 3, speedBis: 4,
       elementFolge: "vorneHinten", speedJeElement: true,
     };
     const e = new Engine();
-    const anfang = e.alle(p).map((s) => s.tilt);
-    for (let i = 0; i < 12000; i++) e.weiter(p, 0.01);   // 120 s = 2 / (4 − 3) min
-    const ende = e.alle(p).map((s) => s.tilt);
-    // Phasenlage aller Spiegel zueinander wie am Anfang
-    ende.forEach((w, g) => expect(w - ende[0]!).toBeCloseTo(anfang[g]! - anfang[0]!, 6));
-    // ohne den Schalter (Speed über die Spiegel) ist die Lage nach 2 min eine andere
-    const ohne = { ...p, speedJeElement: false };
+    const start = e.all(p).map((s) => s.tilt);
+    for (let i = 0; i < 12000; i++) e.advance(p, 0.01);   // 120 s = 2 / (4 − 3) min
+    const end = e.all(p).map((s) => s.tilt);
+    // phase relation of all mirrors to each other as at the start
+    end.forEach((w, g) => expect(w - end[0]!).toBeCloseTo(start[g]! - start[0]!, 6));
+    // without the switch (speed across the mirrors) the relation is different after 2 min
+    const without = { ...p, speedJeElement: false };
     const f = new Engine();
-    for (let i = 0; i < 12000; i++) f.weiter(ohne, 0.01);
-    const w = f.alle(ohne).map((s) => s.tilt);
-    expect(Math.max(...w.map((x, g) => Math.abs(x - w[0]! - (anfang[g]! - anfang[0]!))))).toBeGreaterThan(5);
+    for (let i = 0; i < 12000; i++) f.advance(without, 0.01);
+    const w = f.all(without).map((s) => s.tilt);
+    expect(Math.max(...w.map((x, g) => Math.abs(x - w[0]! - (start[g]! - start[0]!))))).toBeGreaterThan(5);
   });
 
-  it("Wind bleibt in der Amplitude und Nachbarn sind sich ähnlich", () => {
+  it("wind stays within the amplitude and neighbours are similar", () => {
     const e = new Engine();
-    const p: Parameter = { ...PARAMETER_VORGABE, modus: "wind", wellenlaenge: 12, phase: 0 };
-    let maxNachbar = 0;
+    const p: Parameter = { ...PARAMETER_DEFAULTS, modus: "wind", wellenlaenge: 12, phase: 0 };
+    let maxNeighbour = 0;
     for (let i = 0; i < 2000; i++) {
-      e.weiter(p, 0.05);
-      const w = e.alle(p).map((s) => s.tilt);
+      e.advance(p, 0.05);
+      const w = e.all(p).map((s) => s.tilt);
       w.forEach((x) => expect(Math.abs(x)).toBeLessThanOrEqual(40));
-      for (let g = 1; g < 12; g++) maxNachbar = Math.max(maxNachbar, Math.abs(w[g]! - w[g - 1]!));
+      for (let g = 1; g < 12; g++) maxNeighbour = Math.max(maxNeighbour, Math.abs(w[g]! - w[g - 1]!));
     }
-    expect(maxNachbar).toBeLessThan(15);
+    expect(maxNeighbour).toBeLessThan(15);
   });
 });
 
-describe("Schwarm und Glühwürmchen", () => {
-  // Ordnung (Kuramoto) der Umläufe: 1 = alle im Takt (man sieht dann den Gleichlauf bzw. die Welle der
-  // Phase), um 0 = verstreut
-  const ordnung = (e: Engine) => {
+describe("swarm and flash", () => {
+  // Order parameter (Kuramoto) of the cycles: 1 = all in step (you then see the alignment or the wave
+  // of the phase), around 0 = scattered
+  const order = (e: Engine) => {
     let x = 0, y = 0;
     for (let g = 0; g < 36; g++) {
-      const w = 2 * Math.PI * e.umlauf[g]!;
+      const w = 2 * Math.PI * e.cycles[g]!;
       x += Math.cos(w); y += Math.sin(w);
     }
     return Math.hypot(x, y) / 36;
   };
-  const lauf = (p: Parameter, s: number) => {
+  const run = (p: Parameter, s: number) => {
     const e = new Engine();
-    for (let i = 0; i < s * 40; i++) e.weiter(p, 0.025);
-    return ordnung(e);
+    for (let i = 0; i < s * 40; i++) e.advance(p, 0.025);
+    return order(e);
   };
-  const basis = (modus: "schwarm" | "gluehwuermchen"): Parameter =>
-    ({ ...PARAMETER_VORGABE, modus, speedVon: 3.5, speedBis: 4.5, rauschen: 0, reichweite: 0 });
+  const base = (modus: "schwarm" | "gluehwuermchen"): Parameter =>
+    ({ ...PARAMETER_DEFAULTS, modus, speedVon: 3.5, speedBis: 4.5, rauschen: 0, reichweite: 0 });
 
-  it("starten verstreut", () => {
-    for (const modus of ["schwarm", "gluehwuermchen"] as const) expect(lauf({ ...basis(modus), kopplung: 0 }, 2), modus).toBeLessThan(0.4);
+  it("start scattered", () => {
+    for (const modus of ["schwarm", "gluehwuermchen"] as const) expect(run({ ...base(modus), kopplung: 0 }, 2), modus).toBeLessThan(0.4);
   });
 
-  it("Schwarm: ohne Kopplung bleiben sie verstreut, mit Kopplung rasten sie ein, auch in die Welle der Phase", () => {
-    expect(lauf({ ...basis("schwarm"), kopplung: 0 }, 60)).toBeLessThan(0.4);
-    expect(lauf({ ...basis("schwarm"), kopplung: 60 }, 60)).toBeGreaterThan(0.95);
-    expect(lauf({ ...basis("schwarm"), kopplung: 60, phase: 360 }, 60)).toBeGreaterThan(0.95);
+  it("swarm: without coupling they stay scattered, with coupling they lock in, also into the wave of the phase", () => {
+    expect(run({ ...base("schwarm"), kopplung: 0 }, 60)).toBeLessThan(0.4);
+    expect(run({ ...base("schwarm"), kopplung: 60 }, 60)).toBeGreaterThan(0.95);
+    expect(run({ ...base("schwarm"), kopplung: 60, phase: 360 }, 60)).toBeGreaterThan(0.95);
   });
 
-  it("Schwarm mit Phase: die Welle der Phase bleibt sichtbar", () => {
-    const p: Parameter = { ...basis("schwarm"), kopplung: 60, phase: 360 };
+  it("swarm with phase: the wave of the phase stays visible", () => {
+    const p: Parameter = { ...base("schwarm"), kopplung: 60, phase: 360 };
     const e = new Engine();
-    for (let i = 0; i < 60 * 40; i++) e.weiter(p, 0.025);
-    const w = e.alle(p).map((s) => s.tilt);
-    // eine ganze Welle über die 36: Nachbarn nah beieinander, aber nicht alle gleich
+    for (let i = 0; i < 60 * 40; i++) e.advance(p, 0.025);
+    const w = e.all(p).map((s) => s.tilt);
+    // one whole wave across the 36: neighbours close together, but not all alike
     expect(Math.max(...w) - Math.min(...w)).toBeGreaterThan(p.amplitude);
     for (let g = 0; g < 35; g++) expect(Math.abs(w[g + 1]! - w[g]!)).toBeLessThan(p.amplitude * 0.4);
   });
 
-  it("kein Spiegel läuft rückwärts, steht oder rast", () => {
+  it("no mirror runs backwards, stands or races", () => {
     for (const modus of ["schwarm", "gluehwuermchen"] as const) {
-      const p: Parameter = { ...basis(modus), kopplung: 100, rauschen: 100, breite: 30 };
+      const p: Parameter = { ...base(modus), kopplung: 100, rauschen: 100, breite: 30 };
       const e = new Engine();
-      e.weiter(p, 0);
-      // gemessen über je 0,25 s (die Engine rechnet in festen Schritten von 5 ms)
+      e.advance(p, 0);
+      // measured over 0.25 s each (the engine computes in fixed steps of 5 ms)
       let min = Infinity, max = 0;
       for (let i = 0; i < 120 * 4; i++) {
-        const vor = Float64Array.from(e.umlauf);
-        for (let k = 0; k < 10; k++) e.weiter(p, 0.025);
-        e.umlauf.forEach((u, g) => {
-          const tempo = ((u - vor[g]!) / 0.25) * 60;   // BPM
+        const before = Float64Array.from(e.cycles);
+        for (let k = 0; k < 10; k++) e.advance(p, 0.025);
+        e.cycles.forEach((u, g) => {
+          const tempo = ((u - before[g]!) / 0.25) * 60;   // BPM
           min = Math.min(min, tempo); max = Math.max(max, tempo);
         });
       }
       expect(min, modus).toBeGreaterThanOrEqual(0.5 * 3.5 * 0.97);
-      // Glühwürmchen springen in der Ruhe (unsichtbar), deshalb nur der Schwarm nach oben begrenzt
+      // flash mirrors jump while resting (invisible), so only the swarm is limited upwards
       if (modus === "schwarm") expect(max, modus).toBeLessThanOrEqual(1.5 * 4.5 * 1.03);
     }
   });
 
-  it("Schwarm: viel Rauschen bricht den Gleichlauf auf", () => {
-    expect(lauf({ ...basis("schwarm"), kopplung: 30, rauschen: 100 }, 120)).toBeLessThan(0.7);
+  it("swarm: much noise breaks the alignment", () => {
+    expect(run({ ...base("schwarm"), kopplung: 30, rauschen: 100 }, 120)).toBeLessThan(0.7);
   });
 
-  it("Vorschau und Server laufen gleich: beim Abgleich springt nichts", () => {
-    // Server mit 40 Hz, Vorschau mit eigenem Bildtakt und später gestartet; jede Sekunde übernimmt sie
-    // Umlauf, Tempo und Stöße wie client/src/vorschau.ts (große Abweichungen sofort, kleine weich)
-    const nachziehen = (l: number, s: number) => (Math.abs(s - l) > 0.05 ? s : l + (s - l) * 0.2);
+  it("preview and server run alike: nothing jumps when syncing", () => {
+    // Server at 40 Hz, preview at its own frame rate and started later; every second it takes over
+    // cycles, tempo and kicks like client/src/vorschau.ts (large deviations at once, small ones smoothly)
+    const follow = (l: number, s: number) => (Math.abs(s - l) > 0.05 ? s : l + (s - l) * 0.2);
     for (const modus of ["schwarm", "gluehwuermchen"] as const) {
-      const p: Parameter = { ...basis(modus), kopplung: 50, rauschen: 40, phase: 360, breite: modus === "gluehwuermchen" ? 30 : 100 };
-      const server = new Engine(), vorschau = new Engine();
-      for (let i = 0; i < 300; i++) server.weiter(p, 0.025);
-      let ts = 0, tv = 0, naechster = 1, schritt = 0;
-      let vor = vorschau.alle(p).map((s) => s.tilt);
+      const p: Parameter = { ...base(modus), kopplung: 50, rauschen: 40, phase: 360, breite: modus === "gluehwuermchen" ? 30 : 100 };
+      const server = new Engine(), preview = new Engine();
+      for (let i = 0; i < 300; i++) server.advance(p, 0.025);
+      let ts = 0, tv = 0, next = 1, step = 0;
+      let before = preview.all(p).map((s) => s.tilt);
       for (let n = 0; tv < 60; n++) {
         const dt = 0.012 + 0.008 * ((n * 7) % 11) / 10;
         tv += dt;
-        vorschau.weiter(p, dt);
-        while (ts < tv) { server.weiter(p, 0.025); ts += 0.025; }
-        if (tv >= naechster) {
-          naechster++;
-          vorschau.umlaufVon = nachziehen(vorschau.umlaufVon, server.umlaufVon);
-          server.umlauf.forEach((u, g) => { vorschau.umlauf[g] = nachziehen(vorschau.umlauf[g]!, u); });
-          vorschau.tempo.set(server.tempo);
-          vorschau.schub.set(server.schub);
+        preview.advance(p, dt);
+        while (ts < tv) { server.advance(p, 0.025); ts += 0.025; }
+        if (tv >= next) {
+          next++;
+          preview.referenceCycles = follow(preview.referenceCycles, server.referenceCycles);
+          server.cycles.forEach((u, g) => { preview.cycles[g] = follow(preview.cycles[g]!, u); });
+          preview.tempo.set(server.tempo);
+          preview.kick.set(server.kick);
         }
-        const jetzt = vorschau.alle(p).map((s) => s.tilt);
-        if (tv > 1.5) jetzt.forEach((w, g) => { schritt = Math.max(schritt, Math.abs(w - vor[g]!)); });
-        vor = jetzt;
+        const now = preview.all(p).map((s) => s.tilt);
+        if (tv > 1.5) now.forEach((w, g) => { step = Math.max(step, Math.abs(w - before[g]!)); });
+        before = now;
       }
-      expect(schritt, modus).toBeLessThan(3);   // ein Sprung wäre zweistellig
+      expect(step, modus).toBeLessThan(3);   // a jump would be in double digits
     }
   });
 
-  it("Glühwürmchen: die Stöße ziehen sie in den Takt", () => {
-    expect(lauf({ ...basis("gluehwuermchen"), kopplung: 0 }, 120)).toBeLessThan(0.4);
-    expect(lauf({ ...basis("gluehwuermchen"), kopplung: 60 }, 120)).toBeGreaterThan(0.8);
+  it("flash: the kicks pull them into step", () => {
+    expect(run({ ...base("gluehwuermchen"), kopplung: 0 }, 120)).toBeLessThan(0.4);
+    expect(run({ ...base("gluehwuermchen"), kopplung: 60 }, 120)).toBeGreaterThan(0.8);
   });
 
-  it("Glühwürmchen: ein Blitz dauert höchstens 40 % des Durchlaufs", () => {
-    const p: Parameter = { ...basis("gluehwuermchen"), breite: 100 };
+  it("flash: a flash lasts at most 40 % of the cycle", () => {
+    const p: Parameter = { ...base("gluehwuermchen"), breite: 100 };
     const e = new Engine();
-    e.weiter(p, 0);
-    e.alle(p).forEach((s, g) => {
-      const x = e.umlauf[g]! - auswahl(p, g).versatz;
+    e.advance(p, 0);
+    e.all(p).forEach((s, g) => {
+      const x = e.cycles[g]! - selection(p, g).phaseOffset;
       if (x - Math.floor(x) > 0.4) expect(s.tilt).toBeCloseTo(p.offset, 9);
     });
   });
 
-  it("Glühwürmchen: Ausschlag nur zu einer Seite, außerhalb der Breite auf Offset", () => {
-    const p: Parameter = { ...basis("gluehwuermchen"), offset: 10, amplitude: 30, breite: 30 };
+  it("flash: deflection to one side only, on offset outside the width", () => {
+    const p: Parameter = { ...base("gluehwuermchen"), offset: 10, amplitude: 30, breite: 30 };
     const e = new Engine();
     for (let i = 0; i < 400; i++) {
-      e.weiter(p, 0.025);
-      e.alle(p).forEach((s, g) => {
+      e.advance(p, 0.025);
+      e.all(p).forEach((s, g) => {
         expect(s.tilt).toBeGreaterThanOrEqual(10 - 1e-9);
         expect(s.tilt).toBeLessThanOrEqual(40 + 1e-9);
-        const x = e.umlauf[g]! - auswahl(p, g).versatz;
+        const x = e.cycles[g]! - selection(p, g).phaseOffset;
         if (x - Math.floor(x) > 0.3) expect(s.tilt).toBeCloseTo(10, 9);
       });
     }
   });
 });
 
-describe("weiche Formen", () => {
-  // Höchste Änderung des Winkels pro kleinem Zeitschritt, bezogen auf die Amplitude:
-  // ohne Sprünge bleibt sie klein, ein Sprung (z. B. altes Rechteck) wäre ~2
-  it("springen nirgends", () => {
-    for (const modus of MODI.filter((m) => m !== "rotation" && m !== "oeffnung")) {
-      const p: Parameter = { ...PARAMETER_VORGABE, modus, amplitude: 1, speedVon: 60, phase: 360 };
+describe("smooth shapes", () => {
+  // Largest change of the angle per small time step, relative to the amplitude:
+  // without jumps it stays small, a jump (e.g. the old square wave) would be ~2
+  it("never jump", () => {
+    for (const modus of MODES.filter((m) => m !== "rotation" && m !== "oeffnung")) {
+      const p: Parameter = { ...PARAMETER_DEFAULTS, modus, amplitude: 1, speedVon: 60, phase: 360 };
       const e = new Engine();
-      // Form wählen: Schwarm und Glühwürmchen streuen dabei (wird in Steuerung und Vorschau übergeblendet)
-      e.weiter(p, 0);
-      let vorher = e.alle(p);
-      let maxSchritt = 0;
+      // selecting the shape: swarm and flash scatter (cross-faded in control and preview)
+      e.advance(p, 0);
+      let before = e.all(p);
+      let maxStep = 0;
       for (let i = 0; i < 4000; i++) {
-        e.weiter(p, 0.001);
-        const jetzt = e.alle(p);
-        jetzt.forEach((s, g) => { maxSchritt = Math.max(maxSchritt, Math.abs(s.tilt - vorher[g]!.tilt)); });
-        vorher = jetzt;
+        e.advance(p, 0.001);
+        const now = e.all(p);
+        now.forEach((s, g) => { maxStep = Math.max(maxStep, Math.abs(s.tilt - before[g]!.tilt)); });
+        before = now;
       }
-      expect(maxSchritt, modus).toBeLessThan(0.05);
+      expect(maxStep, modus).toBeLessThan(0.05);
     }
   });
 });

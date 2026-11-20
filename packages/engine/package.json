@@ -2,7 +2,7 @@
   "name": "@parrafraktor/engine",
   "version": "0.1.0",
   "private": true,
-  "description": "Pattern-Engine und DMX-Abbildung des Parrafraktors, identisch zur Website-Simulation",
+  "description": "Pattern engine and DMX mapping of the Parrafraktor, identical to the website simulation",
   "type": "module",
   "exports": {
     ".": {

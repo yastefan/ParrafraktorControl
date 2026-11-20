@@ -2,14 +2,14 @@
 // Jeder Strahl wird durch alle Spiegel verfolgt und als Lichtspur in einen eigenen Puffer gesammelt.
 // Der Puffer klingt von Bild zu Bild ab und die Strahlen wechseln leicht die Lage, damit aus wenigen
 // Strahlen ein ruhiger Lichtschleier wird. Der Nebel ist überall gleich dicht.
-import { ELEMENTE, SPIEGEL_N } from "@parrafraktor/engine";
+import { ELEMENTS, MIRRORS_PER_ELEMENT } from "@parrafraktor/engine";
 import { VORSCHAU_STIL, schrift } from "./vorschau-stil.js";
 
 export type SpiegelSeite = "hinten" | "vorn" | "beide";   // wohin die Vorderseite bei Tilt 0 zeigt
 export interface NebelLampe { x: number; y: number; z: number }   // x: nach rechts, y: nach unten, z: nach vorn
 
 const ELEMENT_B = 1.8;
-const RASTER = ELEMENT_B / SPIEGEL_N;
+const RASTER = ELEMENT_B / MIRRORS_PER_ELEMENT;
 const SPIEGEL_B = RASTER - 0.012;
 const TIEFE = 0.5;                       // Abstand der Elemente hintereinander: angenommen, nicht gemessen
 const LUECKE = 0.25;                     // Lücke, wenn sie in einer Reihe stehen
@@ -36,18 +36,18 @@ export const NEBEL_ZOOM_VORGABE = 32;
 
 // 36 Spiegel flach im Speicher, damit das Rechnen nichts anlegen muss
 const FELDER = 12;
-const ANZAHL = ELEMENTE * SPIEGEL_N;
+const ANZAHL = ELEMENTS * MIRRORS_PER_ELEMENT;
 const LAGE = ANZAHL * FELDER;            // dahinter je Element: cos, sin der Drehung, Mitte x und z
-const GROESSE = LAGE + ELEMENTE * 4;
+const GROESSE = LAGE + ELEMENTS * 4;
 export function baueSpiegel(winkel: readonly number[], drehung: readonly number[], reihe: boolean, ziel = new Float64Array(GROESSE)): Float64Array {
-  for (let k = 0; k < ELEMENTE; k++) {
+  for (let k = 0; k < ELEMENTS; k++) {
     const r = reihe ? 0 : ((drehung[k] ?? 0) * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
-    const mx = reihe ? (k - (ELEMENTE - 1) / 2) * (ELEMENT_B + LUECKE) : 0;
-    const mz = reihe ? TIEFE : TIEFE * (ELEMENTE - 1 - k);   // Element 1 steht vorn
+    const mx = reihe ? (k - (ELEMENTS - 1) / 2) * (ELEMENT_B + LUECKE) : 0;
+    const mz = reihe ? TIEFE : TIEFE * (ELEMENTS - 1 - k);   // Element 1 steht vorn
     ziel[LAGE + k * 4] = c; ziel[LAGE + k * 4 + 1] = s; ziel[LAGE + k * 4 + 2] = mx; ziel[LAGE + k * 4 + 3] = mz;
-    for (let i = 0; i < SPIEGEL_N; i++) {
-      const a = (winkel[k * SPIEGEL_N + i]! * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
-      const u = (i + 0.5) * RASTER - ELEMENT_B / 2, o = (k * SPIEGEL_N + i) * FELDER;
+    for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+      const a = (winkel[k * MIRRORS_PER_ELEMENT + i]! * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+      const u = (i + 0.5) * RASTER - ELEMENT_B / 2, o = (k * MIRRORS_PER_ELEMENT + i) * FELDER;
       // Mitte, halbe Breite, halbe Höhe (Kippachse), Normale der Seite, die bei Tilt 0 nach vorn zeigt
       ziel[o] = mx + u * c; ziel[o + 1] = u * s; ziel[o + 2] = mz;
       ziel[o + 3] = (ca * SPIEGEL_B * c) / 2; ziel[o + 4] = (ca * SPIEGEL_B * s) / 2; ziel[o + 5] = (sa * SPIEGEL_B) / 2;
@@ -79,7 +79,7 @@ export function verfolgeStrahl(
     let best = -1, tb = Infinity;
     // Ein Spiegel reicht nur eine halbe Breite um seine Achse: Jedes Element prüft nur die Spiegel,
     // an denen der Strahl auf seinem Weg durch diese Schicht vorbeikommt.
-    for (let k = 0; k < ELEMENTE; k++) {
+    for (let k = 0; k < ELEMENTS; k++) {
       const l = LAGE + k * 4, c = sp[l]!, s = sp[l + 1]!, mx = sp[l + 2]!, mz = sp[l + 3]!;
       let t0 = 0, t1 = STRAHL_MAX;
       if (Math.abs(dz) > 1e-9) {
@@ -89,9 +89,9 @@ export function verfolgeStrahl(
       } else if (Math.abs(oz - mz) > rand) continue;
       const u0 = (ox + dx * t0 - mx) * c + (oy + dy * t0) * s, u1 = (ox + dx * t1 - mx) * c + (oy + dy * t1) * s;
       const i0 = Math.max(0, Math.floor((Math.min(u0, u1) - rand + ELEMENT_B / 2) / RASTER));
-      const i1 = Math.min(SPIEGEL_N - 1, Math.floor((Math.max(u0, u1) + rand + ELEMENT_B / 2) / RASTER));
+      const i1 = Math.min(MIRRORS_PER_ELEMENT - 1, Math.floor((Math.max(u0, u1) + rand + ELEMENT_B / 2) / RASTER));
       for (let i = i0; i <= i1; i++) {
-        const j = k * SPIEGEL_N + i;
+        const j = k * MIRRORS_PER_ELEMENT + i;
         if (j === aus) continue;
         const o = j * FELDER;
         const nx = sp[o + 9]!, ny = sp[o + 10]!, nz = sp[o + 11]!;
@@ -271,7 +271,7 @@ export class NebelBild {
     for (let i = 0; i < p.length; i++) { p[i]! *= ABKLINGEN; pv[i]! *= ABKLINGEN; }
 
     // Weg der Lampe bis zur ersten Elementebene abgedunkelt
-    const zVorn = reihe ? TIEFE : TIEFE * (ELEMENTE - 1), zHinten = reihe ? TIEFE : 0;
+    const zVorn = reihe ? TIEFE : TIEFE * (ELEMENTS - 1), zHinten = reihe ? TIEFE : 0;
     const grenze = lampe.z < zHinten ? zHinten : lampe.z > zVorn ? zVorn : null;
     const px = (x: number, z: number) => this.sx(x, z) * AUFLOESUNG;
     const py = (x: number, y: number, z: number) => this.sy(x, y, z) * AUFLOESUNG;
@@ -376,14 +376,14 @@ export class NebelBild {
     };
     // Scherenschnitt von hinten nach vorn: Vorderes verdeckt Hinteres, auch die Lampe dahinter.
     // Reihenfolge nach Tiefe, weil die Elemente in einer Reihe alle gleich weit vorn stehen können.
-    const ordnung = Array.from({ length: ELEMENTE }, (_, k) => k).sort((a, b) => sp[LAGE + a * 4 + 3]! - sp[LAGE + b * 4 + 3]!);
+    const ordnung = Array.from({ length: ELEMENTS }, (_, k) => k).sort((a, b) => sp[LAGE + a * 4 + 3]! - sp[LAGE + b * 4 + 3]!);
     let lampeFehlt = true;
     for (const k of ordnung) {
       const l = LAGE + k * 4, c = sp[l]!, s = sp[l + 1]!, mx = sp[l + 2]!, mz = sp[l + 3]!, h = ELEMENT_B / 2;
       if (lampeFehlt && lampe.z < mz) { lampeZeichnen(); lampeFehlt = false; }
       ctx.fillStyle = `rgba(${VORSCHAU_STIL.scherenschnitt},0.88)`;
-      for (let i = 0; i < SPIEGEL_N; i++) {
-        const o = (k * SPIEGEL_N + i) * FELDER;
+      for (let i = 0; i < MIRRORS_PER_ELEMENT; i++) {
+        const o = (k * MIRRORS_PER_ELEMENT + i) * FELDER;
         ctx.beginPath();
         for (let e = 0; e < 4; e++) {
           const a = e === 0 || e === 3 ? -1 : 1, b = e < 2 ? -1 : 1;

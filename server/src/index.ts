@@ -13,7 +13,7 @@
 import { networkInterfaces } from "node:os";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { KANAELE_PRO_ELEMENT } from "@parrafraktor/engine";
+import { CHANNELS_PER_ELEMENT } from "@parrafraktor/engine";
 import {
   PROTOKOLL_VERSION, patchWarnung, pruefeEinstellungen, pruefeAuto, pruefeImpuls, pruefePresets,
   type Einstellungen, type ModulStatus, type Netzwerkschnittstelle, type Stand,
@@ -99,7 +99,7 @@ function stand(): Stand {
     { name: "Clients", art: "eingabe", zustand: web?.anzahlClients ? "aktiv" : "bereit", text: `${web?.anzahlClients ?? 0} connected` },
   ];
   const warnungen: string[] = [];
-  const patch = patchWarnung(e.patch, KANAELE_PRO_ELEMENT);
+  const patch = patchWarnung(e.patch, CHANNELS_PER_ELEMENT);
   if (patch) warnungen.push(patch);
   if (!ausgaben.length) warnungen.push("No output active – the mirrors receive nothing.");
   if (e.artnet.an && e.sacn.an) warnungen.push("Art-Net and sACN active at the same time.");
@@ -114,10 +114,10 @@ function stand(): Stand {
     module,
     netzwerk: netzwerk(),
     takt: {
-      umlaufVon: takt.engine.umlaufVon,
-      umlauf: Array.from(takt.engine.umlauf),
+      umlaufVon: takt.engine.referenceCycles,
+      umlauf: Array.from(takt.engine.cycles),
       tempo: Array.from(takt.engine.tempo),
-      schub: Array.from(takt.engine.schub),
+      schub: Array.from(takt.engine.kick),
     },
     presets: [...steuerung.presets],
     letztesPreset: steuerung.letztesPreset,

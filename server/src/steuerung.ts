@@ -3,8 +3,8 @@
 // alle Anzeigen hören auf das Ereignis "aenderung".
 import { EventEmitter } from "node:events";
 import {
-  IMPULS_VORGABE, PARAMETER_VORGABE, impulsFertig,
-  type ImpulsArt, type ImpulsEinstellung, type LaufenderImpuls, type Modus, type Parameter,
+  IMPULSE_DEFAULTS, PARAMETER_DEFAULTS, impulseDone,
+  type ImpulseKind, type ImpulseSettings, type RunningImpulse, type Mode, type Parameter,
 } from "@parrafraktor/engine";
 import {
   AUTO_VORGABE, BEREICHE, IMPULS_BEREICHE, STUFEN, begrenze, impulsWert, lookAus, migriereParameter, mitImpulsWert, pruefeAuto, pruefeEinstellungen,
@@ -15,7 +15,7 @@ import {
 // Ein gestarteter Impuls
 interface Impuls {
   id: number;
-  art: ImpulsArt;
+  art: ImpulseKind;
   start: number;          // Sekunden (Uhr der Steuerung)
   ursprung: number;
   breite: number;
@@ -34,7 +34,7 @@ interface Ereignisse {
   // Preset abgerufen: der Takt soll von der aktuellen Stellung zum neuen Look überblenden
   blende: [];
   // Hüllkurve oder Element-Folge geändert: wird gespeichert
-  impuls: [ImpulsEinstellung];
+  impuls: [ImpulseSettings];
   // Auswahl oder Zeiten von Auto geändert: wird gespeichert
   auto: [AutoEinstellung];
 }
@@ -53,7 +53,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   // Auto startet aus (außer mit Autostart). Es fasst den Output nicht an, nur den Look.
   private _autoAn = false;
   private _autoRestS = 0;
-  private _impuls: ImpulsEinstellung;
+  private _impuls: ImpulseSettings;
   private _impulse: Impuls[] = [];
   private impulsNr = 0;
 
@@ -62,7 +62,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     parameter: Parameter,
     einstellungen: Einstellungen,
     presets: Presets,
-    impuls: ImpulsEinstellung = IMPULS_VORGABE,
+    impuls: ImpulseSettings = IMPULSE_DEFAULTS,
     private readonly uhr: () => number = () => performance.now() / 1000,
     auto: AutoEinstellung = AUTO_VORGABE,
   ) {
@@ -83,14 +83,14 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   get letztesPreset(): number | null { return this._letztesPreset; }
   get blende(): Readonly<{ id: number; anteil: number }> | null { return this._blende; }
   get blendeDauerS(): number { return this._blendeDauerS; }
-  get impuls(): Readonly<ImpulsEinstellung> { return this._impuls; }
+  get impuls(): Readonly<ImpulseSettings> { return this._impuls; }
   get auto(): Readonly<AutoEinstellung> { return this._auto; }
   get autoAn(): boolean { return this._autoAn; }
   get autoRestS(): number { return this._autoRestS; }
   get autoStartbar(): boolean { return this.autoListe().length >= 2; }
 
   // Laufende Impulse mit Zeiten relativ zu jetzt (für Takt, Vorschau und Anzeigen)
-  impulse(): LaufenderImpuls[] {
+  impulse(): RunningImpulse[] {
     const jetzt = this.uhr();
     return this._impulse.map((i) => ({
       id: i.id, art: i.art, alterS: jetzt - i.start, ursprung: i.ursprung, breite: i.breite, wischt: i.wischt,
@@ -109,7 +109,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
     this.aendere(geprueft);
   }
 
-  waehlePattern(modus: Modus): void {
+  waehlePattern(modus: Mode): void {
     // Nur die Form wechselt; die Regler bleiben, wie sie sind. Die Spiegel blenden weich
     // in die neue Form über, statt zu springen.
     const neu = modus !== this._parameter.modus;
@@ -180,7 +180,7 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   raeumeImpulse(): void {
     const vorher = this._impulse.length;
     const liste = this.impulse();
-    this._impulse = this._impulse.filter((_, n) => !impulsFertig(this._impuls, liste[n]!));
+    this._impulse = this._impulse.filter((_, n) => !impulseDone(this._impuls, liste[n]!));
     if (this._impulse.length !== vorher) this.geaendert();
   }
 
@@ -194,10 +194,10 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 
   vorgabeImpuls(name: ImpulsRegler): void {
-    this.aendereImpuls(mitImpulsWert(this._impuls, name, impulsWert(IMPULS_VORGABE, name)));
+    this.aendereImpuls(mitImpulsWert(this._impuls, name, impulsWert(IMPULSE_DEFAULTS, name)));
   }
 
-  private aendereImpuls(neu: ImpulsEinstellung): void {
+  private aendereImpuls(neu: ImpulseSettings): void {
     if (JSON.stringify(neu) === JSON.stringify(this._impuls)) return;
     this._impuls = neu;
     this.emit("impuls", neu);
@@ -365,4 +365,4 @@ export class Steuerung extends EventEmitter<Ereignisse> {
   }
 }
 
-export const parameterAus = (roh: unknown): Parameter => ({ ...PARAMETER_VORGABE, ...pruefeParameter(migriereParameter(roh)) });
+export const parameterAus = (roh: unknown): Parameter => ({ ...PARAMETER_DEFAULTS, ...pruefeParameter(migriereParameter(roh)) });

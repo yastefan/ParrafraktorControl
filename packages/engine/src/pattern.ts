@@ -1,22 +1,27 @@
-// Pattern-Engine (Grundbewegung): dieselbe Rechnung wie die Simulation auf der Website (parrafraktor.js).
-// Ein Pattern ist eine Grundbewegung (Sinus, Pendelwelle, Wind, Schwarm, Glühwürmchen, Rotation, Öffnung, Ruhe),
-// die dauerhaft läuft;
-// Ereignisse wie Flash oder Flyout sind Impulse (impuls.ts). Alle Bewegungen sind weich, ohne Ruck.
-// Wie sie über die Spiegel läuft, bestimmen die Regler: Offset, Amplitude, Speed von/bis, Phase und
-// Group wie die MAtricks der grandMA3, dazu die Verteilung aus Ordnung (innerhalb eines Elements),
-// Element-Folge, Gegenlauf und Fächer.
-// Rechnet in double wie die Simulation, damit Vorschau und Spiegel gleich fahren. Nur die Öffnung
-// gibt es in der Simulation nicht.
-import { SPIEGEL_GESAMT, SPIEGEL_N, elementGespiegelt, elementRaenge, elementRang, type ElementFolge } from "./aufbau.js";
+// Pattern engine (base movement): the same computation as the simulation on the website (parrafraktor.js).
+// A pattern is a base movement (Sine, Pendulum wave, Wind, Swarm, Flash, Rotation, Aperture, Rest)
+// that runs continuously; events like a flash are impulses (impulse.ts). All movements are smooth,
+// without jerks.
+// How it runs across the mirrors is set by the controls: offset, amplitude, speed from/to, phase and
+// group like the MAtricks of the grandMA3, plus the distribution from ordering (within an element),
+// element order, counter-motion and fan.
+// Computes in double like the simulation, so preview and mirrors move the same. Only the aperture
+// does not exist in the simulation.
+//
+// The values of Mode, Ordering, HolePath and ElementOrder and the fields of Parameter are saved data
+// (presets, settings) and protocol: they stay German.
+import { MIRRORS_PER_ELEMENT, MIRRORS_TOTAL, elementMirrored, elementRanks, elementRank, type ElementOrder } from "./layout.js";
 
-export const MODI = ["sinus", "pendelwelle", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung", "ruhe"] as const;
-export type Modus = (typeof MODI)[number];
-// Was am Pult zur Wahl steht. Pendelwelle (redundant zu Speed von → bis) und Ruhe sind vorerst raus
-// (Wunsch des Users, 2026-11-19), die Engine kennt sie weiter: alte Presets und Dateien laufen wie bisher.
-export const MODI_WAEHLBAR: readonly Modus[] = ["sinus", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung"];
+// sinus = sine, pendelwelle = pendulum wave, schwarm = swarm, gluehwuermchen = fireflies ("Flash"),
+// oeffnung = aperture, ruhe = rest
+export const MODES = ["sinus", "pendelwelle", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung", "ruhe"] as const;
+export type Mode = (typeof MODES)[number];
+// What the desk offers. Pendulum wave (redundant to speed from → to) and Rest are out for now
+// (user's wish, 2026-11-19); the engine still knows them, so old presets and files run as before.
+export const MODES_SELECTABLE: readonly Mode[] = ["sinus", "wind", "schwarm", "gluehwuermchen", "rotation", "oeffnung"];
 
-// Namen am Pult englisch (Wunsch des Users, 2026-11-19), Bezeichner bleiben deutsch
-export const MODUS_NAME: Record<Modus, string> = {
+// Names on the desk (user's wish, 2026-11-19)
+export const MODE_NAME: Record<Mode, string> = {
   sinus: "Sine",
   pendelwelle: "Pendulum wave",
   wind: "Wind",
@@ -27,12 +32,12 @@ export const MODUS_NAME: Record<Modus, string> = {
   ruhe: "Rest",
 };
 
-export const istModus = (x: unknown): x is Modus => typeof x === "string" && (MODI as readonly string[]).includes(x);
+export const isMode = (x: unknown): x is Mode => typeof x === "string" && (MODES as readonly string[]).includes(x);
 
-// Ordnung: in welcher Reihenfolge das Muster die zwölf Spiegel eines Elements erreicht
-export const ORDNUNGEN = ["links", "rechts", "mitteAussen", "aussenMitte", "verschachtelt", "zufall"] as const;
-export type Ordnung = (typeof ORDNUNGEN)[number];
-export const ORDNUNG_NAME: Record<Ordnung, string> = {
+// Ordering: in which order the pattern reaches the twelve mirrors of an element
+export const ORDERINGS = ["links", "rechts", "mitteAussen", "aussenMitte", "verschachtelt", "zufall"] as const;
+export type Ordering = (typeof ORDERINGS)[number];
+export const ORDERING_NAME: Record<Ordering, string> = {
   links: "left → right",
   rechts: "right → left",
   mitteAussen: "center → out",
@@ -40,61 +45,61 @@ export const ORDNUNG_NAME: Record<Ordnung, string> = {
   verschachtelt: "interleaved",
   zufall: "random",
 };
-export const istOrdnung = (x: unknown): x is Ordnung => (ORDNUNGEN as readonly unknown[]).includes(x);
+export const isOrdering = (x: unknown): x is Ordering => (ORDERINGS as readonly unknown[]).includes(x);
 
-// Öffnung: wie das Loch sich bewegt
-export const BAHNEN = ["kreis", "linie", "iris", "drift"] as const;
-export type Bahn = (typeof BAHNEN)[number];
-export const BAHN_NAME: Record<Bahn, string> = { kreis: "Circle", linie: "Line", iris: "Iris", drift: "Drift" };
-export const istBahn = (x: unknown): x is Bahn => (BAHNEN as readonly unknown[]).includes(x);
+// Aperture: how the hole moves
+export const HOLE_PATHS = ["kreis", "linie", "iris", "drift"] as const;
+export type HolePath = (typeof HOLE_PATHS)[number];
+export const HOLE_PATH_NAME: Record<HolePath, string> = { kreis: "Circle", linie: "Line", iris: "Iris", drift: "Drift" };
+export const isHolePath = (x: unknown): x is HolePath => (HOLE_PATHS as readonly unknown[]).includes(x);
 
-// Feste Mischung für die Ordnung "Zufall": Platz des Spiegels i
-const ZUFALL_FOLGE = [7, 2, 10, 4, 0, 9, 5, 11, 1, 8, 3, 6];
+// Fixed shuffle for the ordering "random": slot of mirror i
+const RANDOM_ORDER = [7, 2, 10, 4, 0, 9, 5, 11, 1, 8, 3, 6];
 
 export interface Parameter {
-  modus: Modus;
-  offset: number;      // Grad, Grundstellung aller Spiegel
-  // Offset je Element: getrennt = jedes Element hat seine eigene Grundstellung
+  modus: Mode;
+  offset: number;      // degrees, base position of all mirrors
+  // Offset per element: separate = every element has its own base position
   offsetGetrennt: boolean;
   offsetElemente: number[];
-  amplitude: number;   // Grad
-  // Speed von/bis wie in den MAtricks: erster Spiegel der Auswahl läuft mit "von",
-  // der letzte mit "bis", dazwischen verteilt (Durchläufe pro Minute, BPM).
-  // 0 = aus: dann gilt nur der andere Wert, alle Spiegel laufen gleich schnell.
+  amplitude: number;   // degrees
+  // Speed from/to like in the MAtricks: the first mirror of the selection runs at "from",
+  // the last at "to", spread in between (cycles per minute, BPM).
+  // 0 = off: then only the other value applies, all mirrors run equally fast.
   speedVon: number;
   speedBis: number;
-  phase: number;       // Grad, Versatz über die Auswahl wie MAtricks-Phase (360° = eine Welle über die Auswahl)
-  // Grad, 0 = aus: Phase läuft über die Elemente weiter (Element-Folge). Sonst läuft die Phase in jedem
-  // Element für sich, und die Elemente sind nach ihrem Rang in der Element-Folge um so viel versetzt.
+  phase: number;       // degrees, offset across the selection like MAtricks phase (360° = one wave across the selection)
+  // Element phase, degrees, 0 = off: phase continues across the elements (element order). Otherwise the
+  // phase runs within each element, and the elements are shifted by this much per rank in the element order.
   elementPhase: number;
-  // Sinus: Anteil des Durchlaufs, in dem sich ein Spiegel bewegt, wie Width im Phaser der grandMA3.
-  // 100 = immer, darunter steht er den Rest der Zeit auf Offset: eine schmale Welle zieht durch.
+  // Width (sine): fraction of the cycle in which a mirror moves, like Width in the grandMA3 phaser.
+  // 100 = always, below that it rests on offset for the rest of the time: a narrow wave passes through.
   breite: number;      // %
-  group: number;       // Gruppengröße wie MAtricks-Groups, 0 = aus
-  faecher: number;     // %, Amplitude wächst entlang der Ordnung (bei Mitte/außen: zum Rand hin)
-  schwuenge: number;   // Pendelwelle: nach so vielen Schwüngen des ersten Spiegels laufen alle wieder gleich
-  wellenlaenge: number; // Wind: so viele Spiegel bewegen sich ähnlich
-  // Schwarm und Glühwürmchen: Spiegel mit eigenem Tempo (Speed von → bis), die einander mitziehen
-  kopplung: number;    // %, wie stark sie einander ziehen (Schwarm) bzw. anstoßen (Glühwürmchen)
-  rauschen: number;    // %, Störung je Spiegel, hält den Schwarm unruhig
-  reichweite: number;  // Plätze in der Auswahl je Seite, die einander sehen; 0 = alle
-  // Öffnung: ein Loch durch alle hintereinanderstehenden Elemente (siehe unten)
-  bahn: Bahn;
-  groesse: number;     // cm, Radius des Lochs
-  weite: number;       // cm, wie weit es von der Mitte wandert (Iris: um so viel geht es auf)
-  kante: number;       // %, von hart bis weich
-  wabern: number;      // %, Atmen, Abdriften und Verformen
-  puls: number;        // %, die Größe schwankt im Takt der Bahn (zweimal je Umlauf), ± so viel vom Radius
-  nachlauf: number;    // %, die Elemente laufen einander nach; 100 = je Element ¼ Durchlauf
-  ordnung: Ordnung;
-  elementFolge: ElementFolge;
-  gegenlauf: boolean;  // linke Hälfte jedes Elements gespiegelt
-  speedJeElement: boolean; // Speed von → bis über die Elemente statt über die Spiegel (Rang nach Element-Folge)
-  pingpong: boolean;   // Muster läuft hin und wieder zurück
-  laeuft: boolean;
+  group: number;       // group size like MAtricks groups, 0 = off
+  faecher: number;     // fan %, amplitude grows along the ordering (center/out: towards the edge)
+  schwuenge: number;   // pendulum wave: after this many swings of the first mirror all are aligned again
+  wellenlaenge: number; // wind: wavelength, this many mirrors move similarly
+  // Swarm and Flash: mirrors with their own tempo (speed from → to) that pull each other along
+  kopplung: number;    // coupling %, how strongly they pull (swarm) or kick (flash) each other
+  rauschen: number;    // noise %, disturbance per mirror, keeps the swarm restless
+  reichweite: number;  // reach: slots in the selection per side that see each other; 0 = all
+  // Aperture: a hole through all elements standing one behind the other (see below)
+  bahn: HolePath;
+  groesse: number;     // size cm, radius of the hole
+  weite: number;       // range cm, how far it travels from the center (iris: it opens by this much)
+  kante: number;       // edge %, from hard to soft
+  wabern: number;      // wobble %, breathing, drifting and deforming
+  puls: number;        // pulse %, the size swings with the path (twice per cycle), ± this much of the radius
+  nachlauf: number;    // lag %, the elements follow each other; 100 = ¼ cycle per element
+  ordnung: Ordering;
+  elementFolge: ElementOrder;
+  gegenlauf: boolean;  // counter-motion: left half of each element mirrored
+  speedJeElement: boolean; // speed from → to across the elements instead of the mirrors (rank by element order)
+  pingpong: boolean;   // pattern runs there and back
+  laeuft: boolean;     // running
 }
 
-export const PARAMETER_VORGABE: Readonly<Parameter> = {
+export const PARAMETER_DEFAULTS: Readonly<Parameter> = {
   modus: "sinus",
   offset: 0,
   offsetGetrennt: false,
@@ -127,445 +132,445 @@ export const PARAMETER_VORGABE: Readonly<Parameter> = {
   laeuft: true,
 };
 
-// Stellung eines Spiegels: Winkel in Grad und Drehzahl für TiltRotate (U/min, 0 = steht)
-export interface Stellung {
+// Position of a mirror: angle in degrees and speed for TiltRotate (upm = rpm, 0 = stopped)
+export interface Position {
   tilt: number;
   upm: number;
 }
 
-// Weicher Übergang 0 → 1: Geschwindigkeit und Beschleunigung sind am Anfang und Ende null
-export const weich = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
+// Smooth step 0 → 1: speed and acceleration are zero at the start and end
+export const smooth = (x: number): number => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * x * (x * (6 * x - 15) + 10));
 
-// Ganzzahliges Gitter → 0 … 1, immer gleich (für das Rauschen)
-const gitter = (x: number, y: number): number => {
+// Integer lattice → 0 … 1, always the same (for the noise)
+const lattice = (x: number, y: number): number => {
   let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 };
 
-// Weiches Rauschen (Gradientenrauschen) über x und t, etwa −1 … 1
-function rauschen(x: number, t: number): number {
+// Smooth noise (gradient noise) over x and t, roughly −1 … 1
+function noise(x: number, t: number): number {
   const x0 = Math.floor(x), t0 = Math.floor(t), fx = x - x0, ft = t - t0;
   const g = (ix: number, it: number, dx: number, dt: number) => {
-    const w = gitter(ix, it) * 2 * Math.PI;
+    const w = lattice(ix, it) * 2 * Math.PI;
     return Math.cos(w) * dx + Math.sin(w) * dt;
   };
   const a = g(x0, t0, fx, ft), b = g(x0 + 1, t0, fx - 1, ft);
   const c = g(x0, t0 + 1, fx, ft - 1), d = g(x0 + 1, t0 + 1, fx - 1, ft - 1);
-  const sx = weich(fx), st = weich(ft);
+  const sx = smooth(fx), st = smooth(ft);
   return (a + (b - a) * sx + (c - a) * st + (a - b - c + d) * sx * st) * Math.SQRT2;
 }
 
-// Wind: Böen ziehen entlang der Ordnung durch (eine Wellenlänge je Durchlauf) und verändern sich
-// dabei langsam. Eine Lage Rauschen, weich auf −1 … 1 begrenzt.
+// Wind: gusts travel along the ordering (one wavelength per cycle) and change slowly on the way.
+// One layer of noise, smoothly limited to −1 … 1.
 export const wind = (x: number, t: number): number =>
-  Math.tanh(1.3 * rauschen(x - t, 0.4 * t + 3.7)) / Math.tanh(1.3);
+  Math.tanh(1.3 * noise(x - t, 0.4 * t + 3.7)) / Math.tanh(1.3);
 
-// ---------- Öffnung ----------
-// Licht kommt nur durch, wo alle drei hintereinanderstehenden Elemente offen sind (Spiegel hochkant).
-// Für ein Loch an (x, y) öffnet deshalb jedes Element nur einen Schlitz: die Spiegel an der
-// Projektion des Lochs auf seine Achse, je nach seiner Drehung. Die Schlitze kreuzen sich im Loch.
-// Halb offene Spiegel am Rand lassen es weich zwischen den Spiegelreihen gleiten.
-const RASTER_M = 1.8 / SPIEGEL_N;
+// ---------- Aperture ----------
+// Light only gets through where all three elements standing one behind the other are open (mirrors
+// edge-on). For a hole at (x, y) each element therefore opens just a slit: the mirrors at the
+// projection of the hole onto its axis, depending on its rotation. The slits cross in the hole.
+// Half-open mirrors at the edge let it glide smoothly between the rows of mirrors.
+const PITCH_M = 1.8 / MIRRORS_PER_ELEMENT;
 
-export interface Loch { x: number; y: number; r: number }   // Meter, Bildmitte = 0, y nach unten
+export interface Hole { x: number; y: number; r: number }   // metres, image center = 0, y downwards
 
-// Lage des Lochs nach u Durchläufen
-export function lochBei(p: Parameter, u: number): Loch {
+// Position of the hole after u cycles
+export function holeAt(p: Parameter, u: number): Hole {
   const w = p.weite / 100, t = 2 * Math.PI * u;
-  // Puls: Radius schwankt zweimal je Umlauf um ± puls %, im Gleichschritt mit der Bahn (bleibt periodisch)
-  let loch: Loch = { x: 0, y: 0, r: (p.groesse / 100) * (1 + (p.puls / 100) * Math.sin(4 * Math.PI * u)) };
+  // Pulse: the radius swings twice per cycle by ± pulse %, in step with the path (stays periodic)
+  let hole: Hole = { x: 0, y: 0, r: (p.groesse / 100) * (1 + (p.puls / 100) * Math.sin(4 * Math.PI * u)) };
   switch (p.bahn) {
-    case "kreis": loch = { ...loch, x: w * Math.cos(t), y: w * Math.sin(t) }; break;
-    case "linie": loch = { ...loch, x: w * Math.sin(t) }; break;
-    case "iris": loch = { ...loch, r: loch.r + w * (0.5 - 0.5 * Math.cos(t)) }; break;
-    case "drift": loch = { ...loch, x: w * 1.4 * rauschen(u, 3.1), y: w * 1.4 * rauschen(u, 8.7) }; break;
+    case "kreis": hole = { ...hole, x: w * Math.cos(t), y: w * Math.sin(t) }; break;
+    case "linie": hole = { ...hole, x: w * Math.sin(t) }; break;
+    case "iris": hole = { ...hole, r: hole.r + w * (0.5 - 0.5 * Math.cos(t)) }; break;
+    case "drift": hole = { ...hole, x: w * 1.4 * noise(u, 3.1), y: w * 1.4 * noise(u, 8.7) }; break;
   }
-  // Wabern: langsames Rauschen, schneller als die Bahn, damit es auch bei ruhiger Bahn lebt
-  const stark = p.wabern / 100, z = 3 * u;
+  // Wobble: slow noise, faster than the path, so it lives even on a calm path
+  const strength = p.wabern / 100, z = 3 * u;
   return {
-    x: loch.x + 0.2 * stark * rauschen(z, 21.3),
-    y: loch.y + 0.2 * stark * rauschen(z, 34.9),
-    r: Math.max(0, loch.r * (1 + 0.7 * stark * rauschen(z, 47.1))),
+    x: hole.x + 0.2 * strength * noise(z, 21.3),
+    y: hole.y + 0.2 * strength * noise(z, 34.9),
+    r: Math.max(0, hole.r * (1 + 0.7 * strength * noise(z, 47.1))),
   };
 }
 
-// Wie weit Spiegel i von Element k offen ist (0 … 1)
-function schlitz(p: Parameter, u: number, drehung: number, k: number, i: number): number {
-  const eigen = u - (p.nachlauf / 100) * 0.25 * k;
-  const loch = lochBei(p, eigen);
-  const a = (drehung * Math.PI) / 180;
-  // Eigene kleine Abweichung je Element: Die Schlitze treffen sich nicht ganz, das Loch verformt sich
-  const zittern = 0.08 * (p.wabern / 100) * rauschen(3 * eigen, 60 + 13 * k);
-  const mitte = loch.x * Math.cos(a) + loch.y * Math.sin(a) + zittern;
-  return schlitzOffen(i, mitte, loch.r, 0.03 + 0.4 * (p.kante / 100));
+// How far mirror i of element k is open (0 … 1)
+function slit(p: Parameter, u: number, rotation: number, k: number, i: number): number {
+  const own = u - (p.nachlauf / 100) * 0.25 * k;
+  const hole = holeAt(p, own);
+  const a = (rotation * Math.PI) / 180;
+  // A small deviation of its own per element: the slits do not quite meet, the hole deforms
+  const jitter = 0.08 * (p.wabern / 100) * noise(3 * own, 60 + 13 * k);
+  const center = hole.x * Math.cos(a) + hole.y * Math.sin(a) + jitter;
+  return slitOpen(i, center, hole.r, 0.03 + 0.4 * (p.kante / 100));
 }
 
-// Wie weit Spiegel i offen ist (0 … 1) für einen Schlitz um "mitte" (Meter auf der Achse des Elements)
-export function schlitzOffen(i: number, mitte: number, r: number, kante: number): number {
-  const lage = (i + 0.5) * RASTER_M - 0.9;
-  return weich((r + kante - Math.abs(lage - mitte)) / (2 * kante));
+// How far mirror i is open (0 … 1) for a slit around "center" (metres on the element's axis)
+export function slitOpen(i: number, center: number, r: number, edge: number): number {
+  const x = (i + 0.5) * PITCH_M - 0.9;
+  return smooth((r + edge - Math.abs(x - center)) / (2 * edge));
 }
 
-// Steht ein Regler auf aus (0), übernimmt er den Wert des anderen
+// If one control is off (0), it takes the value of the other
 const speeds = (p: Parameter): [number, number] => [p.speedVon || p.speedBis, p.speedBis || p.speedVon];
 
-interface Auswahl {
-  platz: number;
-  anzahl: number;
-  anteil: number;
-  versatz: number;
-  lage: number;    // für den Fächer: 0 … 1 entlang der Ordnung bzw. von der Mitte zum Rand
-  seite: number;   // −1 für die gespiegelte Hälfte bei Gegenlauf
+export interface Selection {
+  slot: number;         // slot in the selection
+  count: number;        // number of slots
+  fraction: number;     // 0 (first) … 1 (last), for speed from/to
+  phaseOffset: number;  // fraction of a cycle, from the phase
+  place: number;        // for the fan: 0 … 1 along the ordering, or from the center to the edge
+  side: number;         // −1 for the mirrored half with counter-motion
 }
 
-// Platz des Spiegels i (0 … 11) innerhalb seines Elements gemäß Ordnung, von anzahl Plätzen.
-// Bei Mitte/außen teilen sich die beiden Hälften die Plätze.
-export function ordnungsPlatz(ordnung: Ordnung, i: number): { platz: number; anzahl: number } {
-  const h = SPIEGEL_N / 2, vonInnen = i < h ? h - 1 - i : i - h;
-  switch (ordnung) {
-    case "rechts": return { platz: SPIEGEL_N - 1 - i, anzahl: SPIEGEL_N };
-    case "mitteAussen": return { platz: vonInnen, anzahl: h };
-    case "aussenMitte": return { platz: h - 1 - vonInnen, anzahl: h };
-    case "verschachtelt": return { platz: i % 2 === 0 ? i / 2 : h + (i - 1) / 2, anzahl: SPIEGEL_N };
-    case "zufall": return { platz: ZUFALL_FOLGE[i]!, anzahl: SPIEGEL_N };
-    default: return { platz: i, anzahl: SPIEGEL_N };
+// Slot of mirror i (0 … 11) within its element according to the ordering, out of count slots.
+// With center/out both halves share the slots.
+export function orderingSlot(ordering: Ordering, i: number): { slot: number; count: number } {
+  const h = MIRRORS_PER_ELEMENT / 2, fromInside = i < h ? h - 1 - i : i - h;
+  switch (ordering) {
+    case "rechts": return { slot: MIRRORS_PER_ELEMENT - 1 - i, count: MIRRORS_PER_ELEMENT };
+    case "mitteAussen": return { slot: fromInside, count: h };
+    case "aussenMitte": return { slot: h - 1 - fromInside, count: h };
+    case "verschachtelt": return { slot: i % 2 === 0 ? i / 2 : h + (i - 1) / 2, count: MIRRORS_PER_ELEMENT };
+    case "zufall": return { slot: RANDOM_ORDER[i]!, count: MIRRORS_PER_ELEMENT };
+    default: return { slot: i, count: MIRRORS_PER_ELEMENT };
   }
 }
 
-// Platz des Spiegels g in der Auswahl, wie in der grandMA3: daraus ergibt sich sein Phasenversatz
-// (Bruchteil eines Durchlaufs, 0 … 1). Erst die Ordnung innerhalb des Elements, dann die Element-Folge
-// (laufen die Elemente nacheinander, zählen die Plätze über alle drei weiter), zuletzt die Groups.
-// Bei Element-Folge Mitte → außen ist das erste Element das Spiegelbild des dritten.
-export function auswahl(p: Parameter, g: number): Auswahl {
-  const k = Math.floor(g / SPIEGEL_N), h = SPIEGEL_N / 2;
-  const gespiegelt = elementGespiegelt(p.elementFolge, k);
-  const i = gespiegelt ? SPIEGEL_N - 1 - (g % SPIEGEL_N) : g % SPIEGEL_N;
-  const vonInnen = i < h ? h - 1 - i : i - h;
-  let { platz, anzahl } = ordnungsPlatz(p.ordnung, i);
-  const innen = { platz, anzahl };
-  const rang = elementRang(p.elementFolge, k);
-  if (rang !== null) { platz += rang * anzahl; anzahl *= elementRaenge(p.elementFolge); }
-  const mitte = p.ordnung === "mitteAussen" || p.ordnung === "aussenMitte";
-  const lage = mitte ? (vonInnen + 0.5) / h : (platz + 0.5) / anzahl;
-  // Groups: das Muster wiederholt sich alle "group" Spiegel
-  if (p.group > 0) { platz %= p.group; anzahl = Math.min(anzahl, p.group); innen.platz %= p.group; innen.anzahl = Math.min(innen.anzahl, p.group); }
-  // anteil: Lage in der Auswahl von 0 (erster) bis 1 (letzter) – für Speed von/bis. Mit Speed je Element
-  // zählt nur der Rang des Elements: alle Spiegel eines Elements gleich schnell, die Elemente gestaffelt
-  // (nacheinander: von, Mitte, bis; Mitte → außen: Mitte von, außen bis; zusammen: alle von).
-  const anteil = p.speedJeElement
-    ? (rang !== null && elementRaenge(p.elementFolge) > 1 ? rang / (elementRaenge(p.elementFolge) - 1) : 0)
-    : anzahl > 1 ? Math.min(1, platz / (anzahl - 1)) : 0;
-  // Gegenlauf: linke Hälfte gespiegelt; im gespiegelten Element der ganze Winkel noch einmal
-  const seite = p.gegenlauf ? (i < h ? -1 : 1) * (gespiegelt ? -1 : 1) : 1;
-  // Element-Phase: Phase nur innerhalb des Elements, dazu ein fester Versatz je Rang
-  const versatz = p.elementPhase > 0 && rang !== null
-    ? (p.phase / 360) * (innen.platz / innen.anzahl) + (p.elementPhase / 360) * rang
-    : (p.phase / 360) * (platz / anzahl);
-  return { platz, anzahl, anteil, lage, seite, versatz };
+// Slot of mirror g in the selection, as in the grandMA3: it gives its phase offset (fraction of a
+// cycle, 0 … 1). First the ordering within the element, then the element order (if the elements run
+// one after another, the slots count on across all three), finally the groups.
+// With element order center → out the first element is the mirror image of the third.
+export function selection(p: Parameter, g: number): Selection {
+  const k = Math.floor(g / MIRRORS_PER_ELEMENT), h = MIRRORS_PER_ELEMENT / 2;
+  const mirrored = elementMirrored(p.elementFolge, k);
+  const i = mirrored ? MIRRORS_PER_ELEMENT - 1 - (g % MIRRORS_PER_ELEMENT) : g % MIRRORS_PER_ELEMENT;
+  const fromInside = i < h ? h - 1 - i : i - h;
+  let { slot, count } = orderingSlot(p.ordnung, i);
+  const inner = { slot, count };
+  const rank = elementRank(p.elementFolge, k);
+  if (rank !== null) { slot += rank * count; count *= elementRanks(p.elementFolge); }
+  const centered = p.ordnung === "mitteAussen" || p.ordnung === "aussenMitte";
+  const place = centered ? (fromInside + 0.5) / h : (slot + 0.5) / count;
+  // Groups: the pattern repeats every "group" mirrors
+  if (p.group > 0) { slot %= p.group; count = Math.min(count, p.group); inner.slot %= p.group; inner.count = Math.min(inner.count, p.group); }
+  // fraction: position in the selection from 0 (first) to 1 (last) – for speed from/to. With speed per
+  // element only the element's rank counts: all mirrors of an element equally fast, the elements staggered
+  // (one after another: from, middle, to; center → out: middle from, outer to; together: all from).
+  const fraction = p.speedJeElement
+    ? (rank !== null && elementRanks(p.elementFolge) > 1 ? rank / (elementRanks(p.elementFolge) - 1) : 0)
+    : count > 1 ? Math.min(1, slot / (count - 1)) : 0;
+  // Counter-motion: left half mirrored; in the mirrored element the whole angle once more
+  const side = p.gegenlauf ? (i < h ? -1 : 1) * (mirrored ? -1 : 1) : 1;
+  // Element phase: phase only within the element, plus a fixed offset per rank
+  const phaseOffset = p.elementPhase > 0 && rank !== null
+    ? (p.phase / 360) * (inner.slot / inner.count) + (p.elementPhase / 360) * rank
+    : (p.phase / 360) * (slot / count);
+  return { slot, count, fraction, place, side, phaseOffset };
 }
 
 // ---------- Rotation ----------
-// TiltRotate kennt nur eine Drehzahl, keine Stellung. Phase, Breite und Gegenlauf gehen trotzdem: Jeder
-// Spiegel hat einen Soll-Winkel aus seinem Umlauf, die Engine zählt mit, wie weit er gedreht haben
-// müsste, und gibt die Drehzahl vor, die ihn dorthin bringt – höchstens TiltRotate max.
-const DREH_SPITZE = 1.875;   // Spitze von weich(): so viel schneller als im Schnitt dreht ein Spiegel in der Breite
+// TiltRotate only knows a speed, no position. Phase, width and counter-motion still work: every mirror
+// has a target angle from its cycles, the engine counts how far it should have turned and sets the
+// speed that gets it there – at most TiltRotate max.
+const ROTATION_PEAK = 1.875;   // peak of smooth(): this much faster than on average a mirror turns within the width
 
-// Soll-Winkel (Grad). Breite: Eine ganze Umdrehung passiert im Anteil b des Durchlaufs, dann steht er.
-function drehSoll(p: Parameter, u: number, g: number, b: number): number {
-  const { versatz, seite } = auswahl(p, g);
-  const x = u - versatz;
-  if (b >= 1) return seite * 360 * x;
-  const ganz = Math.floor(x), y = (x - ganz) / b;
-  const teil = y >= 1 ? 1 : y + (weich(y) - y) * Math.min(1, (1 - b) / 0.1);
-  return seite * 360 * (ganz + teil);
+// Target angle (degrees). Width: one full turn happens in the fraction b of the cycle, then it stands.
+function targetAngle(p: Parameter, u: number, g: number, b: number): number {
+  const { phaseOffset, side } = selection(p, g);
+  const x = u - phaseOffset;
+  if (b >= 1) return side * 360 * x;
+  const whole = Math.floor(x), y = (x - whole) / b;
+  const part = y >= 1 ? 1 : y + (smooth(y) - y) * Math.min(1, (1 - b) / 0.1);
+  return side * 360 * (whole + part);
 }
 
-// Kürzester Weg auf dem Kreis, −180 … 180
-const kurzerWeg = (d: number): number => d - 360 * Math.round(d / 360);
+// Shortest way on the circle, −180 … 180
+const shortestWay = (d: number): number => d - 360 * Math.round(d / 360);
 
-// Zeitkonstante, mit der die Spiegel wieder zusammenlaufen, wenn alle gleich schnell sind
-const GLEICHLAUF_S = 0.4;
+// Time constant with which the mirrors come back together when all are equally fast
+const RESYNC_S = 0.4;
 
-// ---------- Schwarm und Glühwürmchen ----------
-// Gekoppelte Oszillatoren: Jeder Spiegel läuft mit seinem eigenen Tempo (Speed von → bis wie beim Sinus)
-// und zieht die Spiegel mit, die er "sieht" (Reichweite in Plätzen der Auswahl, 0 = alle). Gekoppelt
-// wird der Umlauf ψ; gezeigt wird wie beim Sinus ψ − Versatz: Ohne Phase suchen sie den Gleichlauf,
-// mit Phase die Welle, die die Phase vorgibt. Kopplung und Rauschen sind auf das Tempo bezogen, damit das Bild bei
-// jedem Speed gleich aussieht.
-//  Schwarm (Kuramoto, mit Rauschen und Reichweite wie im Vicsek-Modell): Jeder Spiegel wird stetig zu
-//    seinen Nachbarn gezogen, dψᵢ/dt = ωᵢ + K · mittel(sin 2π(ψⱼ − ψᵢ)) + Rauschen.
-//    Kopplung 0 = Speed je Spiegel, viel Kopplung = alle rasten ein, dazwischen Inseln und Ausreißer.
-//  Glühwürmchen (pulsgekoppelt, nach Mirollo und Strogatz): Jeder Spiegel lädt sich im Durchlauf auf,
-//    am Ende "blitzt" er (ein Ausschlag zur Seite und zurück) und stößt die anderen um einen Anteil
-//    ihrer Ladung weiter. Wer dadurch voll ist, blitzt sofort mit: Lawinen, bis alle im Takt blitzen.
-//    Dazu passen sie ihr Tempo an wie Pteroptyx (nach Ermentrout): Wer kurz nach dem eigenen Blitz einen
-//    sieht, war zu früh und wird langsamer, wer kurz davor einen sieht, wird schneller. Ohne das liefe
-//    ein schnellerer Spiegel den anderen auf Dauer davon, Stöße schieben nur nach vorn.
-// Damit es nach Zusammenspiel aussieht und nicht nach Zufall:
-//  - Kein Spiegel läuft langsamer als TEMPO_MIN × das langsamste Speed oder schneller als TEMPO_MAX ×
-//    das schnellste, auch wenn Kopplung und Rauschen mehr verlangen.
-//  - Rauschen und Anfangsstreuung (beim Wählen, verdeckt von der Überblendung) hängen über
-//    RAUSCHEN_PLAETZE zusammen: Nachbarn werden gemeinsam gestört wie von einer Böe, nicht jeder für sich.
-//  - Glühwürmchen: Stöße wirken sofort, solange ein Spiegel ruht (außerhalb des Blitzes steht er auf
-//    Offset, man sieht es nicht), und höchstens bis zum Blitz; der Blitz selbst läuft immer im eigenen
-//    Tempo, ohne Anpassung und Rauschen – alle Blitze sehen gleich aus. Er dauert die Breite, aber
-//    mindestens BLITZ_MIN (sonst zu schnell) und höchstens BLITZ_MAX des Durchlaufs (damit es eine Ruhe gibt).
-// Der Zustand steckt im Umlauf je Spiegel, die Vorschau gleicht ihn wie sonst mit dem Server ab.
-// Fester Rechenschritt: Server (40 Hz) und Vorschau (Bildtakt) rechnen so dieselben Schritte und laufen
-// nicht auseinander; der Rest der Zeit wartet auf den nächsten Aufruf (höchstens 5 ms Verzug)
-const SCHRITT_S = 0.005;
-const TEMPO_MIN = 0.5;           // nie langsamer als das halbe langsamste Speed (steht nicht, läuft nicht rückwärts)
-const TEMPO_MAX = 1.5;           // höchstens so schnell wie das 1,5-Fache des schnellsten Speeds
-const KOPPLUNG_MAX = 1.5;        // Kopplung 100 % = so viele Durchläufe/s je Durchlauf/s des mittleren Tempos
-const RAUSCHEN_MAX = 3;          // Rauschen 100 % = Störung etwa so stark wie das mittlere Tempo
-const RAUSCHEN_PLAETZE = 4;
-// Das Rauschen läuft mit dem Umlauf bei Speed von (so viele Rasterschritte je Durchlauf), nicht mit
-// einer eigenen Uhr: Den Umlauf gleicht die Vorschau mit dem Server ab, eine eigene Uhr nicht – sonst
-// liefen Vorschau und Server auseinander und die Vorschau spränge beim Abgleich.
-const RAUSCHEN_TAKT = 4;      // so viele Plätze breit ist eine Störung
-const STREUUNG = 1;              // Anfangsstreuung beim Wählen (Durchläufe, etwa ± halber Durchlauf)
-const STOSS_MAX = 1.5;
-const ANPASSUNG = 0.6;           // Glühwürmchen: so viel ändert sich das Tempo je Durchlauf voller Blitze (bei Kopplung 100 %)
-const ERHOLUNG_S = 30;           // so schnell kehrt das Tempo ohne Blitze zum eigenen zurück           // Glühwürmchen: Kopplung 100 % = alle anderen zusammen stoßen um das 1,5-Fache der Ladung
-const istGekoppelt = (m: Modus): boolean => m === "schwarm" || m === "gluehwuermchen";
-const BLITZ_MIN = 0.3, BLITZ_MAX = 0.4;
-const blitzBreite = (p: Parameter): number => Math.min(Math.max(p.breite / 100, BLITZ_MIN), BLITZ_MAX);
+// ---------- Swarm and Flash ----------
+// Coupled oscillators: every mirror runs at its own tempo (speed from → to as with the sine) and pulls
+// along the mirrors it "sees" (reach in slots of the selection, 0 = all). What is coupled is the cycle ψ;
+// shown is, as with the sine, ψ − phase offset: without phase they seek alignment, with phase the wave
+// the phase sets. Coupling and noise are relative to the tempo, so the image looks the same at any speed.
+//  Swarm (Kuramoto, with noise and reach as in the Vicsek model): every mirror is pulled steadily towards
+//    its neighbours, dψᵢ/dt = ωᵢ + K · mean(sin 2π(ψⱼ − ψᵢ)) + noise.
+//    Coupling 0 = speed per mirror, much coupling = all lock in, in between islands and outliers.
+//  Flash, "fireflies" (pulse-coupled, after Mirollo and Strogatz): every mirror charges up during the
+//    cycle, at the end it "flashes" (a deflection to the side and back) and kicks the others on by a
+//    fraction of their charge. Whoever is full from that flashes along at once: avalanches, until all
+//    flash in time.
+//    They also adapt their tempo like Pteroptyx (after Ermentrout): whoever sees a flash shortly after
+//    their own was early and slows down, whoever sees one shortly before speeds up. Without that a
+//    faster mirror would run away from the others for good; kicks only push forward.
+// So that it looks like playing together and not like chance:
+//  - No mirror runs slower than TEMPO_MIN × the slowest speed or faster than TEMPO_MAX × the fastest,
+//    even if coupling and noise ask for more.
+//  - Noise and initial scatter (on selecting, hidden by the cross-fade) are connected over NOISE_SLOTS:
+//    neighbours are disturbed together as by a gust, not each on its own.
+//  - Flash: kicks act at once while a mirror rests (outside the flash it stands on offset, you do not
+//    see it), and at most up to the flash; the flash itself always runs at its own tempo, without
+//    adaptation and noise – all flashes look alike. It lasts the width, but at least FLASH_MIN (otherwise
+//    too fast) and at most FLASH_MAX of the cycle (so there is a rest).
+// The state lives in the cycles per mirror; the preview syncs it with the server as usual.
+// Fixed step: server (40 Hz) and preview (frame rate) compute the same steps this way and do not drift
+// apart; the rest of the time waits for the next call (at most 5 ms delay).
+const STEP_S = 0.005;
+const TEMPO_MIN = 0.5;           // never slower than half the slowest speed (does not stop, does not run backwards)
+const TEMPO_MAX = 1.5;           // at most 1.5 times the fastest speed
+const COUPLING_MAX = 1.5;        // coupling 100 % = this many cycles/s per cycle/s of the mean tempo
+const NOISE_MAX = 3;             // noise 100 % = disturbance about as strong as the mean tempo
+const NOISE_SLOTS = 4;           // a disturbance is this many slots wide
+// The noise runs with the cycles at speed "from" (this many lattice steps per cycle), not with a clock
+// of its own: the preview syncs the cycles with the server, a clock of its own it would not – then
+// preview and server would drift apart and the preview would jump when syncing.
+const NOISE_RATE = 4;
+const SCATTER = 1;               // initial scatter on selecting (cycles, about ± half a cycle)
+const KICK_MAX = 1.5;            // Flash: coupling 100 % = all others together kick by 1.5 times the charge
+const ADAPTATION = 0.6;          // Flash: this much the tempo changes per cycle full of flashes (at coupling 100 %)
+const RECOVERY_S = 30;           // this fast the tempo returns to its own without flashes
+const isCoupled = (m: Mode): boolean => m === "schwarm" || m === "gluehwuermchen";
+const FLASH_MIN = 0.3, FLASH_MAX = 0.4;
+const flashWidth = (p: Parameter): number => Math.min(Math.max(p.breite / 100, FLASH_MIN), FLASH_MAX);
 
 export class Engine {
-  // Durchläufe bei Speed "von": Bezug für den Gleichlauf und Zeit des Winds
-  umlaufVon = 0;
-  // bisher gelaufene Durchläufe je Spiegel. Jeder Spiegel zählt selbst, damit beim Verstellen
-  // von Speed nichts springt – das Muster läuft nur schneller oder langsamer.
-  readonly umlauf = new Float64Array(SPIEGEL_GESAMT);
-  private letzterModus: Modus | null = null;
-  // Drehung der Elemente in ihrer Ebene (Grad), nur die Öffnung braucht sie. Aus den Einstellungen.
-  drehung: readonly number[] = [0, 45, 90];
-  // TiltRotate max. (U/min) aus den Einstellungen: mehr kann die Rotation nicht vorgeben
-  rotateMaxUpm = 10;
-  // Rotation: mitgezählter Winkel (Grad) und vorgegebene Drehzahl je Spiegel
-  private readonly gedreht = new Float64Array(SPIEGEL_GESAMT);
-  private readonly drehzahl = new Float64Array(SPIEGEL_GESAMT);
-  // Glühwürmchen: noch ausstehender Stoß je Spiegel (Durchläufe)
-  // (öffentlich, damit die Vorschau sie wie den Umlauf mit dem Server abgleichen kann)
-  readonly schub = new Float64Array(SPIEGEL_GESAMT);
-  private rest = 0;   // Zeit, die noch nicht gerechnet ist (s, kleiner als SCHRITT_S)
-  readonly tempo = new Float64Array(SPIEGEL_GESAMT).fill(1);   // Glühwürmchen: angepasstes Tempo (× eigenes)
+  // Cycles at speed "from": reference for re-aligning and time of the wind
+  referenceCycles = 0;
+  // Cycles run so far per mirror. Every mirror counts for itself, so nothing jumps when the speed
+  // changes – the pattern only runs faster or slower.
+  readonly cycles = new Float64Array(MIRRORS_TOTAL);
+  private lastMode: Mode | null = null;
+  // Rotation of the elements in their plane (degrees), only the aperture needs it. From the settings.
+  elementRotation: readonly number[] = [0, 45, 90];
+  // TiltRotate max. (rpm) from the settings: the rotation cannot ask for more
+  rotateMaxRpm = 10;
+  // Rotation: counted angle (degrees) and set speed per mirror
+  private readonly turned = new Float64Array(MIRRORS_TOTAL);
+  private readonly rpm = new Float64Array(MIRRORS_TOTAL);
+  // Flash: kick still pending per mirror (cycles)
+  // (public, so the preview can sync it with the server like the cycles)
+  readonly kick = new Float64Array(MIRRORS_TOTAL);
+  private remainder = 0;   // time not computed yet (s, less than STEP_S)
+  readonly tempo = new Float64Array(MIRRORS_TOTAL).fill(1);   // Flash: adapted tempo (× own)
 
-  // Zeit weiterlaufen lassen (dt in Sekunden)
-  weiter(p: Parameter, dt: number): void {
+  // Let time pass (dt in seconds)
+  advance(p: Parameter, dt: number): void {
     if (!p.laeuft) return;
-    // Pendelwelle startet im Gleichlauf, damit man das Auseinanderlaufen sieht
-    if (p.modus !== this.letzterModus) {
-      if (p.modus === "pendelwelle") this.umlauf.fill(this.umlaufVon);
-      // Schwarm und Glühwürmchen starten verstreut, Nachbarn ähnlich (immer gleich verstreut). Das ist ein
-      // Sprung, aber ein Wechsel der Form wird ohnehin übergeblendet (Steuerung und Vorschau).
-      this.schub.fill(0);
+    // Pendulum wave starts aligned, so you see it drifting apart
+    if (p.modus !== this.lastMode) {
+      if (p.modus === "pendelwelle") this.cycles.fill(this.referenceCycles);
+      // Swarm and Flash start scattered, neighbours alike (always scattered the same way). That is a
+      // jump, but a change of shape is cross-faded anyway (control and preview).
+      this.kick.fill(0);
       this.tempo.fill(1);
-      if (istGekoppelt(p.modus)) {
-        for (let g = 0; g < SPIEGEL_GESAMT; g++) this.umlauf[g] += STREUUNG * rauschen(auswahl(p, g).platz / RAUSCHEN_PLAETZE, 7.7);
+      if (isCoupled(p.modus)) {
+        for (let g = 0; g < MIRRORS_TOTAL; g++) this.cycles[g] += SCATTER * noise(selection(p, g).slot / NOISE_SLOTS, 7.7);
       }
-      this.letzterModus = p.modus;
+      this.lastMode = p.modus;
     }
-    const [von, bis] = speeds(p);
-    this.umlaufVon += (dt * von) / 60;
-    if (istGekoppelt(p.modus)) {
-      this.rest += dt;
-      for (; this.rest >= SCHRITT_S; this.rest -= SCHRITT_S) this.koppele(p, von, bis, SCHRITT_S);
-      this.gedreht.fill(0);
-      this.drehzahl.fill(0);
+    const [from, to] = speeds(p);
+    this.referenceCycles += (dt * from) / 60;
+    if (isCoupled(p.modus)) {
+      this.remainder += dt;
+      for (; this.remainder >= STEP_S; this.remainder -= STEP_S) this.couple(p, from, to, STEP_S);
+      this.turned.fill(0);
+      this.rpm.fill(0);
       return;
     }
-    const zug = 1 - Math.exp(-dt / GLEICHLAUF_S);
-    for (let g = 0; g < SPIEGEL_GESAMT; g++) {
+    const pull = 1 - Math.exp(-dt / RESYNC_S);
+    for (let g = 0; g < MIRRORS_TOTAL; g++) {
       if (p.modus === "pendelwelle") {
-        // Wie bei echten Pendeln: Während der erste Spiegel "schwuenge" Mal schwingt, schafft jeder
-        // folgende einen Schwung mehr als sein Vorgänger – dann stehen wieder alle gleich.
-        // Speed ist das Tempo des ersten Spiegels und beschleunigt damit das ganze Bild.
-        this.umlauf[g] += ((dt * von) / 60) * (1 + auswahl(p, g).platz / p.schwuenge);
-      } else if (von === bis && !(p.modus === "rotation" && p.faecher > 0)) {
-        // Alle gleich schnell (Speed bis aus): Abstand zum Bezug abbauen, damit bei Phase 0 wieder
-        // alle Spiegel gleich laufen. Ganze Durchläufe sind unsichtbar und fallen sofort weg,
-        // der Rest (höchstens ½ Durchlauf) läuft weich auf dem kürzesten Weg zu.
-        this.umlauf[g] += (dt * von) / 60;
-        const d = this.umlaufVon - this.umlauf[g]!;
-        const ganz = Math.round(d);
-        this.umlauf[g] += ganz + (d - ganz) * zug;
+        // As with real pendulums: while the first mirror swings "schwuenge" times, every following
+        // one makes one swing more than its predecessor – then all stand aligned again.
+        // Speed is the tempo of the first mirror and so speeds up the whole image.
+        this.cycles[g] += ((dt * from) / 60) * (1 + selection(p, g).slot / p.schwuenge);
+      } else if (from === to && !(p.modus === "rotation" && p.faecher > 0)) {
+        // All equally fast (speed to off): reduce the distance to the reference, so with phase 0 all
+        // mirrors run alike again. Whole cycles are invisible and drop at once, the rest (at most
+        // ½ cycle) closes smoothly on the shortest way.
+        this.cycles[g] += (dt * from) / 60;
+        const d = this.referenceCycles - this.cycles[g]!;
+        const whole = Math.round(d);
+        this.cycles[g] += whole + (d - whole) * pull;
       } else {
-        const { anteil, lage } = auswahl(p, g);
-        // Rotation: Fächer staffelt die Drehzahl entlang der Ordnung
-        const faecher = p.modus === "rotation" ? p.faecher / 100 : 0;
-        this.umlauf[g] += ((dt * (von + (bis - von) * anteil)) / 60) * (1 - faecher + faecher * lage);
+        const { fraction, place } = selection(p, g);
+        // Rotation: the fan staggers the speed along the ordering
+        const fan = p.modus === "rotation" ? p.faecher / 100 : 0;
+        this.cycles[g] += ((dt * (from + (to - from) * fraction)) / 60) * (1 - fan + fan * place);
       }
     }
-    if (p.modus === "rotation") this.dreheWeiter(p, Math.max(von, bis), dt);
+    if (p.modus === "rotation") this.rotate(p, Math.max(from, to), dt);
     else {
-      // Ohne Rotation steht TiltRotate; beim nächsten Mal fängt die Zählung bei der Tilt-Stellung an
-      this.gedreht.fill(0);
-      this.drehzahl.fill(0);
+      // Without rotation TiltRotate stands; next time the count starts at the tilt position
+      this.turned.fill(0);
+      this.rpm.fill(0);
     }
   }
 
-  // Ein Rechenschritt für Schwarm und Glühwürmchen (siehe oben)
-  private koppele(p: Parameter, von: number, bis: number, dt: number): void {
-    const a = Array.from({ length: SPIEGEL_GESAMT }, (_, g) => auswahl(p, g));
-    const mittel = (von + bis) / 2 / 60;                  // mittleres Tempo, Durchläufe/s
-    const grenze = (dt * TEMPO_MAX * Math.max(von, bis)) / 60;
-    const boden = (dt * TEMPO_MIN * Math.min(von, bis)) / 60;
-    const glueh = p.modus === "gluehwuermchen";
-    const b = blitzBreite(p);
-    // Lage im Durchlauf, wie man sie sieht (der Blitz liegt am Anfang)
-    const psi = a.map((x, g) => this.umlauf[g]! - x.versatz);
-    const u = this.umlauf;
-    const vorher = Float64Array.from(u);   // Schwarm: alle ziehen am Stand vor diesem Schritt
-    const sieht = (i: number, j: number) => j !== i && (p.reichweite <= 0 || Math.abs(a[i]!.platz - a[j]!.platz) <= p.reichweite);
-    const ruht = (i: number) => glueh && psi[i]! - Math.floor(psi[i]!) >= b;
-    const blitze: number[] = [];
-    // Gekoppelt wird der Umlauf: Ein Spiegel "feuert", wenn sein Umlauf voll ist. Ohne Phase ist das
-    // genau sein Blitz, mit Phase blitzt er um seinen Versatz später – so wird aus dem Takt eine Welle.
-    const schiebe = (i: number, d: number) => {
-      // Wer feuert, fängt von vorn an: Stöße aus dem alten Durchlauf verfallen
-      if (Math.floor(u[i]! + d) > Math.floor(u[i]!)) { blitze.push(i); this.schub[i] = 0; }
+  // One step for Swarm and Flash (see above)
+  private couple(p: Parameter, from: number, to: number, dt: number): void {
+    const a = Array.from({ length: MIRRORS_TOTAL }, (_, g) => selection(p, g));
+    const mean = (from + to) / 2 / 60;                     // mean tempo, cycles/s
+    const ceiling = (dt * TEMPO_MAX * Math.max(from, to)) / 60;
+    const floor = (dt * TEMPO_MIN * Math.min(from, to)) / 60;
+    const flash = p.modus === "gluehwuermchen";
+    const b = flashWidth(p);
+    // Position in the cycle as you see it (the flash is at the start)
+    const psi = a.map((x, g) => this.cycles[g]! - x.phaseOffset);
+    const u = this.cycles;
+    const before = Float64Array.from(u);   // Swarm: all pull at the state before this step
+    const sees = (i: number, j: number) => j !== i && (p.reichweite <= 0 || Math.abs(a[i]!.slot - a[j]!.slot) <= p.reichweite);
+    const rests = (i: number) => flash && psi[i]! - Math.floor(psi[i]!) >= b;
+    const fired: number[] = [];
+    // What is coupled is the cycle: a mirror "fires" when its cycle is full. Without phase that is
+    // exactly its flash, with phase it flashes later by its offset – so the beat becomes a wave.
+    const push = (i: number, d: number) => {
+      // Whoever fires starts afresh: kicks from the old cycle expire
+      if (Math.floor(u[i]! + d) > Math.floor(u[i]!)) { fired.push(i); this.kick[i] = 0; }
       psi[i]! += d;
       u[i] += d;
     };
-    // Glühwürmchen in der Ruhe: Schub sofort, aber nur bis zum Feuern und nicht in den sichtbaren Blitz
-    const springe = (i: number) => {
-      if (this.schub[i]! <= 0) return;
-      const bisFeuer = Math.floor(u[i]!) + 1 + 1e-9 - u[i]!, bisBlitz = Math.floor(psi[i]!) + 1 - psi[i]!;
-      const d = Math.min(this.schub[i]!, bisFeuer, bisBlitz);
-      this.schub[i] -= d;
-      schiebe(i, d);
+    // Flash at rest: the kick at once, but only up to firing and not into the visible flash
+    const jump = (i: number) => {
+      if (this.kick[i]! <= 0) return;
+      const toFire = Math.floor(u[i]!) + 1 + 1e-9 - u[i]!, toFlash = Math.floor(psi[i]!) + 1 - psi[i]!;
+      const d = Math.min(this.kick[i]!, toFire, toFlash);
+      this.kick[i] -= d;
+      push(i, d);
     };
-    for (let i = 0; i < SPIEGEL_GESAMT; i++) {
-      const eigen = (dt * (von + (bis - von) * a[i]!.anteil)) / 60;
-      this.tempo[i] = 1 + (this.tempo[i]! - 1) * Math.exp(-dt / ERHOLUNG_S);
-      // Glühwürmchen im Blitz: immer im eigenen Tempo
-      if (glueh && !ruht(i)) { schiebe(i, eigen); continue; }
-      let d = eigen * this.tempo[i]!;
+    for (let i = 0; i < MIRRORS_TOTAL; i++) {
+      const own = (dt * (from + (to - from) * a[i]!.fraction)) / 60;
+      this.tempo[i] = 1 + (this.tempo[i]! - 1) * Math.exp(-dt / RECOVERY_S);
+      // Flash during its flash: always at its own tempo
+      if (flash && !rests(i)) { push(i, own); continue; }
+      let d = own * this.tempo[i]!;
       if (p.modus === "schwarm" && p.kopplung > 0) {
-        let summe = 0, zahl = 0;
-        for (let j = 0; j < SPIEGEL_GESAMT; j++) {
-          if (sieht(i, j)) { summe += Math.sin(2 * Math.PI * (vorher[j]! - vorher[i]!)); zahl++; }
+        let sum = 0, n = 0;
+        for (let j = 0; j < MIRRORS_TOTAL; j++) {
+          if (sees(i, j)) { sum += Math.sin(2 * Math.PI * (before[j]! - before[i]!)); n++; }
         }
-        if (zahl) d += (dt * (p.kopplung / 100) * KOPPLUNG_MAX * mittel * summe) / zahl;
+        if (n) d += (dt * (p.kopplung / 100) * COUPLING_MAX * mean * sum) / n;
       }
-      // Rauschen: weich, über die Plätze zusammenhängend und über die Zeit, immer gleich
-      d += dt * (p.rauschen / 100) * RAUSCHEN_MAX * mittel
-        * rauschen(a[i]!.platz / RAUSCHEN_PLAETZE + 0.37 * Math.floor(i / SPIEGEL_N), RAUSCHEN_TAKT * this.umlaufVon + 11.3);
-      schiebe(i, Math.min(Math.max(d, boden), grenze));
-      // Glühwürmchen: Stöße, die im Blitz ankamen, wirken in der Ruhe danach
-      if (ruht(i)) springe(i);
+      // Noise: smooth, connected across the slots and over time, always the same
+      d += dt * (p.rauschen / 100) * NOISE_MAX * mean
+        * noise(a[i]!.slot / NOISE_SLOTS + 0.37 * Math.floor(i / MIRRORS_PER_ELEMENT), NOISE_RATE * this.referenceCycles + 11.3);
+      push(i, Math.min(Math.max(d, floor), ceiling));
+      // Flash: kicks that arrived during the flash act in the rest after it
+      if (rests(i)) jump(i);
     }
-    if (!glueh || p.kopplung <= 0) return;
-    // Glühwürmchen: Wer geblitzt hat, stößt die anderen an, je voller sie schon sind, desto mehr. Wer ruht,
-    // springt sofort (höchstens bis zum Blitz) und blitzt dann mit; wer gerade blitzt, springt danach.
-    for (let n = 0; n < blitze.length; n++) {
-      const j = blitze[n]!;
-      let zahl = 0;
-      for (let i = 0; i < SPIEGEL_GESAMT; i++) if (sieht(j, i)) zahl++;
-      if (!zahl) continue;
-      const stoss = ((p.kopplung / 100) * STOSS_MAX) / zahl;
-      for (let i = 0; i < SPIEGEL_GESAMT; i++) {
-        if (!sieht(j, i) || blitze.includes(i)) continue;
-        const ladung = u[i]! - Math.floor(u[i]!);   // wie voll der Umlauf ist
-        this.schub[i] += stoss * ladung;
-        // Tempo anpassen: kurz nach dem eigenen Feuern langsamer, kurz davor schneller
+    if (!flash || p.kopplung <= 0) return;
+    // Flash: whoever flashed kicks the others, the fuller they are, the more. Whoever rests jumps at
+    // once (at most up to the flash) and then flashes along; whoever is flashing jumps afterwards.
+    for (let n = 0; n < fired.length; n++) {
+      const j = fired[n]!;
+      let seen = 0;
+      for (let i = 0; i < MIRRORS_TOTAL; i++) if (sees(j, i)) seen++;
+      if (!seen) continue;
+      const kick = ((p.kopplung / 100) * KICK_MAX) / seen;
+      for (let i = 0; i < MIRRORS_TOTAL; i++) {
+        if (!sees(j, i) || fired.includes(i)) continue;
+        const charge = u[i]! - Math.floor(u[i]!);   // how full the cycle is
+        this.kick[i] += kick * charge;
+        // Adapt the tempo: shortly after firing yourself slower, shortly before faster
         this.tempo[i] = Math.min(TEMPO_MAX, Math.max(TEMPO_MIN,
-          this.tempo[i]! - ((p.kopplung / 100) * ANPASSUNG * Math.sin(2 * Math.PI * ladung)) / zahl));
-        if (ruht(i)) springe(i);
+          this.tempo[i]! - ((p.kopplung / 100) * ADAPTATION * Math.sin(2 * Math.PI * charge)) / seen));
+        if (rests(i)) jump(i);
       }
     }
   }
 
-  // Rotation: Drehzahl je Spiegel, die ihn zum Soll-Winkel bringt. Die Breite kann nicht schmaler
-  // werden, als TiltRotate max. erlaubt, sonst käme der Spiegel nie hinterher.
-  private dreheWeiter(p: Parameter, speed: number, dt: number): void {
+  // Rotation: speed per mirror that brings it to its target angle. The width cannot be narrower than
+  // TiltRotate max. allows, otherwise the mirror would never catch up.
+  private rotate(p: Parameter, speed: number, dt: number): void {
     if (dt <= 0) return;
-    const max = this.rotateMaxUpm;
-    const b = Math.max(p.breite / 100, (DREH_SPITZE * speed) / max);
-    for (let g = 0; g < SPIEGEL_GESAMT; g++) {
-      const d = kurzerWeg(drehSoll(p, this.umlauf[g]!, g, b) - this.gedreht[g]!);
-      const upm = Math.min(max, Math.max(-max, d / (6 * dt)));
-      this.drehzahl[g] = upm;
-      this.gedreht[g] = (this.gedreht[g]! + upm * 6 * dt) % 360;
+    const max = this.rotateMaxRpm;
+    const b = Math.max(p.breite / 100, (ROTATION_PEAK * speed) / max);
+    for (let g = 0; g < MIRRORS_TOTAL; g++) {
+      const d = shortestWay(targetAngle(p, this.cycles[g]!, g, b) - this.turned[g]!);
+      const rpm = Math.min(max, Math.max(-max, d / (6 * dt)));
+      this.rpm[g] = rpm;
+      this.turned[g] = (this.turned[g]! + rpm * 6 * dt) % 360;
     }
   }
 
-  // Umlauf setzen wie in der Simulation, die nur die Zähler für "von" und "bis" kennt
-  setzeUmlauf(p: Parameter, von: number, bis: number): void {
-    this.umlaufVon = von;
-    for (let g = 0; g < SPIEGEL_GESAMT; g++) this.umlauf[g] = von + (bis - von) * auswahl(p, g).anteil;
+  // Set the cycles as in the simulation, which only knows the counters for "from" and "to"
+  setCycles(p: Parameter, from: number, to: number): void {
+    this.referenceCycles = from;
+    for (let g = 0; g < MIRRORS_TOTAL; g++) this.cycles[g] = from + (to - from) * selection(p, g).fraction;
   }
 
-  // Stellung des Spiegels g (0 … 35, Element k = g / 12)
-  spiegel(p: Parameter, g: number): Stellung {
-    const k = Math.floor(g / SPIEGEL_N);
-    // Öffnung: zu = 0°, offen = hochkant; Offset und Amplitude gelten hier nicht
+  // Position of mirror g (0 … 35, element k = g / 12)
+  mirror(p: Parameter, g: number): Position {
+    const k = Math.floor(g / MIRRORS_PER_ELEMENT);
+    // Aperture: closed = 0°, open = edge-on; offset and amplitude do not apply here
     if (p.modus === "oeffnung") {
-      return { tilt: 90 * schlitz(p, this.umlaufVon, this.drehung[k] ?? 0, k, g % SPIEGEL_N), upm: 0 };
+      return { tilt: 90 * slit(p, this.referenceCycles, this.elementRotation[k] ?? 0, k, g % MIRRORS_PER_ELEMENT), upm: 0 };
     }
     const offset = p.offsetGetrennt ? (p.offsetElemente[k] ?? p.offset) : p.offset;
     if (p.modus === "rotation") {
-      // Endlos drehen geht nur über TiltRotate, Tilt bleibt auf Offset (mit Gegenlauf gespiegelt)
-      return { tilt: auswahl(p, g).seite * offset, upm: p.laeuft ? this.drehzahl[g]! : 0 };
+      // Turning endlessly only works via TiltRotate, tilt stays on offset (mirrored with counter-motion)
+      return { tilt: selection(p, g).side * offset, upm: p.laeuft ? this.rpm[g]! : 0 };
     }
-    // Gegenlauf spiegelt die linke Hälfte ganz, auch den Offset: aus 30° wird links −30°, sonst wäre
-    // das Bild nur bei Offset 0 symmetrisch. (Der Ausschlag hat seine Seite schon in pattern().)
-    const seite = p.modus === "ruhe" ? 1 : auswahl(p, g).seite;
-    return { tilt: seite * offset + this.pattern(p, g), upm: 0 };
+    // Counter-motion mirrors the left half completely, the offset too: 30° becomes −30° on the left,
+    // otherwise the image would only be symmetric at offset 0. (The deflection has its side in pattern().)
+    const side = p.modus === "ruhe" ? 1 : selection(p, g).side;
+    return { tilt: side * offset + this.pattern(p, g), upm: 0 };
   }
 
-  alle(p: Parameter): Stellung[] {
-    return Array.from({ length: SPIEGEL_GESAMT }, (_, g) => this.spiegel(p, g));
+  all(p: Parameter): Position[] {
+    return Array.from({ length: MIRRORS_TOTAL }, (_, g) => this.mirror(p, g));
   }
 
-  // Ausschlag des Patterns (in Grad)
+  // Deflection of the pattern (degrees)
   private pattern(p: Parameter, g: number): number {
-    const { platz, anzahl, versatz, lage, seite } = auswahl(p, g);
-    const faecher = p.faecher / 100;
-    const A = p.amplitude * (1 - faecher + faecher * lage);
-    const u = this.umlauf[g]!;
+    const { slot, count, phaseOffset, place, side } = selection(p, g);
+    const fan = p.faecher / 100;
+    const A = p.amplitude * (1 - fan + fan * place);
+    const u = this.cycles[g]!;
     switch (p.modus) {
-      // Pendelwelle: jeder Spiegel schwingt mit eigener Frequenz (siehe weiter)
-      case "pendelwelle": return seite * A * Math.sin(2 * Math.PI * u);
-      // Wind: weiches Rauschen über die Spiegel und die Zeit, wiederholt sich nie
-      case "wind": return seite * A * wind(platz / p.wellenlaenge, this.umlaufVon);
-      // Schwarm: Sinus, aber jeder Spiegel mit seinem gekoppelten Umlauf (siehe koppele)
-      case "schwarm": return seite * A * Math.sin(2 * Math.PI * schmal(u - versatz, p.breite / 100));
-      // Glühwürmchen: am Anfang jedes Durchlaufs ein Ausschlag zur Seite und zurück (Breite, höchstens ½)
+      // Pendulum wave: every mirror swings at its own frequency (see advance)
+      case "pendelwelle": return side * A * Math.sin(2 * Math.PI * u);
+      // Wind: smooth noise across the mirrors and over time, never repeats
+      case "wind": return side * A * wind(slot / p.wellenlaenge, this.referenceCycles);
+      // Swarm: sine, but every mirror with its coupled cycles (see couple)
+      case "schwarm": return side * A * Math.sin(2 * Math.PI * narrow(u - phaseOffset, p.breite / 100));
+      // Flash: at the start of every cycle a deflection to the side and back (width, at most ½)
       case "gluehwuermchen": {
-        // (1 − cos) läuft schon weich an und aus, deshalb ohne die Glättung von schmal()
-        const b = blitzBreite(p), x = u - versatz - Math.floor(u - versatz);
-        return x < b ? seite * A * 0.5 * (1 - Math.cos((2 * Math.PI * x) / b)) : 0;
+        // (1 − cos) already starts and ends smoothly, so without the smoothing of narrow()
+        const b = flashWidth(p), x = u - phaseOffset - Math.floor(u - phaseOffset);
+        return x < b ? side * A * 0.5 * (1 - Math.cos((2 * Math.PI * x) / b)) : 0;
       }
-      case "rotation": return 0;   // läuft über TiltRotate, siehe spiegel()
-      case "oeffnung": return 0;   // eigene Rechnung, siehe spiegel()
-      case "ruhe": return 0;       // alle auf Offset, nur Impulse bewegen
+      case "rotation": return 0;   // runs via TiltRotate, see mirror()
+      case "oeffnung": return 0;   // own computation, see mirror()
+      case "ruhe": return 0;       // all on offset, only impulses move
     }
-    // Sinus. Ping-Pong: Das Muster läuft einen Durchlauf lang hin und wieder zurück, bis kurz vor den
-    // letzten Spiegel, damit es am Wendepunkt nicht auf den ersten überspringt
-    const lauf = p.pingpong ? (1 - Math.abs(2 * (((u % 1) + 1) % 1) - 1)) * (1 - 1 / anzahl) : u;
-    // bisherige Laufzeit, verschoben um die Phase, zusammengedrängt auf die Breite
-    return seite * A * Math.sin(2 * Math.PI * schmal(lauf - versatz, p.breite / 100));
+    // Sine. Ping-pong: the pattern runs there and back within one cycle, up to just before the last
+    // mirror, so it does not skip to the first one at the turning point
+    const run = p.pingpong ? (1 - Math.abs(2 * (((u % 1) + 1) % 1) - 1)) * (1 - 1 / count) : u;
+    // cycles so far, shifted by the phase, squeezed into the width
+    return side * A * Math.sin(2 * Math.PI * narrow(run - phaseOffset, p.breite / 100));
   }
 }
 
-// Breite (Width): Der Durchlauf t eines Spiegels wird auf den Anteil b gedrängt, danach steht er bis
-// zum nächsten Durchlauf (Sinus 0 = Offset). Damit er dabei nicht ruckt, läuft das Stück weich an und
-// aus; zwischen 100 % und 90 % wird dorthin übergeblendet, damit Verstellen nicht springt.
-export function schmal(t: number, b: number): number {
+// Width: the cycle t of a mirror is squeezed into the fraction b, then it stands until the next
+// cycle (sine 0 = offset). So it does not jerk, the piece starts and ends smoothly; between 100 % and
+// 90 % it cross-fades there, so adjusting does not jump.
+export function narrow(t: number, b: number): number {
   if (b >= 1) return t;
   const x = t - Math.floor(t);
   if (x >= b) return 0;
   const y = x / b;
-  return y + (weich(y) - y) * Math.min(1, (1 - b) / 0.1);
+  return y + (smooth(y) - y) * Math.min(1, (1 - b) / 0.1);
 }
 
-// Zwei Stellungen überblenden: anteil 0 = a, 1 = b
-export function mische(a: readonly Stellung[], b: readonly Stellung[], anteil: number): Stellung[] {
+// Cross-fade two sets of positions: fraction 0 = a, 1 = b
+export function blend(a: readonly Position[], b: readonly Position[], fraction: number): Position[] {
   return b.map((s, g) => {
     const v = a[g] ?? s;
-    return { tilt: v.tilt + (s.tilt - v.tilt) * anteil, upm: v.upm + (s.upm - v.upm) * anteil };
+    return { tilt: v.tilt + (s.tilt - v.tilt) * fraction, upm: v.upm + (s.upm - v.upm) * fraction };
   });
 }

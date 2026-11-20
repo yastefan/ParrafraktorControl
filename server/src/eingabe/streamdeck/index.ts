@@ -5,7 +5,7 @@
 // Linux/Raspberry Pi: udev-Regel nötig (siehe README).
 import type { DeviceModelId, StreamDeck } from "@elgato-stream-deck/core";
 import {
-  ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI_WAEHLBAR, istOeffnungArt, MODUS_NAME, PARAMETER_VORGABE,
+  ELEMENT_ORDERS, ELEMENT_ORDER_NAME, IMPULSE_NAME, MODES_SELECTABLE, isApertureKind, MODE_NAME, PARAMETER_DEFAULTS,
 } from "@parrafraktor/engine";
 import {
   BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, offsetVerschieden, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
@@ -293,7 +293,7 @@ export class StreamDeckModul implements Eingabemodul {
     if (this.menue === "haupt") {
       switch (taste) {
         case HAUPT.pattern: {
-          const i = Math.max(0, MODI_WAEHLBAR.indexOf(s.parameter.modus));
+          const i = Math.max(0, MODES_SELECTABLE.indexOf(s.parameter.modus));
           return { tippen: () => this.oeffne("pattern", Math.floor(i / PLAETZE.length)) };
         }
         case HAUPT.presets: {
@@ -317,8 +317,8 @@ export class StreamDeckModul implements Eingabemodul {
       const art = IMPULS_ARTEN_TASTEN[taste];
       if (art) return { tippen: () => s.setzeImpuls({ art }) };
       if (taste === TASTE_ELEMENT_FOLGE) {
-        const i = ELEMENT_FOLGEN.indexOf(s.impuls.elementFolge);
-        return { tippen: () => s.setzeImpuls({ elementFolge: ELEMENT_FOLGEN[(i + 1) % ELEMENT_FOLGEN.length] }) };
+        const i = ELEMENT_ORDERS.indexOf(s.impuls.elementFolge);
+        return { tippen: () => s.setzeImpuls({ elementFolge: ELEMENT_ORDERS[(i + 1) % ELEMENT_ORDERS.length] }) };
       }
       if (taste === TASTE_SYMMETRISCH) return { tippen: () => s.setzeImpuls({ symmetrisch: !s.impuls.symmetrisch }) };
       if (taste === TASTE_IMPULS_REGLER) {
@@ -326,11 +326,11 @@ export class StreamDeckModul implements Eingabemodul {
       }
       return undefined;
     }
-    const anzahl = this.menue === "pattern" ? MODI_WAEHLBAR.length : PRESET_ANZAHL;
+    const anzahl = this.menue === "pattern" ? MODES_SELECTABLE.length : PRESET_ANZAHL;
     if (taste === TASTE_SEITE) return { tippen: () => { this.seite = (this.seite + 1) % seitenAnzahl(anzahl); } };
     const i = eintragAuf(this.seite, taste, anzahl);
     if (i === undefined) return undefined;
-    if (this.menue === "pattern") return { tippen: () => s.waehlePattern(MODI_WAEHLBAR[i]!) };
+    if (this.menue === "pattern") return { tippen: () => s.waehlePattern(MODES_SELECTABLE[i]!) };
     return {
       tippen: () => s.rufePresetAuf(i),
       halten: {
@@ -367,7 +367,7 @@ export class StreamDeckModul implements Eingabemodul {
   private impulsRegler(index: number) {
     const name = IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.regler[index];
     // Loch und Iris haben statt der Breite eine Größe
-    return name === "breite" && istOeffnungArt(this.steuerung.impuls.art) ? "groesse" : name;
+    return name === "breite" && isApertureKind(this.steuerung.impuls.art) ? "groesse" : name;
   }
 
   private drehe(index: number, schritte: number): void {
@@ -478,7 +478,7 @@ export class StreamDeckModul implements Eingabemodul {
     if (!r) return;
     if (r.art === "zahl") this.steuerung.vorgabe(r.name);
     else if (r.art === "schalter") this.steuerung.schalte(r.name);
-    else this.steuerung.setze({ [r.name]: PARAMETER_VORGABE[r.name] });
+    else this.steuerung.setze({ [r.name]: PARAMETER_DEFAULTS[r.name] });
   }
 
   // x: 0 = links … 1 = rechts
@@ -568,12 +568,12 @@ export class StreamDeckModul implements Eingabemodul {
     }
     if (this.menue === "haupt") {
       switch (taste) {
-        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODUS_NAME[parameter.modus], ...menueTaste(TON.pattern) };
+        case HAUPT.pattern: return { titel: "Pattern ›", unter: MODE_NAME[parameter.modus], ...menueTaste(TON.pattern) };
         case HAUPT.presets: {
           const p = letztesPreset === null ? null : presets[letztesPreset];
           return { titel: "Presets ›", unter: p?.name ?? "–", ...menueTaste(TON.presets) };
         }
-        case HAUPT.impulse: return { titel: "Impulses ›", unter: IMPULS_NAME[this.steuerung.impuls.art], ...menueTaste(TON.impulse) };
+        case HAUPT.impulse: return { titel: "Impulses ›", unter: IMPULSE_NAME[this.steuerung.impuls.art], ...menueTaste(TON.impulse) };
         // Auto läuft: voll leuchtend wie der Rahmen im Client, darunter der aktuelle Look
         case HAUPT.auto: {
           const s = this.steuerung;
@@ -613,16 +613,16 @@ export class StreamDeckModul implements Eingabemodul {
       if (art) {
         // gewählte Art hell, laufende mit hellem Rahmen
         const laeuft = this.steuerung.impulse().some((i) => i.art === art);
-        return eintrag(IMPULS_NAME[art], e.art === art, laeuft && e.art !== art ? { rahmen: ton.hell } : {});
+        return eintrag(IMPULSE_NAME[art], e.art === art, laeuft && e.art !== art ? { rahmen: ton.hell } : {});
       }
-      if (taste === TASTE_ELEMENT_FOLGE) return eintrag("Elements", false, { unter: ELEMENT_FOLGE_NAME[e.elementFolge] });
+      if (taste === TASTE_ELEMENT_FOLGE) return eintrag("Elements", false, { unter: ELEMENT_ORDER_NAME[e.elementFolge] });
       if (taste === TASTE_SYMMETRISCH) return eintrag("Symmetric", e.symmetrisch, { unter: e.symmetrisch ? "on" : "off" });
       if (taste === TASTE_IMPULS_REGLER) {
         return eintrag("Controls ›", false, { unter: IMPULS_REGLER_SEITEN[this.impulsReglerSeite]?.name });
       }
       return { titel: "" };
     }
-    const anzahl = this.menue === "pattern" ? MODI_WAEHLBAR.length : PRESET_ANZAHL;
+    const anzahl = this.menue === "pattern" ? MODES_SELECTABLE.length : PRESET_ANZAHL;
     if (taste === TASTE_SEITE) {
       return seitenAnzahl(anzahl) > 1
         ? eintrag("Page ›", false, { unter: `${this.seite + 1}/${seitenAnzahl(anzahl)}` })
@@ -630,7 +630,7 @@ export class StreamDeckModul implements Eingabemodul {
     }
     const i = eintragAuf(this.seite, taste, anzahl);
     if (i === undefined) return { titel: "" };
-    if (this.menue === "pattern") return eintrag(MODUS_NAME[MODI_WAEHLBAR[i]!], parameter.modus === MODI_WAEHLBAR[i]);
+    if (this.menue === "pattern") return eintrag(MODE_NAME[MODES_SELECTABLE[i]!], parameter.modus === MODES_SELECTABLE[i]);
     const p = presets[i];
     const gespeichert = this.gespeichert?.nr === i && Date.now() < this.gespeichert.bis;
     if (!p) return { titel: String(i + 1), unter: gespeichert ? "stored" : haelt ?? "empty · hold", leise: true, grund: FARBE.feld };
@@ -675,7 +675,7 @@ export class StreamDeckModul implements Eingabemodul {
     }
     if (this.menue === "impulse") {
       const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite];
-      return { name: `${seite?.name ?? ""} · Strip: ${IMPULS_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
+      return { name: `${seite?.name ?? ""} · Strip: ${IMPULSE_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
     }
     if (this.offsetModus()) return { name: "Offset per element · hold to leave", ton: TON.bewegung };
     const { seite, nr, anzahl } = this.aktuelleSeite();

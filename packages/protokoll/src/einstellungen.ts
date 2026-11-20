@@ -1,6 +1,6 @@
 // Einstellungen des Servers: Patch, Ausgaben, Überblendung. Werden im Einstellungsmenü des Clients
 // bearbeitet und auf dem Server als JSON gespeichert.
-import { ADRESSE_MAX, ELEMENTE, PATCH_VORGABE, type ImpulsWinkel, type PatchElement } from "@parrafraktor/engine";
+import { ADDRESS_MAX, ELEMENTS, PATCH_DEFAULTS, type ImpulseAngles, type PatchElement } from "@parrafraktor/engine";
 
 export interface ArtnetEinstellungen {
   an: boolean;
@@ -48,7 +48,7 @@ export interface Einstellungen {
   rotateMaxUpm: number;    // Umdrehungen pro Minute bei TiltRotate 0 bzw. 255
   ueberblendungS: number;  // Überblendung beim Übernehmen und Abgeben, 0 = springen
   // Impulse: Tilt in Grad für Flash auf (Licht von hinten) und Flash zu (Licht von außen),
-  flash: ImpulsWinkel;
+  flash: ImpulseAngles;
   artnet: ArtnetEinstellungen;
   sacn: SacnEinstellungen;
   rs485: Rs485Einstellungen;
@@ -58,7 +58,7 @@ export interface Einstellungen {
 export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
   // vorn senkrecht, Mitte diagonal, hinten waagerecht
   aufbau: { anordnung: "reihe", drehung: [0, 45, 90] },
-  patch: PATCH_VORGABE.map((e) => ({ ...e })),
+  patch: PATCH_DEFAULTS.map((e) => ({ ...e })),
   // Platzhalter, bis die Drehzahl der Spiegel-Firmware bekannt ist – bewusst langsam
   rotateMaxUpm: 10,
   ueberblendungS: 2,
@@ -72,7 +72,7 @@ export const EINSTELLUNGEN_VORGABE: Readonly<Einstellungen> = {
 
 export const GRENZEN = {
   universe: { min: 1, max: 63999 },
-  adresse: { min: 1, max: ADRESSE_MAX },
+  adresse: { min: 1, max: ADDRESS_MAX },
   rotateMaxUpm: { min: 1, max: 60 },
   ueberblendungS: { min: 0, max: 10 },
   priority: { min: 1, max: 200 },
@@ -101,8 +101,8 @@ const text = (x: unknown, alt: string): string => (typeof x === "string" && x.tr
 export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTELLUNGEN_VORGABE): Einstellungen {
   const r = objekt(roh);
   const rohPatch = Array.isArray(r.patch) ? r.patch : [];
-  const patch = Array.from({ length: ELEMENTE }, (_, k) => {
-    const alt = basis.patch[k] ?? PATCH_VORGABE[k]!;
+  const patch = Array.from({ length: ELEMENTS }, (_, k) => {
+    const alt = basis.patch[k] ?? PATCH_DEFAULTS[k]!;
     const e = objekt(rohPatch[k]);
     return { universe: zahl(e.universe, alt.universe, GRENZEN.universe), adresse: zahl(e.adresse, alt.adresse, GRENZEN.adresse) };
   });
@@ -111,7 +111,7 @@ export function pruefeEinstellungen(roh: unknown, basis: Einstellungen = EINSTEL
   const rohDrehung = Array.isArray(au.drehung) ? au.drehung : [];
   const aufbau: Aufbau = {
     anordnung: ANORDNUNGEN.includes(au.anordnung as Anordnung) ? (au.anordnung as Anordnung) : basis.aufbau.anordnung,
-    drehung: Array.from({ length: ELEMENTE }, (_, k) =>
+    drehung: Array.from({ length: ELEMENTS }, (_, k) =>
       zahl(rohDrehung[k], basis.aufbau.drehung[k] ?? 0, GRENZEN.drehung)),
   };
   return {

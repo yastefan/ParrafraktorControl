@@ -1,7 +1,7 @@
 // Einstellung der Impulse (Art, Hüllkurve, Element-Folge, Ausbreitung): Wertebereiche und Prüfung.
 // Gespeichert in daten/impuls.json, bearbeitet im Client und an den Drehreglern des Stream Decks.
 import {
-  ELEMENT_FOLGEN, IMPULS_VORGABE, istImpulsArt, type ElementFolge, type ImpulsEinstellung,
+  ELEMENT_ORDERS, IMPULSE_DEFAULTS, isImpulseKind, type ElementOrder, type ImpulseSettings,
 } from "@parrafraktor/engine";
 import type { Bereich } from "./parameter.js";
 
@@ -40,27 +40,27 @@ type InHuelle = "attackS" | "sustainS" | "releaseS" | "staerke";
 const inHuelle = (name: ImpulsRegler): name is InHuelle =>
   name === "attackS" || name === "sustainS" || name === "releaseS" || name === "staerke";
 
-export const impulsWert = (e: ImpulsEinstellung, name: ImpulsRegler): number =>
+export const impulsWert = (e: ImpulseSettings, name: ImpulsRegler): number =>
   inHuelle(name) ? e.huelle[name] : e[name];
 
-export function mitImpulsWert(e: ImpulsEinstellung, name: ImpulsRegler, wert: number): ImpulsEinstellung {
+export function mitImpulsWert(e: ImpulseSettings, name: ImpulsRegler, wert: number): ImpulseSettings {
   const w = begrenzeImpuls(name, wert);
   return inHuelle(name) ? { ...e, huelle: { ...e.huelle, [name]: w } } : { ...e, [name]: w };
 }
 
-const istFolge = (x: unknown): x is ElementFolge => (ELEMENT_FOLGEN as readonly unknown[]).includes(x);
+const istFolge = (x: unknown): x is ElementOrder => (ELEMENT_ORDERS as readonly unknown[]).includes(x);
 
 // Teilstück (Nachricht, Datei) über die bisherige Einstellung legen; Ungültiges wird ignoriert
-export function pruefeImpuls(roh: unknown, basis: ImpulsEinstellung = IMPULS_VORGABE): ImpulsEinstellung {
+export function pruefeImpuls(roh: unknown, basis: ImpulseSettings = IMPULSE_DEFAULTS): ImpulseSettings {
   const r = typeof roh === "object" && roh !== null ? (roh as Record<string, unknown>) : {};
   const h = typeof r.huelle === "object" && r.huelle !== null ? (r.huelle as Record<string, unknown>) : {};
-  let e: ImpulsEinstellung = { ...basis, huelle: { ...basis.huelle } };
+  let e: ImpulseSettings = { ...basis, huelle: { ...basis.huelle } };
   for (const name of IMPULS_REGLER) {
     const x = inHuelle(name) ? h[name] : r[name];
     if (typeof x === "number" && Number.isFinite(x)) e = mitImpulsWert(e, name, x);
   }
   if (istFolge(r.elementFolge)) e.elementFolge = r.elementFolge;
-  if (istImpulsArt(r.art)) e.art = r.art;
+  if (isImpulseKind(r.art)) e.art = r.art;
   if (typeof r.symmetrisch === "boolean") e.symmetrisch = r.symmetrisch;
   return e;
 }
