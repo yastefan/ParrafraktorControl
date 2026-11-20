@@ -1,5 +1,6 @@
-/* HUD-Optik: dunkel, weil die App neben der Bühne läuft; alles passt ohne Scrollen auf eine Fläche.
-   Jeder Bereich hat seine Neonfarbe wie am Stream Deck (--akzent je Modul). Große Ziele für Finger am iPad. */
+/* HUD look: dark, because the app runs next to the stage; everything fits on one screen without scrolling.
+   Every area has its neon colour as on the Stream Deck (--akzent per module). Large targets for fingers on the iPad.
+   Class names and custom properties are still German (some are built from saved view values). */
 :root {
   --grund: #05040a;
   --flaeche: #0d0b16;
@@ -8,11 +9,11 @@
   --linie: #2a2540;
   --text: #dff8ff;
   --leise: #8195ad;
-  --cyan: #00e5ff;      /* Pattern, Vorschau */
+  --cyan: #00e5ff;      /* pattern, preview */
   --gruen: #39ff88;     /* Presets */
-  --magenta: #ff2bd6;   /* Impulse */
-  --gelb: #ffe14d;      /* Bewegung */
-  --violett: #a46bff;   /* Verteilung */
+  --magenta: #ff2bd6;   /* impulses */
+  --gelb: #ffe14d;      /* motion */
+  --violett: #a46bff;   /* distribution */
   --akzent: var(--cyan);
   --live: #ff1f4f;
   --blenden: #ff8a1f;
@@ -39,7 +40,7 @@ html, body {
 }
 
 body {
-  /* kein Markieren und kein Zoomen beim schnellen Tippen */
+  /* no selecting and no zooming on fast taps */
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
@@ -64,7 +65,7 @@ button { border-radius: 0; }
     calc(env(safe-area-inset-bottom) + 10px) calc(env(safe-area-inset-left) + 10px);
 }
 
-/* ---------- Kopf ---------- */
+/* ---------- Header ---------- */
 
 .kopf {
   display: flex;
@@ -116,7 +117,7 @@ button { border-radius: 0; }
   display: grid; place-items: center; padding: 0 4px;
 }
 
-/* Output (intern Übernahme): Halten füllt den Knopf von links. Aus = nur Rahmen, an = voll. */
+/* Output (internally takeover): holding fills the button from the left. Off = only frame, on = full. */
 .halt {
   min-height: 40px;
   min-width: 230px;
@@ -162,7 +163,7 @@ button { border-radius: 0; }
   background: color-mix(in srgb, var(--akzent) 7%, #0a0814);
   clip-path: polygon(0 0, calc(100% - var(--ecke)) 0, 100% var(--ecke), 100% 100%, var(--ecke) 100%, 0 calc(100% - var(--ecke)));
 }
-/* Rahmen: gleiche Form, innen ausgeschnitten */
+/* frame: same shape, cut out inside */
 .modul::before {
   content: "";
   position: absolute; inset: 0;
@@ -176,7 +177,7 @@ button { border-radius: 0; }
     calc(100% - var(--r)) calc(100% - var(--r)), calc(100% - var(--r)) calc(var(--ecke) + var(--r) * 0.5), calc(100% - var(--ecke) - var(--r) * 0.5) var(--r), var(--r) var(--r)
   );
 }
-/* Auto läuft: dicker, leuchtender Rahmen, der langsam atmet */
+/* Auto running: thick, glowing frame that breathes slowly */
 .modul.auto-an::before { --r: 3px; opacity: 1; z-index: 2; }
 .modul.auto-an::after {
   content: "";
@@ -216,7 +217,7 @@ button { border-radius: 0; }
 .aktion.haken.aktiv { background: var(--akzent); color: var(--grund); box-shadow: none; font-weight: 700; }
 .modul-inhalt { flex: 1; min-height: 0; padding: 4px 10px 10px; display: flex; flex-direction: column; }
 
-/* ---------- Pult ---------- */
+/* ---------- Desk ---------- */
 
 .pult { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; position: relative; }
 .pult-oben { flex: 1.12 1 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 8px; }
@@ -227,7 +228,7 @@ button { border-radius: 0; }
 .pult-rechts .m-presets { flex: 1; }
 .pult > .m-impulse { flex: none; height: 116px; }
 
-/* ---------- Vorschau ---------- */
+/* ---------- Preview ---------- */
 
 .m-vorschau .modul-inhalt { padding: 2px 6px 6px; }
 .vorschau-rahmen { position: relative; flex: 1; min-height: 0; background: #040308; overflow: hidden; }
@@ -246,7 +247,7 @@ button { border-radius: 0; }
 }
 .vorschau-zoom input[type="range"] { flex: 1; min-width: 0; height: 30px; }
 .vorschau-zoom output { min-width: 32px; text-align: right; color: var(--text); }
-.nebel .vorschau-zoom { top: 4px; bottom: auto; width: min(270px, 48%); }   /* unten steht die Lampe */
+.nebel .vorschau-zoom { top: 4px; bottom: auto; width: min(270px, 48%); }   /* the lamp is at the bottom */
 .nebel .vorschau-tiefe { top: 36px; }
 .nebel .vorschau-zoom output { min-width: 74px; }
 .vorschau-seite { position: absolute; right: 8px; bottom: 8px; z-index: 1; align-items: center; }
@@ -257,7 +258,7 @@ button { border-radius: 0; }
 .umschalter button { min-height: 34px; padding: 0 10px; border: none; background: transparent; color: var(--leise); cursor: pointer; }
 .umschalter button.aktiv { background: var(--akzent); color: var(--grund); font-weight: 700; }
 
-/* ---------- Pattern und Presets ---------- */
+/* ---------- Pattern and presets ---------- */
 
 .patterns { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(36px, 1fr); gap: 4px; }
 .pattern {
@@ -297,7 +298,7 @@ button { border-radius: 0; }
   transform-origin: left;
 }
 .halt-preset.haelt::before { transform: scaleX(1); transition: transform var(--dauer) linear; }
-/* Auswahl für Auto: Marke oben rechts, nicht ausgewählte treten zurück */
+/* selection for Auto: mark top right, unselected ones step back */
 .preset.gewaehlt::after {
   content: ""; position: absolute; top: 5px; right: 5px; width: 8px; height: 8px;
   background: var(--akzent);
@@ -313,7 +314,7 @@ button { border-radius: 0; }
 }
 .preset-loeschen { border: none; background: transparent; color: var(--schlecht); font-size: 20px; width: 36px; cursor: pointer; }
 
-/* ---------- Bewegung: Fader ---------- */
+/* ---------- Motion: faders ---------- */
 
 .bank { flex: 1; min-height: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 5px; }
 .fader {
@@ -326,7 +327,7 @@ button { border-radius: 0; }
 .bank.dicht .fader-name { font-size: 9px; }
 .bank.dicht .fader-wert { font-size: 10px; }
 .fader-wert { flex: none; max-width: 100%; font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; }
-/* Das ganze Feld ist Griff, nicht nur die Spur */
+/* the whole field is the handle, not only the track */
 .fader-feld { flex: 1; min-height: 0; width: 100%; display: flex; justify-content: center; padding: 5px 0; touch-action: none; cursor: ns-resize; outline: none; }
 .fader-feld.gesperrt { opacity: 0.4; cursor: default; }
 .fader-feld:focus-visible .fader-spur { outline: 1px solid var(--akzent); outline-offset: 3px; }
@@ -339,7 +340,7 @@ button { border-radius: 0; }
 .fader-griff { position: absolute; left: -8px; right: -8px; height: 6px; margin-bottom: -3px; background: #fff; }
 .schloss { border: 1px solid var(--linie); background: transparent; color: var(--leise); font-size: 9px; padding: 0 3px; min-height: 18px; cursor: pointer; }
 .schloss.offen { color: var(--akzent); border-color: var(--akzent); }
-/* Elemente haben verschiedene Offsets, auch wenn zugeklappt: Knopf und Marken auf der Spur */
+/* elements have different offsets, also when collapsed: knob and marks on the track */
 .schloss.verschieden:not(.offen) { color: var(--grund); background: var(--akzent); border-color: var(--akzent); }
 .fader-marke {
   position: absolute; left: calc(100% + 4px); height: 12px; margin-bottom: -6px; padding: 0 2px;
@@ -349,7 +350,7 @@ button { border-radius: 0; }
   content: ""; position: absolute; right: 100%; top: 5px; width: 6px; height: 2px; background: var(--akzent);
 }
 
-/* ---------- Verteilung ---------- */
+/* ---------- Distribution ---------- */
 
 .verteilung { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 5px; }
 .stufen { display: flex; flex-direction: column; gap: 2px; min-height: 0; }
@@ -374,7 +375,7 @@ button { border-radius: 0; }
 .stufe.aktiv { background: var(--akzent); color: var(--grund); font-weight: 700; }
 .schalter-reihe { flex: 1 1 28px; min-height: 26px; max-height: 40px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; }
 
-/* ---------- Impulse ---------- */
+/* ---------- Impulses ---------- */
 
 .impulse { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr) 240px 220px; gap: 10px; }
 .arten { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
@@ -417,7 +418,7 @@ button { border-radius: 0; }
 .band-regler input[type="range"] { height: 22px; }
 .band-regler output { text-align: right; color: var(--text); white-space: nowrap; }
 
-/* Aufklappfenster über dem Band; außerhalb des Moduls, weil dessen Form es abschneiden würde */
+/* pop-up above the band; outside the module, because its shape would clip it */
 .impuls-mehr {
   --akzent: var(--magenta);
   position: absolute; right: 0; bottom: 124px; z-index: 5;
@@ -433,7 +434,7 @@ button { border-radius: 0; }
 .impuls-mehr .band-regler { grid-template-columns: 62px minmax(0, 1fr) 56px; }
 .impuls-mehr .band-regler input[type="range"] { height: 32px; }
 
-/* ---------- Waagrechte Regler ---------- */
+/* ---------- Horizontal sliders ---------- */
 
 input[type="range"] {
   -webkit-appearance: none;
@@ -466,7 +467,7 @@ input[type="range"]::-moz-range-thumb {
   border: none;
 }
 
-/* ---------- Einstellungen ---------- */
+/* ---------- Settings ---------- */
 
 .schicht {
   position: fixed; inset: 0;
@@ -493,7 +494,7 @@ input[type="range"]::-moz-range-thumb {
 
 .gruppe { background: var(--flaeche); border-left: 2px solid var(--cyan); padding: 4px 14px 12px; margin: 10px 0; }
 .gruppe h3 { font-size: 12px; text-transform: uppercase; color: var(--cyan); margin: 12px 0 4px; font-weight: 700; }
-/* Autostart output an: die MA kommt nach einem Neustart nicht mehr an die Spiegel – nicht zu übersehen */
+/* Autostart output on: the MA no longer gets the mirrors after a restart – impossible to miss */
 .gruppe.warnung { border-left-color: var(--live); background: #2a0612; }
 .gruppe.warnung h3 { color: var(--live); }
 .autostart {
@@ -543,14 +544,14 @@ input[type="range"]::-moz-range-thumb {
 .module li { display: flex; align-items: baseline; gap: 8px; padding: 8px 0; flex-wrap: wrap; }
 .module .punkt { transform: translateY(-1px); }
 
-/* Wenig Höhe: Presets und Vorschau brauchen sie dringender als die Fader */
+/* little height: presets and preview need it more than the faders */
 @media (max-height: 740px) {
   .pult-oben { flex-grow: 1.35; }
   .pult > .m-impulse { height: 104px; }
   .impuls-mehr { bottom: 112px; }
 }
 
-/* ---------- Schmale oder niedrige Fenster: untereinander, hier darf gescrollt werden ---------- */
+/* ---------- Narrow or low windows: stacked, scrolling allowed here ---------- */
 
 @media (max-width: 999px), (max-height: 619px) {
   .app { height: auto; min-height: 100vh; overflow: visible; }

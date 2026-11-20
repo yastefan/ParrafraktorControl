@@ -1,287 +1,287 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { laden, useLaden } from "./laden.js";
-import { Einstellungen } from "./teile/einstellungen.js";
-import { Impulse } from "./teile/impulse.js";
-import { Kopf } from "./teile/kopf.js";
-import { Patterns } from "./teile/patterns.js";
-import { Presets } from "./teile/presets.js";
-import { Bewegung, Verteilung, hatVerteilung } from "./teile/regler.js";
-import { Modul } from "./teile/modul.js";
-import { NEBEL_LAMPE_VORGABE, NEBEL_TIEFE, NEBEL_ZOOM_VORGABE, type NebelLampe, type SpiegelSeite } from "./nebel.js";
-import { LAMPE_VORGABE, Vorschau, ZOOM, type Ansicht, type VorderModus } from "./vorschau.js";
+import { appState, useAppState } from "./app-state.js";
+import { SettingsPanel } from "./components/settings.js";
+import { Impulses } from "./components/impulse.js";
+import { Header } from "./components/header.js";
+import { Patterns } from "./components/patterns.js";
+import { Presets } from "./components/presets.js";
+import { Motion, Distribution, hasDistribution } from "./components/controls.js";
+import { Module } from "./components/module.js";
+import { HAZE_LAMP_DEFAULT, HAZE_DEPTH, HAZE_ZOOM_DEFAULT, type HazeLamp, type MirrorSide } from "./haze.js";
+import { LAMP_DEFAULT, Preview, ZOOM, type View, type FrontMode } from "./preview.js";
 
 export function App() {
-  const l = useLaden();
-  const [einstellungen, setEinstellungen] = useState(false);
+  const l = useAppState();
+  const [settings, setSettings] = useState(false);
   const p = l.parameter;
-  const live = l.stand?.uebernahme.zustand !== undefined && l.stand.uebernahme.zustand !== "aus";
+  const live = l.state?.uebernahme.zustand !== undefined && l.state.uebernahme.zustand !== "aus";
 
   return (
     <div class={`app ${live ? "live" : ""}`}>
-      <Kopf beiEinstellungen={() => setEinstellungen(true)} />
-      {!l.bedienbar && <Hinweis />}
-      <main class={`pult ${p && !hatVerteilung(p) ? "ohne-verteilung" : ""} ${p?.modus === "oeffnung" ? "bahn" : ""}`}>
+      <Header onSettings={() => setSettings(true)} />
+      {!l.usable && <Hint />}
+      <main class={`pult ${p && !hasDistribution(p) ? "ohne-verteilung" : ""} ${p?.modus === "oeffnung" ? "bahn" : ""}`}>
         <div class="pult-oben">
-          <VorschauFlaeche />
+          <PreviewArea />
           <div class="pult-rechts">
-            {p && <Patterns modus={p.modus} />}
+            {p && <Patterns mode={p.modus} />}
             <Presets />
           </div>
         </div>
         <div class="pult-mitte">
-          {p && <Bewegung parameter={p} />}
-          {p && hatVerteilung(p) && <Verteilung parameter={p} />}
+          {p && <Motion parameter={p} />}
+          {p && hasDistribution(p) && <Distribution parameter={p} />}
         </div>
-        {l.stand && <Impulse />}
+        {l.state && <Impulses />}
       </main>
-      {einstellungen && l.stand && <Einstellungen stand={l.stand} schliessen={() => setEinstellungen(false)} />}
+      {settings && l.state && <SettingsPanel state={l.state} close={() => setSettings(false)} />}
     </div>
   );
 }
 
-function Hinweis() {
-  const l = useLaden();
-  const text = l.stand
+function Hint() {
+  const l = useAppState();
+  const text = l.state
     ? "No connection to the server – reconnecting …"
     : "Connecting to the server …";
-  return <div class={`hinweis ${l.verbindung}`}>{text}</div>;
+  return <div class={`hinweis ${l.connection}`}>{text}</div>;
 }
 
-// Ansicht und Spiegel/Licht in der Vorderansicht: nur für dieses Gerät, deshalb im Browser gemerkt
-const MODUS_SCHLUESSEL = "parrafraktor.vorderModus";
-const ANSICHT_SCHLUESSEL = "parrafraktor.ansicht";
-const PHASER_ELEMENTE_SCHLUESSEL = "parrafraktor.phaserElemente";
-const ANSICHT_NAME: Record<Ansicht, string> = { bild: "Simple", phaser: "Phaser", reflexion: "Reflection" };
+// View and mirror/light in the front view: only for this device, so remembered in the browser
+const MODE_KEY = "parrafraktor.vorderModus";
+const VIEW_KEY = "parrafraktor.ansicht";
+const PHASER_ELEMENTS_KEY = "parrafraktor.phaserElemente";
+const VIEW_NAME: Record<View, string> = { bild: "Simple", phaser: "Phaser", reflexion: "Reflection" };
 
-const LAMPE_SCHLUESSEL = "parrafraktor.lampe";
-const ZOOM_SCHLUESSEL = "parrafraktor.zoom";
-const NEBEL_SCHLUESSEL = "parrafraktor.nebel";
-const NEBEL_LAMPE_SCHLUESSEL = "parrafraktor.nebelLampeVorn";   // neuer Name: Vorgabe ist jetzt vor den Elementen
-const NEBEL_ZOOM_SCHLUESSEL = "parrafraktor.nebelZoom";
-const NEBEL_SEITE_SCHLUESSEL = "parrafraktor.nebelSeiteVorn";
-const SEITE_NAME: Record<SpiegelSeite, string> = { hinten: "Back", vorn: "Front", beide: "Both" };
-function leseZoom(schluessel = ZOOM_SCHLUESSEL, vorgabe: number = ZOOM.vorgabe): number {
-  const z = Number(lese(schluessel));
-  return lese(schluessel) !== null && Number.isFinite(z) ? Math.min(ZOOM.max, Math.max(ZOOM.min, z)) : vorgabe;
+const LAMP_KEY = "parrafraktor.lampe";
+const ZOOM_KEY = "parrafraktor.zoom";
+const HAZE_KEY = "parrafraktor.nebel";
+const HAZE_LAMP_KEY = "parrafraktor.nebelLampeVorn";   // new name: the default is now in front of the elements
+const HAZE_ZOOM_KEY = "parrafraktor.nebelZoom";
+const HAZE_SIDE_KEY = "parrafraktor.nebelSeiteVorn";
+const SIDE_NAME: Record<MirrorSide, string> = { hinten: "Back", vorn: "Front", beide: "Both" };
+function readZoom(storageKey = ZOOM_KEY, fallback: number = ZOOM.default): number {
+  const z = Number(read(storageKey));
+  return read(storageKey) !== null && Number.isFinite(z) ? Math.min(ZOOM.max, Math.max(ZOOM.min, z)) : fallback;
 }
-function leseNebelLampe(): NebelLampe {
+function readHazeLamp(): HazeLamp {
   try {
-    const l = JSON.parse(lese(NEBEL_LAMPE_SCHLUESSEL) ?? "null");
+    const l = JSON.parse(read(HAZE_LAMP_KEY) ?? "null");
     if (Number.isFinite(l?.x) && Number.isFinite(l?.y) && Number.isFinite(l?.z)) return { x: l.x, y: l.y, z: l.z };
   } catch { /* Vorgabe */ }
-  return { ...NEBEL_LAMPE_VORGABE };
+  return { ...HAZE_LAMP_DEFAULT };
 }
-// Tiefe lesbar: bezogen auf das vorderste (z = 1) und hinterste Element (z = 0)
-const tiefeText = (z: number): string =>
+// Readable depth: relative to the frontmost (z = 1) and the backmost element (z = 0)
+const depthText = (z: number): string =>
   z >= 1 ? `${(z - 1).toFixed(1)} m in front` : z <= 0 ? `${(-z).toFixed(1)} m behind` : "inside";
-function leseSeite(): SpiegelSeite {
-  const s = lese(NEBEL_SEITE_SCHLUESSEL);
+function readSide(): MirrorSide {
+  const s = read(HAZE_SIDE_KEY);
   return s === "hinten" || s === "beide" ? s : "vorn";
 }
-function leseLampe(): { x: number; y: number } {
+function readLamp(): { x: number; y: number } {
   try {
-    const l = JSON.parse(lese(LAMPE_SCHLUESSEL) ?? "null");
+    const l = JSON.parse(read(LAMP_KEY) ?? "null");
     if (Number.isFinite(l?.x) && Number.isFinite(l?.y)) return { x: l.x, y: l.y };
   } catch { /* Vorgabe */ }
-  return { ...LAMPE_VORGABE };
+  return { ...LAMP_DEFAULT };
 }
-// "licht" hieß früher der Modus, den jetzt Bühne ersetzt
-function leseModus(): VorderModus {
-  const m = lese(MODUS_SCHLUESSEL);
+// "licht" was the name of the mode that Stage replaces now
+function readMode(): FrontMode {
+  const m = read(MODE_KEY);
   return m === "licht" || m === "buehne" ? "buehne" : m === "waerme" ? "waerme" : "spiegel";
 }
-const MODUS_NAME: Record<VorderModus, string> = { spiegel: "Mirror", buehne: "Stage", waerme: "Thermal" };
-function lese(schluessel: string): string | null {
+const MODE_NAME: Record<FrontMode, string> = { spiegel: "Mirror", buehne: "Stage", waerme: "Thermal" };
+function read(storageKey: string): string | null {
   try {
-    return localStorage.getItem(schluessel);
+    return localStorage.getItem(storageKey);
   } catch {
     return null;
   }
 }
-function merke(schluessel: string, wert: string): void {
-  try { localStorage.setItem(schluessel, wert); } catch { /* ohne Speicher eben nur für jetzt */ }
+function remember(storageKey: string, value: string): void {
+  try { localStorage.setItem(storageKey, value); } catch { /* without storage just for now */ }
 }
 
-function VorschauFlaeche() {
-  const l = useLaden();
+function PreviewArea() {
+  const l = useAppState();
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [modus, setModus] = useState<VorderModus>(leseModus);
-  const [ansicht, setAnsicht] = useState<Ansicht>(() => {
-    const a = lese(ANSICHT_SCHLUESSEL);
+  const [mode, setMode] = useState<FrontMode>(readMode);
+  const [view, setView] = useState<View>(() => {
+    const a = read(VIEW_KEY);
     return a === "phaser" || a === "reflexion" ? a : "bild";
   });
-  const [phaserElemente, setPhaserElemente] = useState(() => lese(PHASER_ELEMENTE_SCHLUESSEL) === "ja");
-  const phaserElementeRef = useRef(phaserElemente);
-  phaserElementeRef.current = phaserElemente;
-  const modusRef = useRef(modus);
-  modusRef.current = modus;
-  const ansichtRef = useRef(ansicht);
-  ansichtRef.current = ansicht;
-  const vorschau = useRef<Vorschau>();
-  const [zoom, setZoom] = useState(() => leseZoom());
-  const [nebel, setNebel] = useState(() => lese(NEBEL_SCHLUESSEL) === "ja");
-  const nebelRef = useRef(nebel);
-  nebelRef.current = nebel;
-  const [nebelZoom, setNebelZoom] = useState(() => leseZoom(NEBEL_ZOOM_SCHLUESSEL, NEBEL_ZOOM_VORGABE));
-  const [seite, setSeite] = useState<SpiegelSeite>(leseSeite);
-  const [tiefe, setTiefe] = useState(() => leseNebelLampe().z);
-  const seiteRef = useRef(seite);
-  seiteRef.current = seite;
-  const zieht = useRef<number | null>(null);
+  const [phaserElements, setPhaserElements] = useState(() => read(PHASER_ELEMENTS_KEY) === "ja");
+  const phaserElementsRef = useRef(phaserElements);
+  phaserElementsRef.current = phaserElements;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const preview = useRef<Preview>();
+  const [zoom, setZoom] = useState(() => readZoom());
+  const [haze, setHaze] = useState(() => read(HAZE_KEY) === "ja");
+  const hazeRef = useRef(haze);
+  hazeRef.current = haze;
+  const [hazeZoom, setHazeZoom] = useState(() => readZoom(HAZE_ZOOM_KEY, HAZE_ZOOM_DEFAULT));
+  const [side, setSide] = useState<MirrorSide>(readSide);
+  const [depth, setDepth] = useState(() => readHazeLamp().z);
+  const sideRef = useRef(side);
+  sideRef.current = side;
+  const dragging = useRef<number | null>(null);
   useEffect(() => {
-    const v = new Vorschau(canvas.current!, () => {
-      const parameter = laden.parameter;
-      if (!parameter || !laden.stand) return null;
+    const v = new Preview(canvas.current!, () => {
+      const parameter = appState.parameter;
+      if (!parameter || !appState.state) return null;
       return {
         parameter,
-        live: laden.stand.uebernahme.zustand === "an",
-        aufbau: laden.stand.einstellungen.aufbau,
-        rotateMaxUpm: laden.stand.einstellungen.rotateMaxUpm,
-        modus: modusRef.current,
-        ansicht: ansichtRef.current,
-        phaserElemente: phaserElementeRef.current,
-        nebel: nebelRef.current,
-        nebelSeite: seiteRef.current,
-        blende: laden.stand.blende,
-        blendeDauer: laden.stand.blendeDauerS,
-        impuls: laden.stand.impuls,
-        impulse: laden.stand.impulse,
-        impulseSeitS: (performance.now() - laden.standZeit) / 1000,
-        flash: laden.stand.einstellungen.flash,
+        live: appState.state.uebernahme.zustand === "an",
+        layout: appState.state.einstellungen.aufbau,
+        rotateMaxRpm: appState.state.einstellungen.rotateMaxUpm,
+        mode: modeRef.current,
+        view: viewRef.current,
+        phaserElements: phaserElementsRef.current,
+        haze: hazeRef.current,
+        hazeSide: sideRef.current,
+        fade: appState.state.blende,
+        fadeDuration: appState.state.blendeDauerS,
+        impulse: appState.state.impuls,
+        impulses: appState.state.impulse,
+        impulsesSinceS: (performance.now() - appState.stateTime) / 1000,
+        flash: appState.state.einstellungen.flash,
       };
     });
-    v.lampe = leseLampe();
-    v.zoom = leseZoom();
-    v.nebelLampe = leseNebelLampe();
-    v.nebelZoom = leseZoom(NEBEL_ZOOM_SCHLUESSEL, NEBEL_ZOOM_VORGABE);
-    vorschau.current = v;
-    v.starte();
-    const ab = laden.abonniere(() => { if (laden.stand) v.gleiche(laden.stand.takt); });
-    return () => { ab(); v.stoppe(); };
+    v.lamp = readLamp();
+    v.zoom = readZoom();
+    v.hazeLamp = readHazeLamp();
+    v.hazeZoom = readZoom(HAZE_ZOOM_KEY, HAZE_ZOOM_DEFAULT);
+    preview.current = v;
+    v.start();
+    const unsubscribe = appState.subscribe(() => { if (appState.state) v.sync(appState.state.takt); });
+    return () => { unsubscribe(); v.stop(); };
   }, []);
-  const vorn = ansicht === "bild" && l.stand?.einstellungen.aufbau.anordnung === "hintereinander";
-  const waehle = (m: VorderModus) => { setModus(m); merke(MODUS_SCHLUESSEL, m); };
-  const zeige = (a: Ansicht) => { setAnsicht(a); merke(ANSICHT_SCHLUESSEL, a); };
-  const umschalter = (
+  const front = view === "bild" && l.state?.einstellungen.aufbau.anordnung === "hintereinander";
+  const select = (m: FrontMode) => { setMode(m); remember(MODE_KEY, m); };
+  const show = (a: View) => { setView(a); remember(VIEW_KEY, a); };
+  const toggles = (
     <>
-      {ansicht === "phaser" && (
+      {view === "phaser" && (
         <button
-          type="button" class={`aktion haken ${phaserElemente ? "aktiv" : ""}`} aria-pressed={phaserElemente}
+          type="button" class={`aktion haken ${phaserElements ? "aktiv" : ""}`} aria-pressed={phaserElements}
           title="Front view of the elements in the background"
-          onClick={() => { setPhaserElemente(!phaserElemente); merke(PHASER_ELEMENTE_SCHLUESSEL, phaserElemente ? "nein" : "ja"); }}
+          onClick={() => { setPhaserElements(!phaserElements); remember(PHASER_ELEMENTS_KEY, phaserElements ? "nein" : "ja"); }}
         >
           Elements
         </button>
       )}
-      {ansicht === "reflexion" && (
+      {view === "reflexion" && (
         <button
-          type="button" class={`aktion haken ${nebel ? "aktiv" : ""}`} aria-pressed={nebel}
+          type="button" class={`aktion haken ${haze ? "aktiv" : ""}`} aria-pressed={haze}
           title="Beams in haze, seen from the front, slightly offset"
-          onClick={() => { setNebel(!nebel); merke(NEBEL_SCHLUESSEL, nebel ? "nein" : "ja"); }}
+          onClick={() => { setHaze(!haze); remember(HAZE_KEY, haze ? "nein" : "ja"); }}
         >
           Haze
         </button>
       )}
       {(["bild", "phaser", "reflexion"] as const).map((a) => (
-        <button type="button" key={a} class={`aktion ${ansicht === a ? "aktiv" : ""}`} aria-pressed={ansicht === a} onClick={() => zeige(a)}>
-          {ANSICHT_NAME[a]}
+        <button type="button" key={a} class={`aktion ${view === a ? "aktiv" : ""}`} aria-pressed={view === a} onClick={() => show(a)}>
+          {VIEW_NAME[a]}
         </button>
       ))}
     </>
   );
-  const titel = ansicht === "phaser" ? "Phaser" : ansicht === "reflexion" ? (nebel ? "Haze" : "Reflection") : vorn && modus !== "spiegel" ? MODUS_NAME[modus] : "Simple";
+  const title = view === "phaser" ? "Phaser" : view === "reflexion" ? (haze ? "Haze" : "Reflection") : front && mode !== "spiegel" ? MODE_NAME[mode] : "Simple";
   return (
-    <Modul titel={`Live // ${titel}`} klasse="m-vorschau" aktionen={umschalter}>
-    <div class={`vorschau-rahmen ${vorn ? "vorn" : ""} ${ansicht} ${ansicht === "reflexion" && nebel ? "nebel" : ""}`}>
+    <Module title={`Live // ${title}`} className="m-vorschau" actions={toggles}>
+    <div class={`vorschau-rahmen ${front ? "vorn" : ""} ${view} ${view === "reflexion" && haze ? "nebel" : ""}`}>
       <canvas
         ref={canvas}
         class="vorschau"
-        // Reflexion: den Scheinwerfer ziehen; die Lage merkt sich das Gerät
+        // Reflection: drag the spotlight; the device remembers its position
         onPointerDown={(ev) => {
-          const v = vorschau.current;
-          if (ansicht !== "reflexion" || !v) return;
+          const v = preview.current;
+          if (view !== "reflexion" || !v) return;
           const r = ev.currentTarget.getBoundingClientRect();
-          if (!v.aufLampe(ev.clientX - r.left, ev.clientY - r.top)) return;
-          zieht.current = ev.pointerId;
+          if (!v.onLamp(ev.clientX - r.left, ev.clientY - r.top)) return;
+          dragging.current = ev.pointerId;
           ev.currentTarget.setPointerCapture(ev.pointerId);
         }}
         onPointerMove={(ev) => {
-          const v = vorschau.current;
-          if (!v || zieht.current !== ev.pointerId) return;
+          const v = preview.current;
+          if (!v || dragging.current !== ev.pointerId) return;
           const r = ev.currentTarget.getBoundingClientRect();
-          v.zieheLampe(ev.clientX - r.left, ev.clientY - r.top);
+          v.dragLamp(ev.clientX - r.left, ev.clientY - r.top);
         }}
         onPointerUp={() => {
-          if (zieht.current === null) return;
-          zieht.current = null;
-          const v = vorschau.current;
+          if (dragging.current === null) return;
+          dragging.current = null;
+          const v = preview.current;
           if (v) {
-            if (nebel) merke(NEBEL_LAMPE_SCHLUESSEL, JSON.stringify(v.nebelLampe));
-            else merke(LAMPE_SCHLUESSEL, JSON.stringify(v.lampe));
+            if (haze) remember(HAZE_LAMP_KEY, JSON.stringify(v.hazeLamp));
+            else remember(LAMP_KEY, JSON.stringify(v.lamp));
           }
         }}
-        onPointerCancel={() => { zieht.current = null; }}
+        onPointerCancel={() => { dragging.current = null; }}
         role="img"
-        aria-label={ansicht === "phaser"
+        aria-label={view === "phaser"
           ? "Angles of the 36 mirrors as a chart"
-          : ansicht === "reflexion" ? (nebel ? "Beams in haze, seen from the front, slightly offset" : "Top view with spotlight and reflected beams")
-          : vorn ? "Preview of the three elements from the front" : "Preview of the 36 mirrors from above"}
+          : view === "reflexion" ? (haze ? "Beams in haze, seen from the front, slightly offset" : "Top view with spotlight and reflected beams")
+          : front ? "Preview of the three elements from the front" : "Preview of the 36 mirrors from above"}
       />
-      {ansicht === "reflexion" && (
+      {view === "reflexion" && (
         <label class="vorschau-zoom">
           <span>Zoom</span>
           <input
-            type="range" min={ZOOM.min} max={ZOOM.max} step={1} value={nebel ? nebelZoom : zoom}
-            style={{ "--fuellung": `${(((nebel ? nebelZoom : zoom) - ZOOM.min) / (ZOOM.max - ZOOM.min)) * 100}%` }}
+            type="range" min={ZOOM.min} max={ZOOM.max} step={1} value={haze ? hazeZoom : zoom}
+            style={{ "--fuellung": `${(((haze ? hazeZoom : zoom) - ZOOM.min) / (ZOOM.max - ZOOM.min)) * 100}%` }}
             onInput={(ev) => {
               const z = Number(ev.currentTarget.value);
-              const v = vorschau.current;
-              if (nebel) { setNebelZoom(z); if (v) v.nebelZoom = z; }
+              const v = preview.current;
+              if (haze) { setHazeZoom(z); if (v) v.hazeZoom = z; }
               else { setZoom(z); if (v) v.zoom = z; }
             }}
-            onChange={(ev) => merke(nebel ? NEBEL_ZOOM_SCHLUESSEL : ZOOM_SCHLUESSEL, ev.currentTarget.value)}
+            onChange={(ev) => remember(haze ? HAZE_ZOOM_KEY : ZOOM_KEY, ev.currentTarget.value)}
           />
-          <output>{nebel ? nebelZoom : zoom}°</output>
+          <output>{haze ? hazeZoom : zoom}°</output>
         </label>
       )}
-      {ansicht === "reflexion" && nebel && (
+      {view === "reflexion" && haze && (
         <label class="vorschau-zoom vorschau-tiefe">
           <span>Depth</span>
           <input
-            type="range" min={NEBEL_TIEFE.min} max={NEBEL_TIEFE.max} step={0.1} value={tiefe}
-            style={{ "--fuellung": `${((tiefe - NEBEL_TIEFE.min) / (NEBEL_TIEFE.max - NEBEL_TIEFE.min)) * 100}%` }}
+            type="range" min={HAZE_DEPTH.min} max={HAZE_DEPTH.max} step={0.1} value={depth}
+            style={{ "--fuellung": `${((depth - HAZE_DEPTH.min) / (HAZE_DEPTH.max - HAZE_DEPTH.min)) * 100}%` }}
             onInput={(ev) => {
               const z = Number(ev.currentTarget.value);
-              setTiefe(z);
-              vorschau.current?.setzeLampenTiefe(z);
+              setDepth(z);
+              preview.current?.setLampDepth(z);
             }}
-            onChange={() => { if (vorschau.current) merke(NEBEL_LAMPE_SCHLUESSEL, JSON.stringify(vorschau.current.nebelLampe)); }}
+            onChange={() => { if (preview.current) remember(HAZE_LAMP_KEY, JSON.stringify(preview.current.hazeLamp)); }}
           />
-          <output>{tiefeText(tiefe)}</output>
+          <output>{depthText(depth)}</output>
         </label>
       )}
-      {ansicht === "reflexion" && nebel && (
-        // Welche Seite spiegelt, ist am echten Spiegel noch zu klären; die andere schluckt das Licht
+      {view === "reflexion" && haze && (
+        // Which side reflects is still open on the real mirror; the other one swallows the light
         <div class="umschalter vorschau-seite" title="Where the mirroring side faces at tilt 0">
           <span>Mirror</span>
           {(["hinten", "vorn", "beide"] as const).map((s) => (
-            <button type="button" key={s} class={seite === s ? "aktiv" : ""} aria-pressed={seite === s} onClick={() => { setSeite(s); merke(NEBEL_SEITE_SCHLUESSEL, s); }}>
-              {SEITE_NAME[s]}
+            <button type="button" key={s} class={side === s ? "aktiv" : ""} aria-pressed={side === s} onClick={() => { setSide(s); remember(HAZE_SIDE_KEY, s); }}>
+              {SIDE_NAME[s]}
             </button>
           ))}
         </div>
       )}
-      {vorn && (
+      {front && (
         <div class="umschalter vorschau-modus">
           {(["spiegel", "buehne", "waerme"] as const).map((m) => (
-            <button type="button" key={m} class={modus === m ? "aktiv" : ""} onClick={() => waehle(m)}>
-              {MODUS_NAME[m]}
+            <button type="button" key={m} class={mode === m ? "aktiv" : ""} onClick={() => select(m)}>
+              {MODE_NAME[m]}
             </button>
           ))}
         </div>
       )}
       <div class="scan" />
     </div>
-    </Modul>
+    </Module>
   );
 }
