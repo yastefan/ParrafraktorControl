@@ -1,16 +1,16 @@
 import { render } from "preact";
 import { registerSW } from "virtual:pwa-register";
 import { App } from "./app.js";
-import { laden } from "./laden.js";
-import "./stil.css";
+import { appState } from "./app-state.js";
+import "./style.css";
 
-// Service Worker: hält die App im Cache. Läuft nur über HTTPS (oder localhost).
-// Eine neue Version wird erst nach Tippen auf "Neue Version" geladen.
+// Service worker: keeps the app in the cache. Only works via HTTPS (or localhost).
+// A new version is only loaded after tapping "New version".
 if ("serviceWorker" in navigator && window.isSecureContext) {
-  const aktualisieren = registerSW({
-    onNeedRefresh: () => laden.zeigeUpdate(() => void aktualisieren(true)),
+  const update = registerSW({
+    onNeedRefresh: () => appState.showUpdate(() => void update(true)),
   });
 }
 
-laden.starte();
+appState.start();
 render(<App />, document.getElementById("app")!);
