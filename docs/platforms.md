@@ -41,6 +41,5 @@ The variable names, `netz.json` and the helper `/usr/local/sbin/parrafraktor-net
 ## How it is checked
 
 - **On every PR (GitHub Actions, `.github/workflows/pruefen.yml`):** Linux on ARM (like the Pi) with the minimum Node version and with Node 24, plus macOS and Windows. Each runs `npm ci`, typecheck, tests, build, then whether the native packages for the Stream Deck load. That catches errors like "npm silently drops the Stream Deck package" before they show up on the Pi. A separate job runs `shellcheck` on `pi/` and the dry run `pi/test/run.sh` (fake `nmcli`, `systemctl`, `raspi-config` …, plays the reboots of `parrafraktor update` including failures and rollback).
-- **The 40C3 talk** (private repo `Parrafraktor-Vortrag`) uses `packages/engine` and `client/src/vorschau.ts` straight from the source. The job `vortrag` typechecks and builds it against the PR's version (secret `VORTRAG_TOKEN`, read-only; without it the job only warns). Renaming one of those exports needs the talk changed too, or the old name kept as an alias for a while.
 - **On the Pi:** `parrafraktor check` checks what only works on the device (overlay, overlay module, `/daten`, watchdog, service, Wi-Fi, Stream Deck, last update). The checklist with pulling the power is in the README.
 - **Open points about the Pi:** GitHub issues with the label `pi`.
