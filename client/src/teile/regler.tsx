@@ -3,10 +3,11 @@
 // gewählte Grundbewegung nicht benutzt, sind ausgeblendet.
 import { ELEMENTE, type Parameter } from "@parrafraktor/engine";
 import {
-  BEREICHE, SCHALTER, STUFEN, ZAHL_PARAMETER, begrenze, benutzt, zeigeWert,
+  BEREICHE, SCHALTER, STUFEN, ZAHL_PARAMETER, begrenze, benutzt, offsetVerschieden, verschiebeOffset, zeigeWert,
   type SchalterParameter, type StufenParameter, type ZahlParameter,
 } from "@parrafraktor/protokoll";
 import type { ComponentChildren } from "preact";
+import { useState } from "preact/hooks";
 import { useLaden } from "../laden.js";
 import { Fader } from "./fader.js";
 import { Modul } from "./modul.js";
@@ -17,12 +18,13 @@ export function Bewegung({ parameter: p }: { parameter: Parameter }) {
   const namen = p.modus === "oeffnung"
     ? OEFFNUNG_FOLGE
     : ZAHL_PARAMETER.filter((n) => n !== "offset" && benutzt(p.modus, n));
-  // Bei Offset je Element wird es eng: dann die kurzen Namen
-  const dicht = p.offsetGetrennt && benutzt(p.modus, "offset");
+  // Offset je Element aufgeklappt: drei Fader, dann wird es eng und es gelten die kurzen Namen
+  const [aufgeklappt, setAufgeklappt] = useState(false);
+  const dicht = aufgeklappt && benutzt(p.modus, "offset");
   return (
     <Modul titel="03 Motion" klasse="m-bewegung">
       <div class={`bank ${dicht ? "dicht" : ""}`}>
-        {benutzt(p.modus, "offset") && <Offset p={p} />}
+        {benutzt(p.modus, "offset") && <Offset p={p} aufgeklappt={aufgeklappt} klappe={setAufgeklappt} />}
         {namen.map((name) => <ZahlFader key={name} name={name} wert={p[name]} titel={dicht ? BEREICHE[name].kurz : undefined} />)}
       </div>
     </Modul>
@@ -59,25 +61,40 @@ export function Verteilung({ parameter: p }: { parameter: Parameter }) {
   );
 }
 
-// Offset: einer für alle, oder je Element drei Fader
-function Offset({ p }: { p: Parameter }) {
+// Offset: aufgeklappt je Element ein Fader. Zugeklappt bleiben die Werte der Elemente erhalten: Der eine
+// Fader verschiebt dann alle um denselben Betrag (Abstände bleiben), die Marken 1–3 zeigen, wo die
+// Elemente stehen. Doppeltippen auf den Namen: Vorgabe, alle wieder gleich.
+function Offset({ p, aufgeklappt, klappe }: { p: Parameter; aufgeklappt: boolean; klappe: (auf: boolean) => void }) {
   const l = useLaden();
+  const verschieden = offsetVerschieden(p);
   const schloss: ComponentChildren = (
     <button
       type="button"
-      class={`schloss ${p.offsetGetrennt ? "offen" : ""}`}
+      class={`schloss ${aufgeklappt ? "offen" : ""} ${verschieden ? "verschieden" : ""}`}
       disabled={!l.bedienbar}
-      aria-label={p.offsetGetrennt ? "Same offset for all elements" : "Offset per element"}
-      title={p.offsetGetrennt ? "same for all" : "per element"}
-      onClick={() => l.setze(p.offsetGetrennt
-        ? { offsetGetrennt: false }
-        // Öffnen: alle Elemente starten beim gemeinsamen Offset
-        : { offsetGetrennt: true, offsetElemente: Array.from({ length: ELEMENTE }, () => p.offset) })}
+      aria-label={aufgeklappt ? "Collapse offset per element" : "Offset per element"}
+      title={aufgeklappt ? "collapse (values per element stay)" : verschieden ? "per element (elements differ)" : "per element"}
+      onClick={() => {
+        // Erstes Aufklappen: alle Elemente starten beim gemeinsamen Offset
+        if (!aufgeklappt && !p.offsetGetrennt) {
+          l.setze({ offsetGetrennt: true, offsetElemente: Array.from({ length: ELEMENTE }, () => p.offset) });
+        }
+        klappe(!aufgeklappt);
+      }}
     >
-      {p.offsetGetrennt ? "1×" : "3×"}
+      {aufgeklappt ? "1×" : "3×"}
     </button>
   );
-  if (!p.offsetGetrennt) return <ZahlFader name="offset" wert={p.offset} zusatz={schloss} />;
+  if (!aufgeklappt) {
+    return (
+      <ZahlFader
+        name="offset" wert={p.offset} zusatz={schloss}
+        marken={verschieden ? p.offsetElemente : undefined}
+        setze={(v) => l.setze(verschiebeOffset(p, v))}
+        vorgabe={() => l.sende({ typ: "vorgabe", name: "offset" })}
+      />
+    );
+  }
   return (
     <>
       {p.offsetElemente.map((w, k) => (
@@ -96,18 +113,20 @@ interface ZahlProps {
   wert: number;
   titel?: string;
   zusatz?: ComponentChildren;
+  marken?: number[];
   setze?: (wert: number) => void;
+  vorgabe?: () => void;
 }
 
-function ZahlFader({ name, wert, titel, zusatz, setze }: ZahlProps) {
+function ZahlFader({ name, wert, titel, zusatz, marken, setze, vorgabe }: ZahlProps) {
   const l = useLaden();
   const b = BEREICHE[name];
   return (
     <Fader
       titel={titel ?? b.name} wert={wert} min={b.min} max={b.max} schritt={b.schritt}
-      anzeige={zeigeWert(name, wert)} gesperrt={!l.bedienbar} zusatz={zusatz}
+      anzeige={zeigeWert(name, wert)} gesperrt={!l.bedienbar} zusatz={zusatz} marken={marken}
       setze={setze ?? ((v) => l.setze({ [name]: v }))}
-      vorgabe={() => (setze ? setze(begrenze(name, b.min + (b.max - b.min) / 2)) : l.sende({ typ: "vorgabe", name }))}
+      vorgabe={vorgabe ?? (() => (setze ? setze(begrenze(name, b.min + (b.max - b.min) / 2)) : l.sende({ typ: "vorgabe", name })))}
     />
   );
 }

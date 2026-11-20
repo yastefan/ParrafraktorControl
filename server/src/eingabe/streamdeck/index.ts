@@ -8,7 +8,7 @@ import {
   ELEMENT_FOLGEN, ELEMENT_FOLGE_NAME, IMPULS_NAME, MODI_WAEHLBAR, istOeffnungArt, MODUS_NAME, PARAMETER_VORGABE,
 } from "@parrafraktor/engine";
 import {
-  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
+  BEREICHE, IMPULS_BEREICHE, PRESET_ANZAHL, benutzt, offsetVerschieden, SCHALTER, STUFEN, impulsWert, zeigeImpuls, zeigeWert, type ModulStatus,
 } from "@parrafraktor/protokoll";
 import { fehlerText, log } from "../../log.js";
 import { PRAEFIXE, gleicherWunsch, zeigeAdresse, type Netz, type NetzWunsch } from "../../netz.js";
@@ -56,6 +56,10 @@ export class StreamDeckModul implements Eingabemodul {
   private reglerSeite = 0;
   private impulsReglerSeite = 0;
   private letzteDrehung = [0, 0, 0, 0];
+  // Offset je Element: langer Druck auf den Offset-Regler legt Off. 1–3 und den gemeinsamen Offset
+  // auf die vier Regler, langer Druck auf einen davon zurück. Kurzer Druck wirkt erst beim Loslassen.
+  private offsetJeElement = false;
+  private reglerHalten: { index: number; timer: NodeJS.Timeout; ausgeloest: boolean } | null = null;
   private halten: { taste: number; tippen?: () => void; timer: NodeJS.Timeout; ausgeloest: boolean } | null = null;
   private gespeichert: { nr: number; bis: number } | null = null;
 
@@ -94,6 +98,7 @@ export class StreamDeckModul implements Eingabemodul {
     clearTimeout(this.codeTimer);
     clearInterval(this.netzTimer);
     if (this.kombi) clearTimeout(this.kombi);
+    if (this.reglerHalten) clearTimeout(this.reglerHalten.timer);
     this.steuerung.off("aenderung", this.beiAenderung);
     const deck = this.deck;
     this.deck = null;
@@ -129,8 +134,8 @@ export class StreamDeckModul implements Eingabemodul {
     try {
       const deck = await this.lib!.openStreamDeck(pfad, { resetToLogoOnClose: true });
       this.deck = deck;
-      deck.on("down", (c) => (c.type === "button" ? this.tasteRunter(c.index) : this.reglerDruck(c.index)));
-      deck.on("up", (c) => { if (c.type === "button") this.tasteHoch(c.index); });
+      deck.on("down", (c) => (c.type === "button" ? this.tasteRunter(c.index) : this.reglerRunter(c.index)));
+      deck.on("up", (c) => (c.type === "button" ? this.tasteHoch(c.index) : this.reglerHoch(c.index)));
       deck.on("rotate", (c, schritte) => this.drehe(c.index, schritte));
       // Tippen auf den Streifen wirkt wie Drücken des Reglers darunter, im Impulse-Menü löst es einen Flash aus
       deck.on("lcdShortPress", (c, pos) => this.tippeStreifen(pos.x / c.pixelSize.width));
@@ -383,6 +388,12 @@ export class StreamDeckModul implements Eingabemodul {
       if (name) this.steuerung.verstelleImpuls(name, schritte * (schnell ? 5 : 1));
       return;
     }
+    if (this.offsetModus()) {
+      const n = schritte * (schnell ? 5 : 1);
+      if (index < 3) this.steuerung.verstelleOffsetElement(index, n);
+      else this.steuerung.verstelle("offset", n);   // verschiebt alle, Abstände bleiben
+      return;
+    }
     const r = this.regler(index);
     if (!r) return;
     if (r.art === "zahl") {
@@ -397,8 +408,60 @@ export class StreamDeckModul implements Eingabemodul {
     }
   }
 
+  // Offset je Element gilt nur im Hauptmenü und den Untermenüs mit Reglerseiten, solange die
+  // Grundbewegung den Offset benutzt
+  private offsetModus(): boolean {
+    if (!this.offsetJeElement) return false;
+    if (["impulse", "code", "netz"].includes(this.menue) || !benutzt(this.steuerung.parameter.modus, "offset")) {
+      this.offsetJeElement = false;
+      return false;
+    }
+    return true;
+  }
+
+  // Langer Druck nur auf dem Offset-Regler (bzw. im Offset-je-Element-Modus auf jedem); sonst wie bisher sofort
+  private reglerRunter(index: number): void {
+    const lang = this.offsetModus() || (["haupt", "pattern", "presets"].includes(this.menue) && this.regler(index)?.name === "offset");
+    if (!lang) {
+      this.reglerDruck(index);
+      return;
+    }
+    if (this.reglerHalten) clearTimeout(this.reglerHalten.timer);
+    const h = {
+      index,
+      ausgeloest: false,
+      timer: setTimeout(() => {
+        h.ausgeloest = true;
+        this.offsetJeElement = !this.offsetJeElement;
+        const p = this.steuerung.parameter;
+        // Erstes Mal je Element: alle starten beim gemeinsamen Offset
+        if (this.offsetJeElement && !p.offsetGetrennt) {
+          this.steuerung.setze({ offsetGetrennt: true, offsetElemente: p.offsetElemente.map(() => p.offset) });
+        }
+        this.zeichneBald();
+      }, HALTEN_MS.reglerLang),
+    };
+    this.reglerHalten = h;
+  }
+
+  private reglerHoch(index: number): void {
+    const h = this.reglerHalten;
+    if (!h || h.index !== index) return;
+    clearTimeout(h.timer);
+    this.reglerHalten = null;
+    if (!h.ausgeloest) this.reglerDruck(index);
+    this.zeichneBald();
+  }
+
   private reglerDruck(index: number): void {
     if (this.menue === "code") return;
+    if (this.offsetModus()) {
+      const p = this.steuerung.parameter;
+      // Element: zurück auf den gemeinsamen Offset; gemeinsamer Regler: Vorgabe, alle gleich
+      if (index < 3) this.steuerung.setze({ offsetElemente: p.offsetElemente.map((w, i) => (i === index ? p.offset : w)) });
+      else this.steuerung.vorgabe("offset");
+      return;
+    }
     if (this.menue === "netz") {
       // Drücken: diese Zahl wieder wie gespeichert
       const a = this.entwurf?.lan.adresse, w = this.netz?.wunsch.lan.adresse;
@@ -438,6 +501,7 @@ export class StreamDeckModul implements Eingabemodul {
       return;
     }
     if (Math.abs(dx) < 0.05) return;
+    this.offsetJeElement = false;
     this.blaettere(dx < 0 ? 1 : -1);
     this.zeichneBald();
   }
@@ -613,6 +677,7 @@ export class StreamDeckModul implements Eingabemodul {
       const seite = IMPULS_REGLER_SEITEN[this.impulsReglerSeite];
       return { name: `${seite?.name ?? ""} · Strip: ${IMPULS_NAME[this.steuerung.impuls.art]}`, ton: TON.impulse };
     }
+    if (this.offsetModus()) return { name: "Offset per element · hold to leave", ton: TON.bewegung };
     const { seite, nr, anzahl } = this.aktuelleSeite();
     return { name: anzahl > 1 ? `${seite.name} ${nr + 1}/${anzahl}` : seite.name, ton: TON[seite.ton] };
   }
@@ -637,12 +702,23 @@ export class StreamDeckModul implements Eingabemodul {
       });
     }
     const p = this.steuerung.parameter;
+    if (this.offsetModus()) {
+      const b = BEREICHE.offset;
+      const werte = [...(p.offsetGetrennt ? p.offsetElemente : p.offsetElemente.map(() => p.offset)), p.offset];
+      return werte.map((w, i): Feld => ({
+        titel: i < 3 ? `Off. ${i + 1}` : "Off. all",
+        wert: zeigeWert("offset", w),
+        anteil: (w - b.min) / (b.max - b.min),
+      }));
+    }
     return [0, 1, 2, 3].map((i): Feld => {
       const r = this.regler(i);
       if (!r) return { titel: "", wert: "", anteil: null };
       if (r.art === "zahl") {
         const b = BEREICHE[r.name];
-        return { titel: b.kurz, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
+        // Offset je Element im Spiel: kenntlich machen, langer Druck zeigt die drei
+        const titel = r.name === "offset" && offsetVerschieden(p) ? "Offset 1–3" : b.kurz;
+        return { titel, wert: zeigeWert(r.name, p[r.name]), anteil: (p[r.name] - b.min) / (b.max - b.min) };
       }
       if (r.art === "schalter") return { titel: SCHALTER[r.name], wert: p[r.name] ? "on" : "off", anteil: null };
       const st = STUFEN[r.name];
