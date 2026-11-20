@@ -9,6 +9,46 @@ on:
     branches: [main]
 
 jobs:
+  vortrag:
+    # The 40C3 talk (private repo Parrafraktor-Vortrag) imports Engine, PARAMETER_VORGABE, auswahl …
+    # from packages/engine and Vorschau, setzeVorschauStil from client/src/vorschau.ts straight from
+    # the source. Typecheck and build it against this version, so a rename never breaks it unnoticed.
+    # Needs the secret VORTRAG_TOKEN (fine-grained token, read-only "Contents" on Parrafraktor-Vortrag);
+    # without it (e.g. PRs from forks) the job only warns.
+    name: Talk (Parrafraktor-Vortrag) against this version
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Token present?
+        id: token
+        env:
+          TOKEN: ${{ secrets.VORTRAG_TOKEN }}
+        run: |
+          if [ -n "$TOKEN" ]; then echo "ok=1" >> "$GITHUB_OUTPUT"
+          else echo "::warning::Secret VORTRAG_TOKEN missing – interface to the talk not checked"; fi
+      - if: steps.token.outputs.ok == '1'
+        uses: actions/checkout@v4
+        with:
+          repository: yastefan/Parrafraktor-Vortrag
+          token: ${{ secrets.VORTRAG_TOKEN }}
+          path: vortrag
+      # This version in place of the submodule (the talk's vite/tsconfig aliases point there)
+      - if: steps.token.outputs.ok == '1'
+        uses: actions/checkout@v4
+        with:
+          path: vortrag/parrafraktor
+      - if: steps.token.outputs.ok == '1'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: vortrag/package-lock.json
+      - if: steps.token.outputs.ok == '1'
+        working-directory: vortrag
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit
+          npx vite build --outDir "$RUNNER_TEMP/vortrag-dist"
+
   pi:
     # Pi tools without a Pi: shellcheck and the dry run with fake nmcli/systemctl/raspi-config
     name: Pi scripts (shellcheck, dry run)
