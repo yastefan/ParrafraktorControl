@@ -124,6 +124,7 @@ protected() { [ "$(cat "$T/f/root_fstype")" = overlay ] && grep "overlayroot=tmp
 no_state() { [ ! -f "$PF_DATA_MOUNT/.parrafraktor-update/state" ]; }
 ap_on() { [ -f "$T/f/ap_active" ]; }
 head_is() { [ "$(git -C "$T/repo" rev-parse HEAD)" = "$1" ]; }
+error_has() { [[ "$(last U_ERROR)" == *"$1"* ]]; }
 called() { grep -- "$1" "$T/f/calls" >/dev/null; }
 
 echo "== syntax"
@@ -169,7 +170,7 @@ expect "own Wi-Fi on" ap_on
 echo "== apt fails"
 protected_pi; touch "$T/f/apt_fail"; run_update
 expect "result failed" [ "$(last U_RESULT)" = failed ]
-expect "error names apt" bash -c "[[ '$(last U_ERROR)' == *apt* ]]"
+expect "error names apt" error_has apt
 expect "still protected" protected
 expect "own Wi-Fi on" ap_on
 expect "status shows the failure" bash -c "'$T/repo/pi/parrafraktor' status | grep -q 'LAST ONE FAILED'"
@@ -187,13 +188,13 @@ echo "== no saved setup options: only build, never a setup without options"
 protected_pi; rm "$PF_ETC/setup.conf"; run_update
 expect "setup not run" bash -c "! grep -q '^setup' '$T/f/calls'"
 expect "built instead" called "npm ci --no-audit --no-fund"
-expect "result failed with a hint" grep -q "U_ERROR=.*parrafraktor.setup" "$PF_DATA_MOUNT/.parrafraktor-update/last"
+expect "result failed with a hint" error_has "parrafraktor setup"
 expect "still protected" protected
 
 echo "== no internet"
 protected_pi; rm "$T/f/internet"; run_update
 expect "result failed" [ "$(last U_RESULT)" = failed ]
-expect "error names internet" bash -c "[[ '$(last U_ERROR)' == *internet* ]]"
+expect "error names internet" error_has internet
 expect "nothing pulled" head_is "$OLD"
 expect "still protected" protected
 expect "own Wi-Fi on" ap_on
