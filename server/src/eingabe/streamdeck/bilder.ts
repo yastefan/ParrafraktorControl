@@ -34,6 +34,7 @@ export const TON = {
   bewegung: { dunkel: "#3d3404", hell: "#ffe14d", auf: "#1f1a00" },     // Gelb
   verteilung: { dunkel: "#2c1856", hell: "#a46bff", auf: "#140a2b" },   // Violett
   fein: { dunkel: "#262a3a", hell: "#9aa4c7", auf: "#12141c" },         // Stahl
+  netz: { dunkel: "#3d2408", hell: "#ff9a3c", auf: "#1f1003" },         // Orange (nur Pi)
 } as const satisfies Record<string, Farbton>;
 
 export type Ton = keyof typeof TON;

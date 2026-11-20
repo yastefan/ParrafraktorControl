@@ -17,10 +17,11 @@ pruefe "Dienst nutzt /daten" sh -c 'systemctl show -p Environment parrafraktor |
 pruefe "Watchdog-Gerät vorhanden" test -e /dev/watchdog0
 pruefe "systemd stößt den Watchdog an" sh -c 'systemctl show -p RuntimeWatchdogUSec | grep -qv "=0$\|=infinity$"'
 pruefe "Journal nur im RAM" sh -c '! test -d /var/log/journal || [ -z "$(ls -A /var/log/journal 2>/dev/null)" ]; journalctl --header 2>/dev/null | grep -q /run/log/journal'
-if nmcli -t -f NAME connection show 2>/dev/null | grep -qx parrafraktor-ap; then
+# grep ohne -q: mit pipefail meldete -q sonst „fehlt“, wenn grep vor dem Schreiber fertig ist (SIGPIPE)
+if nmcli -t -f NAME connection show 2>/dev/null | grep -x parrafraktor-ap >/dev/null; then
   pruefe "Eigenes WLAN (parrafraktor-ap) aktiv" sh -c 'nmcli -t -f NAME connection show --active | grep -qx parrafraktor-ap'
 fi
-if lsusb 2>/dev/null | grep -qi 0fd9; then
+if lsusb 2>/dev/null | grep -i 0fd9 >/dev/null; then
   pruefe "Stream Deck: hidraw-Gerät für plugdev" sh -c 'for d in /dev/hidraw*; do udevadm info -q property -n $d | grep -q ID_VENDOR_ID=0fd9 && stat -c %G $d | grep -q plugdev && exit 0; done; exit 1'
 else
   printf ' --  Stream Deck nicht eingesteckt, nicht geprüft\n'

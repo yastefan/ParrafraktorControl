@@ -42,6 +42,11 @@ export class Speicher {
     for (const [name, { inhalt }] of this.wartend) this.schreibe(name, inhalt);
   }
 
+  // Sofort schreiben, z. B. bevor ein anderes Programm die Datei liest
+  schreibeJetzt(name: string, inhalt: unknown): void {
+    this.schreibe(name, inhalt);
+  }
+
   private schreibe(name: string, inhalt: unknown): void {
     clearTimeout(this.wartend.get(name)?.timer);
     this.wartend.delete(name);
