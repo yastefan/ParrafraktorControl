@@ -11,6 +11,7 @@
 #   - feste IP im Lichtnetz (NetworkManager), wenn --ip angegeben
 #   - eigenes WLAN (Access Point) fürs iPad, wenn --ap-ssid angegeben
 #   - Netz-Menü am Stream Deck (WLAN, LAN DHCP/fest, IP), wenn --netz-code angegeben
+#   - Befehl „parrafraktor“ (/usr/local/bin) mit Menü und Hilfe für Wartung, Update, Prüfen
 #   - zum Schluss: System schreibgeschützt (Overlay-Dateisystem über raspi-config)
 #
 # Voraussetzung: Vor dem ersten Start auf der Bootpartition in cmdline.txt das Wort „resize“
@@ -21,7 +22,8 @@
 #   sudo pi/einrichten.sh --ip 2.0.0.50/8 [--gateway 2.0.0.1] [--root-gb 8] [--daten-mb 1024] [--ohne-overlay] [--ohne-streamdeck]
 #        [--ap-ssid Parrafraktor --ap-passwort geheim123 [--ap-adresse 192.168.4.1/24] [--ap-band a|bg] [--land DE]]
 #        [--netz-code NNNN]   vier Ziffern 1–8 (Tasten oben links 1 … unten rechts 8)
-# Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen.
+# Läuft mehrfach ohne Schaden; was schon erledigt ist, wird übersprungen. Die Optionen werden in
+# /etc/parrafraktor/einrichten.conf gemerkt: „parrafraktor einrichten“ ohne Optionen nimmt sie wieder.
 set -euo pipefail
 
 ROOT_GB=8
@@ -41,6 +43,7 @@ AP_BAND=a
 LAND=DE
 NETZ_CODE=""
 
+OPTIONEN=("$@")
 hilfe() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$0"; exit "${1:-0}"; }
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -82,8 +85,11 @@ if [ -n "$NETZ_CODE" ] && ! [[ "$NETZ_CODE" =~ ^[1-8]{4}$ ]]; then
   abbruch "--netz-code braucht vier Ziffern von 1 bis 8 (eine je Taste)"
 fi
 if grep -q "overlayroot=tmpfs" /proc/cmdline; then
-  abbruch "Overlay ist aktiv – erst ausschalten: sudo pi/wartung.sh aus"
+  abbruch "Overlay ist aktiv – erst ausschalten: parrafraktor schreibschutz aus"
 fi
+# Optionen merken (nur für root lesbar: enthält WLAN-Passwort und Netz-Code)
+install -d -m 0755 /etc/parrafraktor
+( umask 077; printf '%q ' "${OPTIONEN[@]}" > /etc/parrafraktor/einrichten.conf )
 
 # ---------- 1. Datenpartition ----------
 schritt "Datenpartition"
@@ -377,6 +383,11 @@ else
   echo "Kein --netz-code: kein Netz-Menü."
 fi
 
+# ---------- 7d. Befehl parrafraktor ----------
+schritt "Befehl parrafraktor"
+ln -sfn "$REPO/pi/parrafraktor" /usr/local/bin/parrafraktor
+echo "Ab jetzt: „parrafraktor“ (Menü) oder „parrafraktor hilfe“."
+
 # ---------- 8. Schreibschutz ----------
 schritt "Overlay-Dateisystem"
 if [ "$OVERLAY" -eq 1 ]; then
@@ -396,7 +407,7 @@ fi
 schritt "Fertig"
 cat <<EOF
 Jetzt neu starten:   sudo reboot
-Danach prüfen:       sudo $REPO/pi/pruefen.sh
+Danach prüfen:       parrafraktor pruefen   (alles weitere: parrafraktor)
 Weboberfläche:       http://<IP> (mit Zertifikat für die iPad-App https://<IP>:8443)${AP_SSID:+
 iPad:                WLAN „$AP_SSID“, dann https://${AP_ADRESSE%/*}:8443 (bzw. http://${AP_ADRESSE%/*})}
 Daten:               $DATEN

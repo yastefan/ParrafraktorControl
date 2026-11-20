@@ -32,11 +32,12 @@ Der Server fragt nie, auf welchem System er läuft. Unterschiede kommen nur von 
 | Netz-Menü am Stream Deck | – | – | WLAN an/aus, LAN DHCP (Rückfall feste IP) oder fest, IP; Wunsch in `/daten`, angewendet per sudo von `/usr/local/sbin/parrafraktor-netz` (root gehörend), beim Hochfahren erneut | `server/src/netz.ts`, `pi/netz.sh`, `pi/einrichten.sh` |
 | HTTP/HTTPS | mkcert, Port wählbar | mkcert, Port wählbar | HTTP auf 80 für alle Browser, HTTPS auf 8443 nur für die iPad-App (nicht 443: Browser probieren dort zuerst HTTPS und bleiben am mkcert-Zertifikat hängen) | `pi/einrichten.sh` |
 | Ohne MA starten | Einstellung „Autostart output“ | ebenso | ebenso, Dienst startet beim Hochfahren | Client (Einstellungen) |
-| Updates | `git pull`, `npm ci` | ebenso | `pi/wartung.sh aus` → `update` → `an` | `pi/wartung.sh` |
+| Updates | `git pull`, `npm ci` | ebenso | `parrafraktor schreibschutz aus` → `update` → `schreibschutz an` | `pi/parrafraktor`, `pi/wartung.sh` |
+| Bedienung auf der Kommandozeile | – | – | `parrafraktor` (Menü, `hilfe`), als `/usr/local/bin/parrafraktor` | `pi/parrafraktor`, `pi/einrichten.sh` |
 | RS485 (DMX über UART) | – | – | geplant, Benutzer schon in `dialout` | – |
 
 ## Wie geprüft wird
 
 - **Bei jedem PR (GitHub Actions, `.github/workflows/pruefen.yml`):** Linux auf ARM (wie der Pi) mit der Mindestversion von Node und mit Node 24, dazu macOS und Windows. Jeweils `npm ci`, Typecheck, Tests, Build, dann ob die nativen Pakete fürs Stream Deck laden. Das fängt Fehler wie „npm wirft das Stream-Deck-Paket still weg“ ab, bevor sie auf dem Pi auffallen.
-- **Auf dem Pi:** `sudo pi/pruefen.sh` prüft, was nur auf dem Gerät geht (Overlay, `/daten`, Watchdog, Dienst, WLAN, Stream Deck). Die Prüfliste mit Strom ziehen steht im README.
+- **Auf dem Pi:** `parrafraktor pruefen` (`pi/pruefen.sh`) prüft, was nur auf dem Gerät geht (Overlay, `/daten`, Watchdog, Dienst, WLAN, Stream Deck). Die Prüfliste mit Strom ziehen steht im README.
 - **Offene Punkte zum Pi:** GitHub-Issues mit dem Label `pi`.

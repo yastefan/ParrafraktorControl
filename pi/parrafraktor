@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+# parrafraktor – ein Befehl für alles rund um den Pi, damit man sich keine Einzelbefehle merken muss.
+# pi/einrichten.sh legt ihn als /usr/local/bin/parrafraktor an (Verweis auf diese Datei im Repo).
+#
+#   parrafraktor                    Auswahlmenü (im Terminal), sonst diese Hilfe
+#   parrafraktor hilfe              diese Hilfe
+#   parrafraktor status             Überblick: Schreibschutz, Daten, Dienst, Netz
+#   parrafraktor pruefen            alle Prüfungen (pi/pruefen.sh)
+#   parrafraktor schreibschutz aus  Schreibschutz aus, Neustart → System beschreibbar (für Updates)
+#   parrafraktor schreibschutz an   Schreibschutz an, Neustart → wieder geschützt
+#   parrafraktor update             apt, git pull, Build, Dienst neu (Schreibschutz muss aus sein)
+#   parrafraktor internet an        eigenes WLAN aus, Pi verbindet sich mit dem gespeicherten WLAN mit Internet
+#   parrafraktor internet aus       eigenes WLAN wieder an
+#   parrafraktor log [update|netz]  Log live mitlesen (Strg-C beendet): Dienst, Update oder Netz
+#   parrafraktor neustart           nur den Dienst neu starten
+#   parrafraktor einrichten [...]   pi/einrichten.sh; ohne Optionen mit denen vom letzten Mal
+#
+# Was root braucht, fragt selbst nach sudo.
+set -uo pipefail
+
+SELBST="$(readlink -f "$0")"
+REPO="$(cd "$(dirname "$SELBST")/.." && pwd)"
+KONFIG=/etc/parrafraktor/einrichten.conf
+
+hilfe() { awk 'NR>1 && !/^#/ {exit} NR>1 {sub(/^# ?/, ""); print}' "$SELBST"; }
+# Für Befehle, die root brauchen: sich selbst per sudo neu starten (SUDO_USER bleibt erhalten)
+als_root() { [ "$(id -u)" -eq 0 ] || exec sudo "$SELBST" "$@"; }
+overlay_aktiv() { grep -q "overlayroot=tmpfs" /proc/cmdline; }
+ap_an() { nmcli -t -f NAME connection show --active 2>/dev/null | grep -x parrafraktor-ap >/dev/null; }
+
+status() {
+  local d
+  if overlay_aktiv; then echo "Schreibschutz:  AN (Änderungen außerhalb von /daten gehen beim Neustart verloren)"
+  else echo "Schreibschutz:  AUS (System beschreibbar – danach wieder einschalten)"; fi
+  if findmnt /daten >/dev/null 2>&1; then echo "Daten:          /daten eingebunden"; else echo "Daten:          /daten NICHT eingebunden"; fi
+  echo "Dienst:         $(systemctl is-active parrafraktor 2>/dev/null)"
+  if ap_an; then echo "Eigenes WLAN:   an"; else echo "Eigenes WLAN:   aus"; fi
+  for d in eth0 wlan0; do
+    [ -e "/sys/class/net/$d" ] || continue
+    printf '%-15s %s\n' "$d:" "$(ip -4 -o addr show dev "$d" 2>/dev/null | awk '{print $4}' | paste -sd ' ' -)"
+  done
+  echo "Stand:          $(git -C "$REPO" log -1 --format='%h %s (%cr)' 2>/dev/null) [$(git -C "$REPO" branch --show-current 2>/dev/null)]"
+}
+
+internet() {
+  case "${1:-}" in
+    an)
+      echo "Eigenes WLAN aus – eine SSH-Verbindung darüber reißt jetzt ab."
+      echo "Danach im WLAN mit Internet neu verbinden: ssh $(id -un 2>/dev/null)@$(hostname).local"
+      sleep 2
+      nmcli connection down parrafraktor-ap
+      ;;
+    aus) nmcli connection up parrafraktor-ap ;;
+    *) echo "parrafraktor internet an|aus" >&2; return 2 ;;
+  esac
+}
+
+einrichten() {
+  if [ $# -eq 0 ]; then
+    [ -r "$KONFIG" ] || { echo "Keine gespeicherten Optionen ($KONFIG) – Optionen angeben, siehe: $REPO/pi/einrichten.sh --help" >&2; return 2; }
+    # Datei gehört root und ist nur für root lesbar (einrichten.sh schreibt sie mit printf %q)
+    eval "set -- $(cat "$KONFIG")"
+    local a geheim=0 zeigen=""
+    for a in "$@"; do
+      if [ "$geheim" = 1 ]; then zeigen+=" ***"; geheim=0; continue; fi
+      case "$a" in --ap-passwort|--netz-code) geheim=1 ;; esac
+      zeigen+=" $a"
+    done
+    echo "Mit den Optionen vom letzten Mal (Passwort und Code ausgeblendet):"
+    echo " $zeigen"
+  fi
+  "$REPO/pi/einrichten.sh" "$@"
+}
+
+ausfuehren() {
+  local befehl="${1:-}"
+  shift || true
+  case "$befehl" in
+    hilfe|help|-h|--help) hilfe ;;
+    status) status ;;
+    pruefen) als_root pruefen; "$REPO/pi/pruefen.sh" ;;
+    schreibschutz)
+      case "${1:-status}" in
+        an|aus) als_root schreibschutz "$1"; "$REPO/pi/wartung.sh" "$1" ;;
+        status) "$REPO/pi/wartung.sh" status ;;
+        *) echo "parrafraktor schreibschutz an|aus|status" >&2; return 2 ;;
+      esac ;;
+    update) als_root update; "$REPO/pi/wartung.sh" update ;;
+    internet) als_root internet "$@"; internet "$@" ;;
+    log)
+      case "${1:-}" in
+        update) journalctl -u parrafraktor-update -f ;;
+        netz) journalctl -u parrafraktor-netz -u NetworkManager -f ;;
+        *) journalctl -u parrafraktor -f ;;
+      esac ;;
+    neustart) als_root neustart; systemctl restart parrafraktor && echo "Dienst neu gestartet." ;;
+    einrichten) als_root einrichten "$@"; einrichten "$@" ;;
+    menue|"") menue ;;
+    *) echo "Unbekannter Befehl: $befehl" >&2; echo >&2; hilfe >&2; return 2 ;;
+  esac
+}
+
+# Auswahlmenü mit whiptail (wie raspi-config). Ohne Terminal oder whiptail: Hilfe.
+menue() {
+  if ! [ -t 0 ] || ! command -v whiptail >/dev/null; then hilfe; return; fi
+  local wahl schutz wlan
+  while true; do
+    if overlay_aktiv; then schutz=AN; else schutz=AUS; fi
+    if ap_an; then wlan=an; else wlan=aus; fi
+    wahl=$(whiptail --title "Parrafraktor" --cancel-button "Ende" --menu \
+      "Schreibschutz: $schutz   ·   Eigenes WLAN: $wlan" 20 74 11 \
+      status          "Überblick" \
+      pruefen         "Alle Prüfungen" \
+      log             "Log des Dienstes live (Strg-C beendet)" \
+      neustart        "Dienst neu starten" \
+      "schreibschutz aus" "Schreibschutz aus (Neustart) – für Updates" \
+      update          "Update: apt, git pull, Build (Schreibschutz aus)" \
+      "schreibschutz an"  "Schreibschutz wieder an (Neustart)" \
+      "internet an"   "Eigenes WLAN aus, WLAN mit Internet verbinden" \
+      "internet aus"  "Eigenes WLAN wieder an" \
+      einrichten      "Einrichtung erneut, mit den Optionen vom letzten Mal" \
+      hilfe           "Alle Befehle" \
+      3>&1 1>&2 2>&3) || return 0
+    case "$wahl" in
+      "schreibschutz an"|"schreibschutz aus")
+        whiptail --title "Parrafraktor" --yesno "$wahl: Der Pi startet danach neu. Weiter?" 8 60 || continue ;;
+      "internet an")
+        whiptail --title "Parrafraktor" --yesno "Eigenes WLAN aus: Eine SSH-Verbindung darüber reißt ab. Weiter?" 8 70 || continue ;;
+    esac
+    clear
+    # shellcheck disable=SC2086 # Menüeintrag ist Befehl + Argument
+    ( ausfuehren $wahl )
+    echo
+    read -rp "Weiter mit Enter … " _
+  done
+}
+
+ausfuehren "$@"

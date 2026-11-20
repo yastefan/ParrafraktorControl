@@ -172,7 +172,7 @@ sudo pi/einrichten.sh --ip 2.0.0.50/8 --ap-ssid Parrafraktor --ap-passwort 'gehe
 
 Mit `--netz-code NNNN` kommt das [Netz-Menü am Stream Deck](#netz-menü-am-stream-deck-nur-pi) dazu.
 
-Das iPad findet die App dann unter https://192.168.4.1:8443 bzw. http://192.168.4.1 (`--ap-adresse`, Vorgabe `192.168.4.1/24`) oder unter parrafraktor.local. Vorgabe ist 5 GHz auf Kanal 36, meist ruhiger in Räumen mit vielen Netzen; `--ap-band bg` nimmt 2,4 GHz (Kanal 6), das reicht weiter und durch Wände. Der Ländercode (`--land`, Vorgabe DE) gibt die erlaubten Kanäle vor. Der WLAN-Chip des Pi kann nicht gleichzeitig Access Point und mit einem anderen WLAN verbunden sein: Das WLAN, über das man einrichtet, bleibt gespeichert, kommt aber erst wieder, wenn der Access Point aus ist (`wartung.sh update` macht das selbst). Ins Lichtnetz wird nichts weitergeleitet. Für HTTPS die Adresse des Access Points beim `mkcert`-Aufruf mit angeben (z. B. `192.168.4.1`).
+Das iPad findet die App dann unter https://192.168.4.1:8443 bzw. http://192.168.4.1 (`--ap-adresse`, Vorgabe `192.168.4.1/24`) oder unter parrafraktor.local. Vorgabe ist 5 GHz auf Kanal 36, meist ruhiger in Räumen mit vielen Netzen; `--ap-band bg` nimmt 2,4 GHz (Kanal 6), das reicht weiter und durch Wände. Der Ländercode (`--land`, Vorgabe DE) gibt die erlaubten Kanäle vor. Der WLAN-Chip des Pi kann nicht gleichzeitig Access Point und mit einem anderen WLAN verbunden sein: Das WLAN, über das man einrichtet, bleibt gespeichert, kommt aber erst wieder, wenn der Access Point aus ist (`parrafraktor internet an`; `parrafraktor update` macht das selbst). Ins Lichtnetz wird nichts weitergeleitet. Für HTTPS die Adresse des Access Points beim `mkcert`-Aufruf mit angeben (z. B. `192.168.4.1`).
 
 Das Skript vergrößert die Systempartition auf 8 GiB (`--root-gb`), legt dahinter die Datenpartition mit 1 GiB an (`--daten-mb`), installiert Node, baut die App, richtet Dienst, Watchdog, Logs, udev und Netz ein und schaltet zum Schluss den Schreibschutz ein. Mit `--gateway` bekommt das Lichtnetz eine Standardroute, sonst bleibt das Internet beim WLAN. Ein erneuter Aufruf schadet nicht. Danach:
 
@@ -181,10 +181,24 @@ sudo reboot
 ```
 
 ```bash
-sudo ParrafraktorControl/pi/pruefen.sh
+parrafraktor pruefen
 ```
 
-`pruefen.sh` zeigt, ob Overlay, Datenpartition, Dienst, Watchdog, Logs und Stream Deck stimmen.
+Das zeigt, ob Overlay, Datenpartition, Dienst, Watchdog, Logs und Stream Deck stimmen.
+
+**Der Befehl `parrafraktor`**: Das Einrichtungsskript legt ihn an, damit man sich keine Einzelbefehle merken muss. Ohne Argument öffnet er ein Auswahlmenü (wie `raspi-config`), `parrafraktor hilfe` zeigt alle Befehle. Was root braucht, fragt selbst nach sudo.
+
+| Befehl | Was |
+|---|---|
+| `parrafraktor` | Auswahlmenü |
+| `parrafraktor status` | Überblick: Schreibschutz, Daten, Dienst, WLAN, Adressen, Stand des Repos |
+| `parrafraktor pruefen` | alle Prüfungen (`pi/pruefen.sh`) |
+| `parrafraktor schreibschutz aus` / `an` | Schreibschutz aus- bzw. einschalten (startet neu) |
+| `parrafraktor update` | apt, Pakete, `git pull`, Build, Dienst neu (Schreibschutz muss aus sein) |
+| `parrafraktor internet an` / `aus` | eigenes WLAN aus, damit sich der Pi mit dem gespeicherten WLAN mit Internet verbindet / wieder an |
+| `parrafraktor log` | Log des Dienstes live (`log update`, `log netz` für Update und Netz) |
+| `parrafraktor neustart` | nur den Dienst neu starten |
+| `parrafraktor einrichten` | Einrichtung erneut, ohne Optionen mit denen vom letzten Mal (gemerkt in `/etc/parrafraktor/einrichten.conf`, nur für root lesbar) |
 
 **Netz-Menü am Stream Deck (nur Pi)**
 
@@ -219,31 +233,31 @@ Gespeichert wird in `/daten/parrafraktor/netz.json`; beim Hochfahren wendet `par
 **Updates und Wartung**: Der Schreibschutz muss dafür aus sein. Alles, was bei aktivem Overlay außerhalb von `/daten` geändert wird, ist nach dem Neustart weg.
 
 ```bash
-sudo ParrafraktorControl/pi/wartung.sh aus
+parrafraktor schreibschutz aus
 ```
 
 Nach dem Neustart (System beschreibbar): apt-Updates, nötige Pakete (`pi/pakete.sh`), `git pull`, `npm ci`, Build, Dienst neu starten. Ein eigenes WLAN wird dafür kurz ausgeschaltet, damit sich der Pi mit dem gespeicherten WLAN mit Internet verbinden kann (alternativ Internet übers Kabel). Weil dabei eine SSH-Verbindung über dieses WLAN abreißt, läuft das Update dann losgelöst als Dienst `parrafraktor-update` weiter. Fertig ist es, wenn das eigene WLAN wieder da ist; das Ergebnis zeigt `journalctl -u parrafraktor-update --no-pager | tail -15` (mitlesen mit `-f`, z. B. über das WLAN mit Internet unter `parrafraktor.local`):
 
 ```bash
-sudo ParrafraktorControl/pi/wartung.sh update
+parrafraktor update
 ```
 
 App prüfen, dann den Schreibschutz wieder einschalten (startet neu):
 
 ```bash
-sudo ParrafraktorControl/pi/wartung.sh an
+parrafraktor schreibschutz an
 ```
 
-`pi/wartung.sh status` zeigt den Zustand. Bekannte Stolperstellen unter Trixie: Nach einem Kernel-Update auf 6.18.29 griff das Overlay bei manchen nicht mehr ([raspi-config#306](https://github.com/RPi-Distro/raspi-config/issues/306)) – deshalb nach jedem Update `pruefen.sh` laufen lassen. Beim Ausschalten bleibt `overlayroot=tmpfs` manchmal in `cmdline.txt` stehen; `wartung.sh aus` entfernt es dann selbst.
+`parrafraktor status` zeigt den Zustand. Ändert sich etwas an der Einrichtung selbst (z. B. Ports, Netz-Menü), statt `update` bei ausgeschaltetem Schreibschutz `parrafraktor einrichten` aufrufen. Bekannte Stolperstellen unter Trixie: Nach einem Kernel-Update auf 6.18.29 griff das Overlay bei manchen nicht mehr ([raspi-config#306](https://github.com/RPi-Distro/raspi-config/issues/306)) – deshalb nach jedem Update `parrafraktor pruefen` laufen lassen. Beim Ausschalten bleibt `overlayroot=tmpfs` manchmal in `cmdline.txt` stehen; `parrafraktor schreibschutz aus` entfernt es dann selbst.
 
 **Prüfliste am echten Gerät** (vor der ersten Ausstellung):
 
-1. Einrichten wie oben, `pruefen.sh` ohne Fehler.
+1. Einrichten wie oben, `parrafraktor pruefen` ohne Fehler.
 2. Presets speichern, Einstellungen ändern, Autostart output einschalten.
 3. Mehrmals im Betrieb den Strom ziehen, auch **direkt nach dem Speichern eines Presets** (innerhalb einer Sekunde) und während Auto überblendet.
 4. Mit eigenem WLAN: iPad verbindet sich nach jedem Start von selbst und erreicht die App.
 5. Mit Netz-Menü: WLAN aus/an, LAN auf DHCP (ohne DHCP-Server: feste IP nach etwa 15 s), andere feste IP – jeweils auch nach einem Neustart noch so.
-5. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `pruefen.sh` ist grün.
+5. Nach jedem Start: Presets und Einstellungen sind da (im Log `journalctl -u parrafraktor` steht ggf. „Sicherung … verwendet“), das Stream Deck läuft, der Output startet von selbst, `parrafraktor pruefen` ist grün.
 
 Quellen: [Raspberry Pi OS Downloads](https://www.raspberrypi.com/software/operating-systems/), [Raspberry Pi Dokumentation: Konfiguration (Overlay File System)](https://www.raspberrypi.com/documentation/computers/configuration.html), [raspi-config, Zweig trixie (`do_overlayfs`)](https://github.com/RPi-Distro/raspi-config/blob/trixie/raspi-config), [raspberrypi-sys-mods, Zweig pios/trixie (`resize_early`, `rpi-resize.service`)](https://github.com/RPi-Distro/raspberrypi-sys-mods/tree/pios/trixie), [Forum: Resize unter Trixie](https://forums.raspberrypi.com/viewtopic.php?t=395602), [systemd-system.conf (Watchdog)](https://www.freedesktop.org/software/systemd/man/latest/systemd-system.conf.html), [Linux-Treiber bcm2835_wdt](https://github.com/torvalds/linux/blob/master/drivers/watchdog/bcm2835_wdt.c), [NetworkManager: nmcli-Einstellungen (wifi, `ipv4.method shared`)](https://networkmanager.dev/docs/api/latest/nm-settings-nmcli.html), [Whitepaper „Making a more resilient file system“](https://pip.raspberrypi.com/documents/RP-003610-WP-Making-a-more-resilient-file-system.pdf), [Debian: nodejs in Trixie](https://packages.debian.org/trixie/nodejs), [NodeSource-Distributionen](https://github.com/nodesource/distributions), [trixie-feedback#75](https://github.com/raspberrypi/trixie-feedback/issues/75).
 
