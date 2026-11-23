@@ -11,9 +11,10 @@ import {
 } from "@parrafraktor/engine";
 import type { Settings } from "./settings.js";
 import { isNumericParameter, checkParameter, type NumericParameter } from "./parameter.js";
+import type { SceneInfo } from "./scenes.js";
 import { isPresetNumber, presetName, type AutoSettings, type Presets } from "./presets.js";
 
-export const PROTOCOL_VERSION = 12;
+export const PROTOCOL_VERSION = 13;
 export const WS_PATH = "/ws";
 export const STATE_INTERVAL_MS = 1000;   // a state comes at least this often, even without a change
 
@@ -67,6 +68,9 @@ export interface State {
   // It fades from the positions at the moment of recalling to the new look.
   blende: { id: number; anteil: number } | null;
   blendeDauerS: number;           // duration of the running cross-fade: with Auto its own time
+  // light scene per preset slot (null = none) and the slot whose scene plays (see scenes.ts)
+  scenes: (SceneInfo | null)[];
+  activeScene: number | null;
   // Auto: settings, whether it runs, and how long the current look has left
   auto: AutoSettings & { an: boolean; restS: number };
   // impulse settings, plus the ones running right now (times when sending)
@@ -88,7 +92,7 @@ export type ClientMessage =
   | { typ: "vorgabe"; name: NumericParameter }
   | { typ: "uebernahme"; an: boolean }
   | { typ: "einstellungen"; einstellungen: unknown }   // the server checks it with checkSettings
-  | { typ: "preset"; aktion: "abrufen" | "speichern" | "loeschen"; nr: number }
+  | { typ: "preset"; aktion: "abrufen" | "speichern" | "loeschen" | "clearScene"; nr: number }
   | { typ: "preset"; aktion: "umbenennen"; nr: number; name: string }
   // Strip: start the selected impulse kind from the origin (0 = left … 1 = right).
   // wischen (swipe): runs through the whole element (width only applies to a tap)
@@ -120,7 +124,7 @@ export function parseClientMessage(text: string): ClientMessage | null {
         const name = presetName(r.name, "");
         return name ? { typ: "preset", aktion: "umbenennen", nr: r.nr, name } : null;
       }
-      if (r.aktion === "abrufen" || r.aktion === "speichern" || r.aktion === "loeschen") {
+      if (r.aktion === "abrufen" || r.aktion === "speichern" || r.aktion === "loeschen" || r.aktion === "clearScene") {
         return { typ: "preset", aktion: r.aktion, nr: r.nr };
       }
       return null;

@@ -1,9 +1,10 @@
 // Look presets: tap recalls (smooth cross-fade), hold stores the current look.
-// In edit mode presets can be renamed and deleted.
+// In edit mode presets can be renamed and deleted, and their light scene cleared.
+// A slot with a light scene shows a small "DMX" mark.
 // Auto plays the selected presets; selection and times are under "Select". While Auto
 // runs, the frame of the module lights up.
 import { useRef, useState } from "preact/hooks";
-import { AUTO_RANGES, PRESET_NAME_MAX, type Preset } from "@parrafraktor/protocol";
+import { AUTO_RANGES, PRESET_NAME_MAX, type Preset, type SceneInfo } from "@parrafraktor/protocol";
 import { useAppState } from "../app-state.js";
 import { Module } from "./module.js";
 
@@ -57,7 +58,7 @@ export function Presets() {
       <div class="presets-raster">
         {state.presets.map((p, nr) => (
           <PresetSlot
-            key={nr} nr={nr} preset={p} editing={editing}
+            key={nr} nr={nr} preset={p} editing={editing} scene={state.scenes?.[nr] ?? null}
             active={state.letztesPreset === nr} usable={l.usable}
             select={selection} showSelection={selection || auto.an} selected={auto.auswahl[nr] === true}
           />
@@ -106,9 +107,13 @@ interface Props {
   select: boolean;     // Tap selects for Auto instead of recalling
   showSelection: boolean;
   selected: boolean;
+  scene: SceneInfo | null;
 }
 
-function PresetSlot({ nr, preset, active, editing, usable, select, showSelection, selected }: Props) {
+const SceneMark = ({ scene }: { scene: SceneInfo | null }) =>
+  scene ? <span class="szene-marke" title={`Light scene: universe ${scene.universes.join(", ")}`}>DMX</span> : null;
+
+function PresetSlot({ nr, preset, active, editing, usable, select, showSelection, selected, scene }: Props) {
   const l = useAppState();
   const timer = useRef<number>();
   const saved = useRef(false);
@@ -135,6 +140,15 @@ function PresetSlot({ nr, preset, active, editing, usable, select, showSelection
             ×
           </button>
         )}
+        {scene && (
+          <button
+            type="button" class="preset-loeschen szene-loeschen" disabled={!usable} aria-label={`Clear light scene of preset ${nr + 1}`}
+            title="Clear light scene"
+            onClick={() => { if (window.confirm(`Clear the light scene of “${preset?.name ?? `P${nr + 1}`}”?`)) l.send({ typ: "preset", aktion: "clearScene", nr }); }}
+          >
+            DMX ×
+          </button>
+        )}
       </div>
     );
   }
@@ -153,6 +167,7 @@ function PresetSlot({ nr, preset, active, editing, usable, select, showSelection
       >
         <span class="nr">P{String(nr + 1).padStart(2, "0")}</span>
         <span class="preset-titel">{preset?.name ?? "–"}</span>
+        <SceneMark scene={scene} />
       </button>
     );
   }
@@ -184,6 +199,7 @@ function PresetSlot({ nr, preset, active, editing, usable, select, showSelection
     >
       <span class="nr">P{String(nr + 1).padStart(2, "0")}</span>
       <span class="preset-titel">{preset?.name ?? "–"}</span>
+      <SceneMark scene={scene} />
     </button>
   );
 }

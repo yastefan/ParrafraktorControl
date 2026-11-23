@@ -93,3 +93,15 @@ export function readPositions(
   }
   return positions;
 }
+
+// Channels of the Parrafraktor per universe of the patch: 1 = mirror channel (comes from the
+// engine), 0 = free for other devices (light scenes, see server/src/scenes.ts)
+export function patchMask(patch: readonly PatchElement[]): Map<number, Uint8Array> {
+  const masks = new Map<number, Uint8Array>();
+  for (const e of patch) {
+    let m = masks.get(e.universe);
+    if (!m) masks.set(e.universe, (m = new Uint8Array(512)));
+    m.fill(1, e.adresse - 1, Math.min(512, e.adresse - 1 + CHANNELS_PER_ELEMENT));
+  }
+  return masks;
+}

@@ -27,6 +27,7 @@ import { networkFromEnv } from "./network.js";
 import { Store } from "./store.js";
 import { Controller, parameterOff } from "./controller.js";
 import { Ticker } from "./ticker.js";
+import { captureScene, checkSceneFile, recordUniverses, sceneFileJson } from "./scenes.js";
 import { WebServer } from "./web/server.js";
 
 const port = Number(process.env.PORT ?? 8080);
@@ -43,6 +44,7 @@ const controller = new Controller(
   checkImpulse(store.read("impuls.json")),
   undefined,
   checkAuto(store.read("auto.json")),
+  checkSceneFile(store.read("scenes.json")),
 );
 
 // ---------- Outputs and MA listener: recreated on every change of the settings ----------
@@ -51,24 +53,32 @@ let outputs: Output[] = [];
 let maListener: MaListener | null = null;
 let restart = Promise.resolve();
 
-function startOutputs(e: Settings): void {
+// withOutputs false: only the MA listener (e.g. other universes for the light scenes) – the
+// outputs keep sending, so sACN does not briefly hand over to the MA
+function startOutputs(e: Settings, withOutputs = true): void {
   restart = restart.then(async () => {
-    const old = outputs, oldListener = maListener;
-    outputs = [];
+    const old = withOutputs ? outputs : [], oldListener = maListener;
+    if (withOutputs) outputs = [];
     maListener = null;
     // Close the old ones first: releases the stream with sACN, the new ones take over in the next tick
     await Promise.all(old.map((o) => o.close().catch(() => {})));
     await oldListener?.close().catch(() => {});
     try {
-      outputs = createOutputs(e);
+      if (withOutputs) outputs = createOutputs(e);
       maListener = new MaListener(e);
     } catch (err) {
       log("output", errorText(err));
     }
-    log("output", outputs.length ? outputs.map((o) => o.name).join(", ") : "no output active");
+    if (withOutputs) log("output", outputs.length ? outputs.map((o) => o.name).join(", ") : "no output active");
     controller.changed();
   });
 }
+
+// Storing a preset with record on takes the light scene from what the MA sends
+controller.setSceneSource(() => {
+  const e = controller.settings;
+  return captureScene(maListener?.frames() ?? new Map(), recordUniverses(e), e.patch);
+});
 
 const ticker = new Ticker(controller, { outputs: () => outputs, maListener: () => maListener });
 
@@ -96,6 +106,7 @@ function state(): State {
   const module: ModuleStatus[] = [
     ...outputs.map((o) => o.status()),
     ...(maListener ? [maListener.status()] : []),
+    ...(maListener && (e.scenes.record || e.scenes.playback) ? [maListener.sceneStatus()] : []),
     ...inputs.map((m) => m.status()),
     { name: "Clients", art: "eingabe", zustand: web?.clientCount ? "aktiv" : "bereit", text: `${web?.clientCount ?? 0} connected` },
   ];
@@ -104,6 +115,7 @@ function state(): State {
   if (patch) warnings.push(patch);
   if (!outputs.length) warnings.push("No output active – the mirrors receive nothing.");
   if (e.artnet.an && e.sacn.an) warnings.push("Art-Net and sACN active at the same time.");
+  if (controller.sceneWarning) warnings.push(controller.sceneWarning);
   if (e.autostart.output) warnings.push("Autostart output is on: after every restart the app drives the mirrors at once, the MA cannot take them.");
   return {
     typ: "stand",
@@ -124,6 +136,8 @@ function state(): State {
     letztesPreset: controller.lastPreset,
     blende: controller.fade ? { ...controller.fade } : null,
     blendeDauerS: controller.fadeDurationS,
+    scenes: controller.scenes,
+    activeScene: controller.activeScene,
     auto: { ...controller.auto, an: controller.autoOn, restS: controller.autoRemainingS },
     impuls: controller.impulse,
     impulse: controller.impulses(),
@@ -137,16 +151,20 @@ controller.on("parameter", (p) => store.writeLater("parameter.json", p, 2000));
 controller.on("presets", (p) => store.writeLater("presets.json", p));
 controller.on("impulse", (i) => store.writeLater("impuls.json", i));
 controller.on("auto", (a) => store.writeLater("auto.json", a));
+controller.on("scenes", (f) => store.writeLater("scenes.json", sceneFileJson(f)));
 // Only restart the outputs when network or patch change. A restart briefly hands over to the MA
 // with sACN – that must not happen just because someone changes the cross-fade or the preview.
 const outputPart = (e: Settings) => JSON.stringify([e.artnet, e.sacn, e.rs485, e.patch]);
-let lastOutput = outputPart(controller.settings);
+const listenerPart = (e: Settings) => JSON.stringify(recordUniverses(e));
+let lastOutput = outputPart(controller.settings), lastListener = listenerPart(controller.settings);
 controller.on("settings", (e) => {
   store.writeLater("einstellungen.json", e);
-  const part = outputPart(e);
-  if (part === lastOutput) return;
+  const part = outputPart(e), listener = listenerPart(e);
+  if (part === lastOutput && listener === lastListener) return;
+  const withOutputs = part !== lastOutput;
   lastOutput = part;
-  startOutputs(e);
+  lastListener = listener;
+  startOutputs(e, withOutputs);
 });
 
 // npm run dev sets PARRAFRAKTOR_VITE_PORT: then this port forwards page requests to Vite

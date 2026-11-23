@@ -1,5 +1,6 @@
 // Server settings: patch, outputs, cross-fade. Edited in the client's settings menu and saved on the
 // server as JSON. The field names are saved data and protocol: they stay German.
+import { SCENE_DEFAULTS, checkUniverseList, type SceneSettings } from "./scenes.js";
 import { ADDRESS_MAX, ELEMENTS, PATCH_DEFAULTS, type ImpulseAngles, type PatchElement } from "@parrafraktor/engine";
 
 export interface ArtnetSettings {
@@ -53,6 +54,7 @@ export interface Settings {
   sacn: SacnSettings;
   rs485: Rs485Settings;
   autostart: AutostartSettings;
+  scenes: SceneSettings;
 }
 
 export const SETTINGS_DEFAULTS: Readonly<Settings> = {
@@ -68,6 +70,7 @@ export const SETTINGS_DEFAULTS: Readonly<Settings> = {
   sacn: { an: false, priority: 150, multicast: true, ziel: "", quelle: "" },
   rs485: { an: false, geraet: "/dev/serial0" },
   autostart: { output: false, auto: false },
+  scenes: { ...SCENE_DEFAULTS },
 };
 
 export const LIMITS = {
@@ -107,7 +110,7 @@ export function checkSettings(raw: unknown, basis: Settings = SETTINGS_DEFAULTS)
     return { universe: num(e.universe, old.universe, LIMITS.universe), adresse: num(e.adresse, old.adresse, LIMITS.adresse) };
   });
   const a = asObject(r.artnet), s = asObject(r.sacn), rs = asObject(r.rs485), au = asObject(r.aufbau), f = asObject(r.flash);
-  const st = asObject(r.autostart);
+  const st = asObject(r.autostart), sc = asObject(r.scenes);
   const rawRotation = Array.isArray(au.drehung) ? au.drehung : [];
   const aufbau: Layout = {
     anordnung: ARRANGEMENTS.includes(au.anordnung as Arrangement) ? (au.anordnung as Arrangement) : basis.aufbau.anordnung,
@@ -138,6 +141,11 @@ export function checkSettings(raw: unknown, basis: Settings = SETTINGS_DEFAULTS)
     },
     rs485: { an: bool(rs.an, basis.rs485.an), geraet: str(rs.geraet, basis.rs485.geraet) },
     autostart: { output: bool(st.output, basis.autostart.output), auto: bool(st.auto, basis.autostart.auto) },
+    scenes: {
+      record: bool(sc.record, basis.scenes.record),
+      playback: bool(sc.playback, basis.scenes.playback),
+      universes: Array.isArray(sc.universes) ? checkUniverseList(sc.universes, LIMITS.universe) : [...basis.scenes.universes],
+    },
   };
 }
 
