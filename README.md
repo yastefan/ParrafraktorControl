@@ -376,6 +376,19 @@ Im Kopf der Vorschau schaltet man zwischen **Simple** (die Ansicht nach Aufbau, 
 
 **Auto** fährt die ausgewählten Presets der Reihe nach ab. Unter „Auswahl“ legt man per Tippen fest, welche mitlaufen (die Marke oben rechts zeigt es), und stellt zwei Zeiten ein: **Überblenden** ist die Dauer des Übergangs, **Halten** die Zeit, die der Look danach steht. Solange Auto läuft, leuchtet der Rahmen des Moduls Presets und daneben steht die Restzeit. Auto braucht mindestens zwei Presets. Es schaltet den Output nicht ein oder aus und startet nach einem Neustart aus, außer „Autostart Auto“ ist eingeschaltet. Sobald man den Look von Hand verändert oder ein Preset abruft, endet Auto; die Pause hält es nur an. Das gilt auch am Stream Deck, dort startet und stoppt man Auto mit der eigenen Taste im Hauptmenü.
 
+## Light scenes (DMX recorder)
+
+A preset can carry a **light scene**: a static snapshot of the other devices (lamps, haze, …) that the MA sends. Two switches in the settings menu, group "Light scenes", control it:
+
+- **Record**: storing a preset (hold) also takes what the MA sends right now in the universes of the patch and in the **extra universes** (up to 8, e.g. `2, 3`). Only if all of them arrived in the last 2.5 s; otherwise the look is stored, the old scene stays, and a warning names the missing universe. The status line in the group shows which universes arrive. With Record off, storing a preset keeps the scene it already has.
+- **Playback**: while the output is on, the app sends the scene of the last recalled preset. It fades linearly with the look (preset cross-fade, Auto's fade time) and with the output from/to the MA. A preset without a scene: the other channels go to 0, extra universes are no longer sent.
+- **The mirror channels** (3 × 37 from the patch) always come from the app; they are not recorded.
+- **Playback off**: the other channels in the universes of the patch are 0, so the node can merge them with the MA by HTP. Extra universes are not sent at all (sACN ends their stream).
+
+Presets with a scene show a small "DMX" mark; under "Edit" it can be cleared. Like reading the MA for the cross-fade, recording only hears sACN multicast or Art-Net broadcast (or unicast to this computer). Scenes are saved in `daten/scenes.json`.
+
+Caution with HTP: the node takes the higher value on *every* channel, also on the mirrors' tilt and TiltRotate. If the MA sends other values there while the app has the output, the mirrors get wrong angles – there the node has to merge by priority (sACN) or LTP.
+
 ## Ausgabe und Output
 
 Im Einstellungsmenü lassen sich Art-Net, sACN und (später) RS485 einzeln einschalten, jeweils mit Ziel-IP und Netzwerkkarte.

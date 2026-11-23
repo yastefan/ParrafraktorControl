@@ -10,7 +10,12 @@ import {
   AUTO_DEFAULTS, RANGES, IMPULSE_RANGES, STEPPED, clampParameter, impulseValue, lookOf, migrateParameter, withImpulseValue, checkAuto, checkSettings,
   checkImpulse, checkParameter, shiftOffset, defaultName, defaultValue,
   type AutoSettings, type Settings, type ImpulseControl, type Presets, type SwitchParameter, type SteppedParameter, type Takeover, type NumericParameter,
+  type SceneInfo,
 } from "@parrafraktor/protocol";
+import { sceneInfo, type Scene, type SceneFile } from "./scenes.js";
+
+// Takes a light scene from what the MA sends right now (set by index.ts, see scenes.ts)
+export type SceneSource = () => { scene: Scene } | { missing: number[] };
 
 // A started impulse (fields like RunningImpulse, which is protocol)
 interface ImpulseEntry {
@@ -37,6 +42,8 @@ interface Events {
   impulse: [ImpulseSettings];
   // selection or times of Auto changed: saved
   auto: [AutoSettings];
+  // light scenes or the active one changed: saved
+  scenes: [SceneFile];
 }
 
 export class Controller extends EventEmitter<Events> {
@@ -56,6 +63,9 @@ export class Controller extends EventEmitter<Events> {
   private _impulse: ImpulseSettings;
   private _impulses: ImpulseEntry[] = [];
   private impulseId = 0;
+  private _scenes: SceneFile = { active: null, slots: [] };
+  private sceneSource: SceneSource | null = null;
+  private _sceneWarning: string | null = null;
 
   // clock: seconds, replaceable for tests
   constructor(
@@ -65,6 +75,7 @@ export class Controller extends EventEmitter<Events> {
     impulse: ImpulseSettings = IMPULSE_DEFAULTS,
     private readonly clock: () => number = () => performance.now() / 1000,
     auto: AutoSettings = AUTO_DEFAULTS,
+    scenes: SceneFile = { active: null, slots: [] },
   ) {
     super();
     this._parameter = parameter;
@@ -72,6 +83,7 @@ export class Controller extends EventEmitter<Events> {
     this._presets = presets;
     this._impulse = impulse;
     this._auto = auto;
+    this._scenes = scenes;
     this._fadeDurationS = settings.ueberblendungS;
   }
 
@@ -87,6 +99,14 @@ export class Controller extends EventEmitter<Events> {
   get auto(): Readonly<AutoSettings> { return this._auto; }
   get autoOn(): boolean { return this._autoOn; }
   get autoRemainingS(): number { return this._autoRemainingS; }
+  // Light scenes: what the client sees, the slot that plays, and its values (for the ticker)
+  get scenes(): (SceneInfo | null)[] { return this._presets.map((_, nr) => sceneInfo(this._scenes.slots[nr] ?? null)); }
+  get activeScene(): number | null { return this._scenes.active; }
+  get activeSceneData(): Scene | null {
+    const a = this._scenes.active;
+    return a === null ? null : this._scenes.slots[a] ?? null;
+  }
+  get sceneWarning(): string | null { return this._settings.scenes.record ? this._sceneWarning : null; }
   get autoStartable(): boolean { return this.autoList().length >= 2; }
 
   // Running impulses with times relative to now (for the ticker, the preview and displays)
@@ -217,6 +237,8 @@ export class Controller extends EventEmitter<Events> {
     if (!preset) return;
     // pause stays as it is: it is not part of the look
     this.change({ ...preset.look }, nr, true);
+    // the light scene of the preset plays (none if it has none); it fades with the look
+    this.setActiveScene(nr);
     this.startFade(fadeS);
     this.changed();
   }
@@ -236,13 +258,49 @@ export class Controller extends EventEmitter<Events> {
     const name = this._presets[nr]?.name ?? defaultName(look);
     this.setPreset(nr, { name, look });
     this._lastPreset = nr;
+    // Record on: take the light scene too. Off, or nothing received: the preset keeps its scene.
+    if (this._settings.scenes.record && this.sceneSource) {
+      const r = this.sceneSource();
+      if ("scene" in r) {
+        this.setScene(nr, r.scene);
+        this._sceneWarning = null;
+      } else {
+        this._sceneWarning = `Scene of P${nr + 1} not recorded: universe ${r.missing.join(", ")} not received from the MA.`;
+      }
+    }
+    this.setActiveScene(nr);
     this.changed();
   }
 
   deletePreset(nr: number): void {
     if (this._lastPreset === nr) this._lastPreset = null;
+    this.setScene(nr, null);
+    if (this._scenes.active === nr) this.setActiveScene(null);
     this.setPreset(nr, null);
     if (this.autoList().length < 2) this.setAuto(false);
+  }
+
+  clearScene(nr: number): void {
+    this.setScene(nr, null);
+  }
+
+  setSceneSource(source: SceneSource): void {
+    this.sceneSource = source;
+  }
+
+  private setScene(nr: number, scene: Scene | null): void {
+    if (!scene && !this._scenes.slots[nr]) return;
+    const slots = Array.from({ length: this._presets.length }, (_, i) => (i === nr ? scene : this._scenes.slots[i] ?? null));
+    this._scenes = { ...this._scenes, slots };
+    this.emit("scenes", this._scenes);
+    this.changed();
+  }
+
+  private setActiveScene(nr: number | null): void {
+    if (this._scenes.active === nr) return;
+    this._scenes = { ...this._scenes, active: nr };
+    this.emit("scenes", this._scenes);
+    this.changed();
   }
 
   renamePreset(nr: number, name: string): void {

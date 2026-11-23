@@ -154,6 +154,7 @@ export class WebServer {
           case "abrufen": s.recallPreset(n.nr); break;
           case "speichern": s.storePreset(n.nr); break;
           case "loeschen": s.deletePreset(n.nr); break;
+          case "clearScene": s.clearScene(n.nr); break;
           case "umbenennen": s.renamePreset(n.nr, n.name); break;
         }
         break;

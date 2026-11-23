@@ -11,11 +11,16 @@
 // new look over the fade time, so the motors do not jump.
 //
 // Impulses (flash, hole, iris) lie over the look, but under the cross-fade from and to the MA.
+//
+// Light scenes (scenes.ts): the other channels follow the scene of the last recalled preset,
+// fade linearly with the look and with the output from/to the MA; mirror channels always come
+// from the engine.
 import { Engine, blend, writeUniverses, smooth, applyImpulses, type Position } from "@parrafraktor/engine";
 import type { TakeoverState } from "@parrafraktor/protocol";
 import type { Output } from "./output/index.js";
 import type { MaListener } from "./ma-listener.js";
 import type { Controller } from "./controller.js";
+import { blendFrames, blendFromMa, sceneTargets, withMirrors } from "./scenes.js";
 
 export const TICK_MS = 25;
 
@@ -54,10 +59,15 @@ export class Ticker {
   // last computed positions of the app and, during a cross-fade to a preset, the starting point
   private app: Position[] = [];
   private fadeFrom: Position[] | null = null;
+  // other channels (light scene) last computed, starting point of a cross-fade, its progress
+  private other = new Map<number, Uint8Array>();
+  private otherFrom: Map<number, Uint8Array> | null = null;
+  private fadeFraction = 1;
 
   constructor(private readonly controller: Controller, private readonly sources: Sources) {
     controller.on("fade", () => {
       this.fadeFrom = this.app.length ? this.app : this.engine.all(controller.parameter);
+      this.otherFrom = this.other;
     });
   }
 
@@ -86,15 +96,30 @@ export class Ticker {
     const fade = this.controller.fade;
     if (!fade || !this.fadeFrom) {
       this.fadeFrom = null;
+      this.fadeFraction = 1;
       this.app = target;
       return target;
     }
     const duration = this.controller.fadeDurationS;
     const fraction = duration > 0 ? Math.min(1, fade.anteil + dt / duration) : 1;
+    this.fadeFraction = fraction;
     this.app = fraction >= 1 ? target : blend(this.fadeFrom, target, smooth(fraction));
     this.controller.reportFade(fraction >= 1 ? null : fraction);
     if (fraction >= 1) this.fadeFrom = null;
     return this.app;
+  }
+
+  // Other channels: scene of the active preset, faded with the look
+  private otherChannels(): Map<number, Uint8Array> {
+    const { settings } = this.controller;
+    const target = sceneTargets(this.controller.activeSceneData, settings.scenes.playback, settings.patch);
+    if (this.otherFrom && this.fadeFraction < 1) {
+      this.other = blendFrames(this.otherFrom, target, this.fadeFraction);
+    } else {
+      this.otherFrom = null;
+      this.other = target;
+    }
+    return this.other;
   }
 
   private withImpulses(app: Position[]): Position[] {
@@ -121,12 +146,17 @@ export class Ticker {
     const outputs = this.sources.outputs();
     if (state === "aus") {
       this.appPositions(dt);   // the cross-fade to a preset continues without output too
+      this.otherChannels();
       if (before !== "aus") for (const o of outputs) o.release();
       return;
     }
     const app = this.withImpulses(this.appPositions(dt));
     const positions = ma && fraction < 1 ? blend(ma, app, smooth(fraction)) : app;
-    const universes = writeUniverses(positions, settings.patch, settings.rotateMaxUpm);
+    let other = this.otherChannels();
+    const maFrames = this.sources.maListener()?.frames();
+    if (maFrames && fraction < 1) other = blendFromMa(maFrames, other, fraction);
+    const mirrors = writeUniverses(positions, settings.patch, settings.rotateMaxUpm);
+    const universes = withMirrors(other, mirrors, settings.patch);
     for (const o of outputs) o.send(universes);
   }
 }

@@ -5,8 +5,9 @@
 // Limits: Art-Net sent by unicast from the MA to the node does not arrive here, only broadcast.
 import { createSocket, type Socket } from "node:dgram";
 import { networkInterfaces } from "node:os";
-import { readPositions, patchUniverses, type Position } from "@parrafraktor/engine";
+import { readPositions, type Position } from "@parrafraktor/engine";
 import type { Settings, ModuleStatus } from "@parrafraktor/protocol";
+import { recordUniverses } from "./scenes.js";
 import { ARTNET_PORT } from "./output/artnet.js";
 import { OWN_CID, SACN_PORT, multicastAddress } from "./output/sacn.js";
 import { errorText, log } from "./log.js";
@@ -28,19 +29,38 @@ export class MaListener {
   // Own addresses, refreshed every few seconds: on the Pi the fixed IP often comes after the server start
   private own = ownAddresses();
   private ownCheckedAt = Date.now();
+  // universes of the patch plus those of the light scenes
+  private readonly universes: number[];
 
   constructor(private readonly e: Settings) {
-    const universes = patchUniverses(e.patch);
+    const universes = recordUniverses(e);
+    this.universes = universes;
     if (e.sacn.an) this.listenSacn(universes);
     if (e.artnet.an) this.listenArtnet();
   }
 
   // Positions of the MA if all universes of the patch were received recently, otherwise null
   positions(rotateMaxRpm = this.e.rotateMaxUpm): Position[] | null {
+    return readPositions(this.frames(), this.e.patch, rotateMaxRpm);
+  }
+
+  // Universes received recently (for light scenes and their cross-fade)
+  frames(): Map<number, Uint8Array> {
     const now = Date.now();
     const fresh = new Map<number, Uint8Array>();
     for (const [u, { data, time }] of this.received) if (now - time < FRESH_MS) fresh.set(u, data);
-    return readPositions(fresh, this.e.patch, rotateMaxRpm);
+    return fresh;
+  }
+
+  // For the settings: which of the recorded universes arrive
+  sceneStatus(): ModuleStatus {
+    const name = "Scene recorder";
+    const fresh = this.frames();
+    const got = this.universes.filter((u) => fresh.has(u)), missing = this.universes.filter((u) => !fresh.has(u));
+    if (!this.sockets.length) return { name, art: "mitlesen", zustand: "aus", text: "no output active" };
+    const text = [got.length ? `receiving ${got.join(", ")}` : "", missing.length ? `missing ${missing.join(", ")}` : ""]
+      .filter(Boolean).join(" · ");
+    return { name, art: "mitlesen", zustand: missing.length ? "bereit" : "aktiv", text };
   }
 
   status(): ModuleStatus {
@@ -113,7 +133,8 @@ export class MaListener {
       if (this.isOwn(from)) return;                             // own packets
       const portAddress = (p[15]! << 8) | p[14]!;
       const count = Math.min(512, p.readUInt16BE(16));
-      this.remember(portAddress - offset, p.subarray(18, 18 + count));
+      const universe = portAddress - offset;
+      if (this.universes.includes(universe)) this.remember(universe, p.subarray(18, 18 + count));
     });
   }
 }

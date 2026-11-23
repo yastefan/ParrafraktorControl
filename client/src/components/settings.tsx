@@ -1,10 +1,10 @@
-// Settings menu: autostart, layout, cross-fade, mirrors, patch, outputs, status.
+// Settings menu: autostart, light scenes, layout, cross-fade, mirrors, patch, outputs, status.
 // Layout and sliders (cross-fade, speed) act at once. Patch and network are collected and only sent with
 // "Save", because the server restarts the outputs for them.
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { ELEMENTS } from "@parrafraktor/engine";
-import { LIMITS, isIpv4, type Arrangement, type Settings as E, type State } from "@parrafraktor/protocol";
+import { LIMITS, SCENE_UNIVERSES_MAX, isIpv4, parseUniverses, type Arrangement, type Settings as E, type State } from "@parrafraktor/protocol";
 import { appState } from "../app-state.js";
 
 interface Props {
@@ -54,6 +54,26 @@ export function SettingsPanel({ state, close }: Props) {
             For exhibitions without a grandMA3. <b>Autostart output</b>: after every restart of the server the app takes the
             mirrors at once, without holding Output – the mirrors jump to the look, the MA cannot drive them. Leave it off
             whenever an MA is in the network. <b>Autostart Auto</b>: Auto runs the selected presets (at least two) after a restart.
+          </p>
+        </Group>
+
+        <Group title="Light scenes (DMX recorder)">
+          <Switch name="Record" on={draft.scenes.record}
+            set={(on) => immediate({ scenes: { ...draft.scenes, record: on } })} />
+          <Switch name="Playback" on={draft.scenes.playback}
+            set={(on) => immediate({ scenes: { ...draft.scenes, playback: on } })} />
+          <UniverseList value={draft.scenes.universes}
+            set={(universes) => immediate({ scenes: { ...draft.scenes, universes } })} />
+          {state.module.filter((m) => m.name === "Scene recorder").map((m) => (
+            <p class="hilfe" key={m.name}><span class={`punkt ${m.zustand}`} /> {m.text}</p>
+          ))}
+          <p class="hilfe">
+            A light scene is a snapshot of the other devices, linked to a preset. <b>Record</b>: storing a preset (hold)
+            also takes what the MA sends right now in the universes of the patch and the extra universes – only if all
+            of them arrive. With Record off a preset keeps its scene. <b>Playback</b>: while the output is on, the app
+            sends the scene of the last recalled preset and fades it with the look. The mirror channels always come
+            from the app. Playback off: the other channels in the patch universes are 0 (merge by HTP in the node),
+            extra universes are not sent.
           </p>
         </Group>
 
@@ -257,6 +277,26 @@ function Text(p: { name: string; value: string; help?: string; set: (v: string) 
       </label>
       {p.help && <p class="hilfe">{p.help}</p>}
     </>
+  );
+}
+
+// Universes as text ("2, 3"); taken over when leaving the field
+function UniverseList(p: { value: number[]; set: (v: number[]) => void }) {
+  const shown = p.value.join(", ");
+  const [text, setText] = useState(shown);
+  useEffect(() => setText(shown), [shown]);
+  return (
+    <label class="feldzeile">
+      <span class="name">Extra universes</span>
+      <input type="text" inputMode="numeric" autocomplete="off" spellcheck={false} value={text}
+        placeholder="only the patch universes" title={`up to ${SCENE_UNIVERSES_MAX}, e.g. 2, 3`}
+        onInput={(e) => setText((e.currentTarget as HTMLInputElement).value)}
+        onChange={(e) => {
+          const list = parseUniverses((e.currentTarget as HTMLInputElement).value, LIMITS.universe);
+          setText(list.join(", "));
+          p.set(list);
+        }} />
+    </label>
   );
 }
 

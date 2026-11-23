@@ -70,6 +70,13 @@ export class SacnOutput implements Output {
       p.set(data.subarray(0, 512), 126);
       this.transmit(universe, p);
     }
+    // A universe no longer sent (e.g. light scene off): end its stream, the node takes the MA again
+    for (const [universe, p] of this.packets) {
+      if (universes.has(universe)) continue;
+      p[112] = OPTION_TERMINATED;
+      for (let i = 0; i < 3; i++) this.transmit(universe, p);
+      this.packets.delete(universe);
+    }
   }
 
   release(): void {
